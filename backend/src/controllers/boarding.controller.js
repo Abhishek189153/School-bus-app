@@ -1,32 +1,40 @@
-const Boarding =
-require("../models/boarding.model");
+const Boarding = require("../models/boarding.model");
 
-exports.markBoarding =
-async (req, res) => {
+exports.markBoarding = async (req, res) => {
 
-  try {
+    try {
 
-    const {
-      tripId,
-      studentId
-    } = req.body;
+        const { tripId, studentId } = req.body;
 
-    const boarding =
-      await Boarding.create({
-        tripId,
-        studentId,
-      });
+        const alreadyBoarded =
+            await Boarding.findOne({
+                tripId,
+                studentId
+            });
 
-    res.status(201).json({
-      success: true,
-      boarding,
-    });
+        if (alreadyBoarded) {
+            return res.status(400).json({
+                success: false,
+                message: "Student already boarded"
+            });
+        }
 
-  } catch (error) {
+        const boarding =
+            await Boarding.create({
+                tripId,
+                studentId
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        res.status(201).json({
+            success: true,
+            boarding
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 };

@@ -8,6 +8,12 @@ const tripSchema = new mongoose.Schema(
       required: true,
     },
 
+     tripType: {
+      type: String,
+      enum: ["PICKUP", "DROP"],
+      required: true,
+    },
+
     busId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bus",

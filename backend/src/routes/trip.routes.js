@@ -8,6 +8,7 @@ const authorize = require("../middlewares/role.middleware");
 const {
   startTrip,
   completeTrip,
+  getTripDetails,
 } = require("../controllers/trip.controller");
 
 router.post(
@@ -22,6 +23,12 @@ router.post(
   protect,
   authorize("DRIVER"),
   completeTrip
+);
+
+router.get(
+    "/:tripId",
+    protect,
+    getTripDetails
 );
 
 module.exports = router;

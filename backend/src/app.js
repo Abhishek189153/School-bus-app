@@ -14,6 +14,8 @@ const attendanceRoutes =require("./routes/attendance.routes");
 const tripRoutes =require("./routes/trip.routes");
 const boardingRoutes =require("./routes/boarding.routes");
 const locationRoutes =require("./routes/location.routes");
+const dashboardRoutes =require("./routes/dashboard.routes")
+
 
 
 
@@ -40,6 +42,7 @@ app.use("/api/attendance",attendanceRoutes);
 app.use("/api/trips",tripRoutes);
 app.use("/api/boarding",boardingRoutes);
 app.use("/api/location",locationRoutes);
+app.use("/api/dashboard",dashboardRoutes);
 
 
 // Test Route
