@@ -1,6 +1,13 @@
 const Trip = require("../models/trip.model");
 const Boarding =require("../models/boarding.model");
 
+const Student =require("../models/student.model");
+
+const User =require("../models/user.model");
+
+const {createNotification,} = require("../services/inAppNotification.service");
+
+const {sendPushNotification,} = require("../services/notification.service");
 
 exports.startTrip = async (req, res) => {
   try {
@@ -80,6 +87,42 @@ async (req, res) => {
     trip.status = "COMPLETED";
 
     await trip.save();
+
+    const students =
+await Student.find({
+  busId: trip.busId,
+});
+
+for (const student of students) {
+
+  const parent =
+    await User.findById(
+      student.parentId
+    );
+
+  const message =
+    trip.tripType === "PICKUP"
+      ? "Bus has safely reached school."
+      : "Bus has completed the return journey.";
+
+  await createNotification({
+    schoolId: student.schoolId,
+    recipientId: parent._id,
+    title: "Trip Completed",
+    message,
+    type: "TRIP_COMPLETE",
+  });
+
+  if (parent?.fcmToken) {
+
+    await sendPushNotification({
+      token: parent.fcmToken,
+      title: "Trip Completed",
+      body: message,
+    });
+
+  }
+}
 
     res.status(200).json({
       success: true,

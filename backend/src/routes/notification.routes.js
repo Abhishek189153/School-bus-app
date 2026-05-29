@@ -7,6 +7,7 @@ require("../middlewares/auth.middleware");
 
 const {
   saveFcmToken,
+   getMyNotifications
 } = require("../controllers/notification.controller");
 
 router.post(
@@ -14,5 +15,12 @@ router.post(
   protect,
   saveFcmToken
 );
+
+router.get(
+  "/my",
+  protect,
+  getMyNotifications
+);
+
 
 module.exports = router;
