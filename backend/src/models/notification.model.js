@@ -31,6 +31,7 @@ const notificationSchema = new mongoose.Schema(
         "TRIP_COMPLETE",
         "DELAY",
         "BUS_CHANGE",
+        "GENERAL"
       ],
     },
 

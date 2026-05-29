@@ -18,6 +18,8 @@ const dashboardRoutes =require("./routes/dashboard.routes")
 const driverDashboardRoutes =require("./routes/driverDashboard.routes");
 const parentDashboardRoutes =require("./routes/parentDashboard.routes");
 const notificationRoutes =require("./routes/notification.routes");
+const alertRoutes =require("./routes/alert.routes");
+
 
 
 
@@ -50,6 +52,8 @@ app.use("/api/dashboard",dashboardRoutes);
 app.use("/api/driver/dashboard",driverDashboardRoutes);
 app.use("/api/parent/dashboard",parentDashboardRoutes);
 app.use("/api/notifications",notificationRoutes);
+app.use("/api/alerts",alertRoutes);
+
 // Test Route
 app.get("/", (req, res) => {
     res.send("School Bus Management Backend Running");
