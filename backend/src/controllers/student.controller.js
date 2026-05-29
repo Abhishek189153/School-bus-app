@@ -5,131 +5,234 @@ exports.createStudent = async (req, res) => {
     try {
 
         const student =
-            await Student.create(req.body);
+            await Student.create({
+                ...req.body,
+                schoolId: req.user.schoolId,
+            });
 
         res.status(201).json({
             success: true,
-            student
+            student,
         });
 
     } catch (error) {
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
+
     }
 };
 
-
 exports.getStudents = async (req, res) => {
-  try {
 
-    const students = await Student.find({
-      schoolId: req.user.schoolId,
-    })
-    .populate("parentId", "name phone")
-    .populate("busId", "busNumber");
+    try {
 
-    res.status(200).json({
-      success: true,
-      students,
-    });
+        const students =
+            await Student.find({
+                schoolId: req.user.schoolId,
+            })
+                .populate(
+                    "parentId",
+                    "name phone"
+                )
+                .populate(
+                    "busId",
+                    "busNumber"
+                );
 
-  } catch (error) {
+        res.status(200).json({
+            success: true,
+            students,
+        });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
 exports.getStudentById = async (
-  req,
-  res
+    req,
+    res
 ) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(
-        req.params.id
-      );
+        const student =
+            await Student.findById(
+                req.params.id
+            )
+                .populate(
+                    "parentId",
+                    "name phone"
+                )
+                .populate(
+                    "busId",
+                    "busNumber"
+                );
 
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
+        if (!student) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Student not found",
+            });
+
+        }
+
+        if (
+            student.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Access denied",
+            });
+
+        }
+
+        res.status(200).json({
+            success: true,
+            student,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
     }
-
-    res.status(200).json({
-      success: true,
-      student,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
 };
 
 exports.updateStudent = async (
-  req,
-  res
+    req,
+    res
 ) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
+        const student =
+            await Student.findById(
+                req.params.id
+            );
+
+        if (!student) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Student not found",
+            });
+
         }
-      );
 
-    res.status(200).json({
-      success: true,
-      student,
-    });
+        if (
+            student.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
 
-  } catch (error) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Access denied",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        const updatedStudent =
+            await Student.findByIdAndUpdate(
+                req.params.id,
+                req.body,
+                {
+                    new: true,
+                }
+            )
+                .populate(
+                    "parentId",
+                    "name phone"
+                )
+                .populate(
+                    "busId",
+                    "busNumber"
+                );
+
+        res.status(200).json({
+            success: true,
+            student: updatedStudent,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
 exports.deleteStudent = async (
-  req,
-  res
+    req,
+    res
 ) => {
 
-  try {
+    try {
 
-    await Student.findByIdAndDelete(
-      req.params.id
-    );
+        const student =
+            await Student.findById(
+                req.params.id
+            );
 
-    res.status(200).json({
-      success: true,
-      message:
-        "Student deleted successfully",
-    });
+        if (!student) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Student not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        if (
+            student.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Access denied",
+            });
+
+        }
+
+        await Student.findByIdAndDelete(
+            req.params.id
+        );
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Student deleted successfully",
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };

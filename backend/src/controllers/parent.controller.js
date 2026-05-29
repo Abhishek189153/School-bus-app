@@ -9,8 +9,21 @@ exports.createParent = async (req, res) => {
             name,
             phone,
             password,
-            schoolId
         } = req.body;
+
+        const existingParent =
+            await User.findOne({
+                phone,
+            });
+
+        if (existingParent) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Parent already exists",
+            });
+
+        }
 
         const hashedPassword =
             await bcrypt.hash(password, 10);
@@ -21,121 +34,199 @@ exports.createParent = async (req, res) => {
                 phone,
                 password: hashedPassword,
                 role: "PARENT",
-                schoolId
+                schoolId: req.user.schoolId,
             });
+
+        const parentResponse =
+            parent.toObject();
+
+        delete parentResponse.password;
 
         res.status(201).json({
             success: true,
-            parent
+            parent: parentResponse,
         });
 
     } catch (error) {
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
+
     }
 };
 
 exports.getParents = async (req, res) => {
-  try {
 
-    const parents = await User.find({
-      schoolId: req.user.schoolId,
-      role: "PARENT",
-    }).select("-password");
+    try {
 
-    res.status(200).json({
-      success: true,
-      parents,
-    });
+        const parents =
+            await User.find({
+                schoolId: req.user.schoolId,
+                role: "PARENT",
+            }).select("-password");
 
-  } catch (error) {
+        res.status(200).json({
+            success: true,
+            parents,
+        });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
-exports.getParentById = async (
-  req,
-  res
-) => {
+exports.getParentById = async (req, res) => {
 
-  try {
+    try {
 
-    const parent =
-      await User.findById(
-        req.params.id
-      ).select("-password");
+        const parent =
+            await User.findById(
+                req.params.id
+            ).select("-password");
 
-    res.status(200).json({
-      success: true,
-      parent,
-    });
+        if (!parent) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "Parent not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        if (
+            parent.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+
+        }
+
+        res.status(200).json({
+            success: true,
+            parent,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
-exports.updateParent = async (
-  req,
-  res
-) => {
+exports.updateParent = async (req, res) => {
 
-  try {
+    try {
 
-    const parent =
-      await User.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-      ).select("-password");
+        const parent =
+            await User.findById(
+                req.params.id
+            );
 
-    res.status(200).json({
-      success: true,
-      parent,
-    });
+        if (!parent) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "Parent not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        if (
+            parent.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+
+        }
+
+        const updatedParent =
+            await User.findByIdAndUpdate(
+                req.params.id,
+                req.body,
+                {
+                    new: true,
+                }
+            ).select("-password");
+
+        res.status(200).json({
+            success: true,
+            parent: updatedParent,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
-exports.deleteParent = async (
-  req,
-  res
-) => {
+exports.deleteParent = async (req, res) => {
 
-  try {
+    try {
 
-    await User.findByIdAndDelete(
-      req.params.id
-    );
+        const parent =
+            await User.findById(
+                req.params.id
+            );
 
-    res.status(200).json({
-      success: true,
-      message:
-        "Parent deleted successfully",
-    });
+        if (!parent) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "Parent not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        if (
+            parent.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+
+        }
+
+        await User.findByIdAndDelete(
+            req.params.id
+        );
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Parent deleted successfully",
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };

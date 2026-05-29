@@ -5,124 +5,195 @@ exports.createBus = async (req, res) => {
     try {
 
         const bus =
-            await Bus.create(req.body);
+            await Bus.create({
+                ...req.body,
+                schoolId: req.user.schoolId,
+            });
 
         res.status(201).json({
             success: true,
-            bus
+            bus,
         });
 
     } catch (error) {
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
+
     }
 };
 
 exports.getBuses = async (req, res) => {
 
-  try {
+    try {
 
-    const buses =
-      await Bus.find({
-        schoolId:
-          req.user.schoolId,
-      });
+        const buses =
+            await Bus.find({
+                schoolId: req.user.schoolId,
+            });
 
-    res.status(200).json({
-      success: true,
-      buses,
-    });
+        res.status(200).json({
+            success: true,
+            buses,
+        });
 
-  } catch (error) {
+    } catch (error) {
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
-exports.getBusById = async (
-  req,
-  res
-) => {
+exports.getBusById = async (req, res) => {
 
-  try {
+    try {
 
-    const bus =
-      await Bus.findById(
-        req.params.id
-      );
+        const bus =
+            await Bus.findById(
+                req.params.id
+            );
 
-    res.status(200).json({
-      success: true,
-      bus,
-    });
+        if (!bus) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "Bus not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-exports.updateBus = async (
-  req,
-  res
-) => {
-
-  try {
-
-    const bus =
-      await Bus.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
         }
-      );
 
-    res.status(200).json({
-      success: true,
-      bus,
-    });
+        if (
+            bus.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
 
-  } catch (error) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        res.status(200).json({
+            success: true,
+            bus,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };
 
-exports.deleteBus = async (
-  req,
-  res
-) => {
+exports.updateBus = async (req, res) => {
 
-  try {
+    try {
 
-    await Bus.findByIdAndDelete(
-      req.params.id
-    );
+        const bus =
+            await Bus.findById(
+                req.params.id
+            );
 
-    res.status(200).json({
-      success: true,
-      message:
-        "Bus deleted successfully",
-    });
+        if (!bus) {
 
-  } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "Bus not found",
+            });
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+        }
+
+        if (
+            bus.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+
+        }
+
+        const updatedBus =
+            await Bus.findByIdAndUpdate(
+                req.params.id,
+                req.body,
+                {
+                    new: true,
+                }
+            );
+
+        res.status(200).json({
+            success: true,
+            bus: updatedBus,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
+};
+
+exports.deleteBus = async (req, res) => {
+
+    try {
+
+        const bus =
+            await Bus.findById(
+                req.params.id
+            );
+
+        if (!bus) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Bus not found",
+            });
+
+        }
+
+        if (
+            bus.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+
+        }
+
+        await Bus.findByIdAndDelete(
+            req.params.id
+        );
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Bus deleted successfully",
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
 };

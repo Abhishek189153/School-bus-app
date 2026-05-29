@@ -34,13 +34,6 @@ router.get(
   getParentById
 );
 
-router.post(
-  "/",
-  protect,
-  authorize("SCHOOL_ADMIN"),
-  createParent
-);
-
 router.put(
   "/:id",
   protect,

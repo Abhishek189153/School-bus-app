@@ -36,13 +36,6 @@ router.get(
   getStudentById
 );
 
-router.post(
-  "/",
-  protect,
-  authorize("SCHOOL_ADMIN"),
-  createStudent
-);
-
 router.put(
   "/:id",
   protect,

@@ -34,13 +34,6 @@ router.get(
   getBusById
 );
 
-router.post(
-  "/",
-  protect,
-  authorize("SCHOOL_ADMIN"),
-  createBus
-);
-
 router.put(
   "/:id",
   protect,
