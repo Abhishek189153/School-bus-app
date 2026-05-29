@@ -62,3 +62,39 @@ async (req, res) => {
         });
     }
 };
+
+exports.assignRouteToBus =
+async (req, res) => {
+    console.log(req.body);
+
+  try {
+
+    const {
+      busId,
+      routeId,
+    } = req.body;
+
+    const bus =
+      await Bus.findByIdAndUpdate(
+        busId,
+        {
+          routeId,
+        },
+        {
+          new: true,
+        }
+      );
+
+    res.status(200).json({
+      success: true,
+      bus,
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

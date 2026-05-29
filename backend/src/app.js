@@ -15,7 +15,8 @@ const tripRoutes =require("./routes/trip.routes");
 const boardingRoutes =require("./routes/boarding.routes");
 const locationRoutes =require("./routes/location.routes");
 const dashboardRoutes =require("./routes/dashboard.routes")
-
+const driverDashboardRoutes =require("./routes/driverDashboard.routes");
+const parentDashboardRoutes =require("./routes/parentDashboard.routes");
 
 
 
@@ -43,7 +44,8 @@ app.use("/api/trips",tripRoutes);
 app.use("/api/boarding",boardingRoutes);
 app.use("/api/location",locationRoutes);
 app.use("/api/dashboard",dashboardRoutes);
-
+app.use("/api/driver/dashboard",driverDashboardRoutes);
+app.use("/api/parent/dashboard",parentDashboardRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

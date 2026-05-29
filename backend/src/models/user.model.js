@@ -33,6 +33,12 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "School",
         },
+
+        fcmToken: {
+            type: String,
+            default: null,
+        },
+
     },
     {
         timestamps: true,

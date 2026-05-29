@@ -8,6 +8,7 @@ const authorize = require("../middlewares/role.middleware");
 const {
     assignDriverToBus,
     assignStudentToBus,
+    assignRouteToBus
 } = require("../controllers/assignment.controller");
 
 router.put(
@@ -22,6 +23,13 @@ router.put(
     protect,
     authorize("SCHOOL_ADMIN"),
     assignStudentToBus
+);
+
+router.put(
+  "/assign-route",
+  protect,
+  authorize("SCHOOL_ADMIN"),
+  assignRouteToBus
 );
 
 module.exports = router;
