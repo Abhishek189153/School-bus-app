@@ -24,7 +24,16 @@ const studentSchema = new mongoose.Schema({
     parentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
-    }
+    },
+
+    busId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Bus"
+},
+
+    pickupStop: {
+    type: String
+}
 
 }, {
     timestamps: true

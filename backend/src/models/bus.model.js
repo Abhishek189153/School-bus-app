@@ -20,7 +20,12 @@ const busSchema = new mongoose.Schema({
     driverId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
-    }
+    },
+
+    routeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Route"
+}
 
 }, {
     timestamps: true
