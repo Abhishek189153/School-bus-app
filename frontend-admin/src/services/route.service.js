@@ -1,36 +1,36 @@
 import api from "../api/axios";
 
-export const getBuses = async () => {
-  const response = await api.get("/buses");
+export const getRoutes = async () => {
+  const response = await api.get("/routes");
   return response.data;
 };
 
-export const createBus = async (data) => {
+export const createRoute = async (data) => {
   const response = await api.post(
-    "/buses",
+    "/routes",
     data
   );
 
   return response.data;
 };
 
-export const updateBus = async (
+export const updateRoute = async (
   id,
   data
 ) => {
   const response = await api.put(
-    `/buses/${id}`,
+    `/routes/${id}`,
     data
   );
 
   return response.data;
 };
 
-export const deleteBus = async (
+export const deleteRoute = async (
   id
 ) => {
   const response = await api.delete(
-    `/buses/${id}`
+    `/routes/${id}`
   );
 
   return response.data;
