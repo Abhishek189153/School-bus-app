@@ -15,6 +15,8 @@ import RoutesPage from "../pages/Routes";
 import ProtectedRoute from "../guards/ProtectedRoute";
 import AdminLayout from "../layouts/AdminLayout";
 
+import Assignments from "../pages/Assignments";
+
 const AppRoutes = () => {
   return (
     <BrowserRouter>
@@ -64,6 +66,11 @@ const AppRoutes = () => {
           <Route
             path="/routes"
             element={<RoutesPage />}
+          />
+
+          <Route
+            path="/assignments"
+            element={<Assignments />}
           />
 
         </Route>

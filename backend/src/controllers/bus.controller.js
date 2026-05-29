@@ -37,7 +37,15 @@ exports.getBuses = async (req, res) => {
         res.status(200).json({
             success: true,
             buses,
-        });
+        })
+         .populate(
+            "driverId",
+            "name"
+         )
+         .populate(
+            "routeId",
+            "routeName"
+        );
 
     } catch (error) {
 
