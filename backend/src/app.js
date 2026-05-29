@@ -10,6 +10,13 @@ const studentRoutes = require("./routes/student.routes");
 const busRoutes = require("./routes/bus.routes");
 const routeRoutes = require("./routes/route.routes");
 const assignmentRoutes = require("./routes/assignment.routes");
+const attendanceRoutes =require("./routes/attendance.routes");
+const tripRoutes =require("./routes/trip.routes");
+const boardingRoutes =require("./routes/boarding.routes");
+
+
+
+
 
 
 
@@ -31,6 +38,10 @@ app.use("/api/students", studentRoutes);
 app.use("/api/buses", busRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/attendance",attendanceRoutes);
+app.use("/api/trips",tripRoutes);
+app.use("/api/boarding",boardingRoutes);
+
 
 // Test Route
 app.get("/", (req, res) => {
