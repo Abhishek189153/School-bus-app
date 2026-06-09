@@ -29,7 +29,9 @@ const busLocationSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "BusLocation",
-  busLocationSchema
-);
+module.exports =
+  mongoose.models.BusLocation ||
+  mongoose.model(
+    "BusLocation",
+    busLocationSchema
+  );

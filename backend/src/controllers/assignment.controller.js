@@ -2,6 +2,7 @@ const Bus = require("../models/bus.model");
 const Student = require("../models/student.model");
 const User = require("../models/user.model");
 const Route = require("../models/route.model");
+const BusRoute =require("../models/busRoute.model");
 
 
 exports.assignDriverToBus =
@@ -56,8 +57,40 @@ async (req, res) => {
 
         }
 
-        bus.driverId = driverId;
+        const existingDriverBus =
+            await Bus.findOne({
+                driverId,
+            });
 
+        if (
+            existingDriverBus &&
+            existingDriverBus._id.toString() !==
+            busId
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Driver is already assigned to another bus",
+            });
+
+        }
+
+        if (
+            bus.driverId &&
+            bus.driverId.toString() !==
+            driverId
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Bus already has a driver assigned",
+            });
+
+        }
+
+        bus.driverId = driverId;
         await bus.save();
 
         res.status(200).json({
@@ -127,6 +160,20 @@ async (req, res) => {
                 success: false,
                 message:
                     "Bus belongs to another school",
+            });
+
+        }
+
+        if (
+            student.busId &&
+            student.busId.toString() !==
+            busId
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Student is already assigned to another bus",
             });
 
         }
@@ -206,21 +253,205 @@ async (req, res) => {
 
         }
 
-        bus.routeId = routeId;
+        const existingRoute =
+        await BusRoute.findOne({
+            busId,
+            routeId,
+        });
+
+        if (existingRoute) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Route already assigned to this bus",
+            });
+
+        }
+
+        // First Route → Primary Route
+        if (!bus.routeId) {
+
+            bus.routeId = routeId;
+
+            await bus.save();
+
+        } else {
+
+            await BusRoute.create({
+                busId,
+                routeId,
+            });
+
+        }
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Route assigned successfully",
+        });
+
+            } catch (error) {
+
+                res.status(500).json({
+                    success: false,
+                    message: error.message,
+                });
+
+            }
+};
+
+
+exports.unassignDriverFromBus =
+async (req, res) => {
+
+    try {
+
+        const { busId } =
+            req.body;
+
+        const bus =
+            await Bus.findById(
+                busId
+            );
+
+        if (!bus) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Bus not found",
+            });
+
+        }
+
+        if (
+            bus.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Access denied",
+            });
+
+        }
+
+        bus.driverId = null;
 
         await bus.save();
 
         res.status(200).json({
             success: true,
-            bus,
+            message:
+                "Driver unassigned successfully",
         });
 
     } catch (error) {
 
         res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message,
         });
 
     }
+};
+
+
+exports.unassignRouteFromBus =
+async (req, res) => {
+
+    try {
+
+        const {
+            busId,
+            routeId,
+        } = req.body;
+
+        const bus =
+            await Bus.findById(
+                busId
+            );
+
+        if (!bus) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Bus not found",
+            });
+
+        }
+
+        // Primary Route
+        if (
+            bus.routeId &&
+            bus.routeId.toString() ===
+            routeId
+        ) {
+
+            bus.routeId = null;
+
+            await bus.save();
+
+        } else {
+
+            await BusRoute.findOneAndDelete({
+                busId,
+                routeId,
+            });
+
+        }
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Route unassigned successfully",
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message:
+                error.message,
+        });
+
+    }
+};
+
+exports.getBusesByRoute =
+async (req, res) => {
+
+  try {
+
+    const assignments =
+      await BusRoute.find({
+        routeId:
+          req.params.routeId,
+      })
+      .populate("busId");
+
+    const buses =
+      assignments.map(
+        item => item.busId
+      );
+
+    res.status(200).json({
+      success: true,
+      buses,
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message:
+        error.message,
+    });
+
+  }
+
 };

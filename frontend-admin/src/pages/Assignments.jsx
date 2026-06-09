@@ -8,10 +8,10 @@ import {
   Typography,
   Grid,
   Button,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
+  TextField,
+  Autocomplete,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 import {
@@ -36,10 +36,19 @@ import {
   assignStudentToBus,
 } from "../services/assignment.service";
 
+
+
 const Assignments = () => {
 
   const [drivers, setDrivers] =
     useState([]);
+
+  const [snackbar, setSnackbar] =
+  useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const [buses, setBuses] =
     useState([]);
@@ -120,6 +129,99 @@ const Assignments = () => {
       }
     };
 
+
+    const handleAssignDriver =
+  async () => {
+
+    try {
+
+      await assignDriverToBus({
+        busId: driverBus,
+        driverId,
+      });
+
+      setSnackbar({
+        open: true,
+        message:
+          "Driver assigned successfully",
+        severity: "success",
+      });
+
+    } catch (error) {
+
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Something went wrong",
+        severity: "error",
+      });
+
+    }
+};
+
+const handleAssignRoute =
+  async () => {
+
+    try {
+
+      await assignRouteToBus({
+        busId: routeBus,
+        routeId,
+      });
+
+      setSnackbar({
+        open: true,
+        message:
+          "Route assigned successfully",
+        severity: "success",
+      });
+
+    } catch (error) {
+
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Something went wrong",
+        severity: "error",
+      });
+
+    }
+};
+
+const handleAssignStudent =
+  async () => {
+
+    try {
+
+      await assignStudentToBus({
+        studentId,
+        busId: studentBus,
+      });
+
+      setSnackbar({
+        open: true,
+        message:
+          "Student assigned successfully",
+        severity: "success",
+      });
+
+    } catch (error) {
+
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Something went wrong",
+        severity: "error",
+      });
+
+    }
+};
+
+
+
   return (
     <>
 
@@ -138,9 +240,10 @@ const Assignments = () => {
         {/* Driver Assignment */}
 
         <Grid
-          item
-          xs={12}
-          md={4}
+          size={{
+            xs: 12,
+            md: 4,
+          }}
         >
 
           <Paper
@@ -155,91 +258,49 @@ const Assignments = () => {
               Assign Driver
             </Typography>
 
-            <FormControl
-              fullWidth
+            <Autocomplete
               sx={{ mt: 2 }}
-            >
+              options={buses}
+              getOptionLabel={(option) =>
+                `${option.busNumber} - ${option.vehicleNumber || "No Vehicle"}`
+              }
+              onChange={(_, value) =>
+                setDriverBus(
+                  value?._id || ""
+                )
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Bus"
+                />
+              )}
+            />
 
-              <InputLabel>
-                Bus
-              </InputLabel>
-
-              <Select
-                value={driverBus}
-                label="Bus"
-                onChange={(e) =>
-                  setDriverBus(
-                    e.target.value
-                  )
-                }
-              >
-
-                {buses.map(
-                  (bus) => (
-
-                    <MenuItem
-                      key={bus._id}
-                      value={bus._id}
-                    >
-                      {
-                        bus.busNumber
-                      }
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
-
-            <FormControl
-              fullWidth
+           <Autocomplete
               sx={{ mt: 2 }}
-            >
-
-              <InputLabel>
-                Driver
-              </InputLabel>
-
-              <Select
-                value={driverId}
-                label="Driver"
-                onChange={(e) =>
-                  setDriverId(
-                    e.target.value
-                  )
-                }
-              >
-
-                {drivers.map(
-                  (driver) => (
-
-                    <MenuItem
-                      key={driver._id}
-                      value={driver._id}
-                    >
-                      {driver.name}
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
+              options={drivers}
+              getOptionLabel={(option) =>
+                `${option.name} - ${option.phone}`
+              }
+              onChange={(_, value) =>
+                setDriverId(
+                  value?._id || ""
+                )
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Driver"
+                />
+              )}
+            />
 
             <Button
               fullWidth
               sx={{ mt: 2 }}
               variant="contained"
-              onClick={() =>
-                assignDriverToBus({
-                  busId:
-                    driverBus,
-                  driverId,
-                })
-              }
+              onClick={handleAssignDriver}
             >
               Assign Driver
             </Button>
@@ -251,9 +312,10 @@ const Assignments = () => {
         {/* Route Assignment */}
 
         <Grid
-          item
-          xs={12}
-          md={4}
+          size={{
+            xs: 12,
+            md: 4,
+          }}
         >
 
           <Paper sx={{ p: 3 }}>
@@ -264,93 +326,57 @@ const Assignments = () => {
               Assign Route
             </Typography>
 
-            <FormControl
-              fullWidth
+            <Autocomplete
+  sx={{ mt: 2 }}
+  options={buses}
+  getOptionLabel={(option) =>
+    `${option.busNumber} - ${option.vehicleNumber || "No Vehicle"}`
+  }
+  onChange={(_, value) =>
+    setRouteBus(
+      value?._id || ""
+    )
+  }
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Search Bus"
+    />
+  )}
+/>
+
+            <Autocomplete
               sx={{ mt: 2 }}
-            >
-
-              <InputLabel>
-                Bus
-              </InputLabel>
-
-              <Select
-                value={routeBus}
-                label="Bus"
-                onChange={(e) =>
-                  setRouteBus(
-                    e.target.value
-                  )
-                }
-              >
-
-                {buses.map(
-                  (bus) => (
-
-                    <MenuItem
-                      key={bus._id}
-                      value={bus._id}
-                    >
-                      {
-                        bus.busNumber
-                      }
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
-
-            <FormControl
-              fullWidth
-              sx={{ mt: 2 }}
-            >
-
-              <InputLabel>
-                Route
-              </InputLabel>
-
-              <Select
-                value={routeId}
-                label="Route"
-                onChange={(e) =>
-                  setRouteId(
-                    e.target.value
-                  )
-                }
-              >
-
-                {routes.map(
-                  (route) => (
-
-                    <MenuItem
-                      key={route._id}
-                      value={route._id}
-                    >
-                      {
-                        route.routeName
-                      }
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
-
+              options={routes}
+              getOptionLabel={(option) =>
+              `${option.routeName} - ${
+                option.stops
+                  ?.slice(0, 3)
+                  .map((stop) => stop.stopName)
+                  .join(", ") || "No Stops"
+              }${
+                option.stops?.length > 3
+                  ? "..."
+                  : ""
+              }`
+            }
+              onChange={(_, value) =>
+                setRouteId(
+                  value?._id || ""
+                )
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Route"
+                />
+              )}
+            />
             <Button
               fullWidth
               sx={{ mt: 2 }}
               variant="contained"
-              onClick={() =>
-                assignRouteToBus({
-                  busId:
-                    routeBus,
-                  routeId,
-                })
-              }
+              onClick={handleAssignRoute}
             >
               Assign Route
             </Button>
@@ -362,9 +388,10 @@ const Assignments = () => {
         {/* Student Assignment */}
 
         <Grid
-          item
-          xs={12}
-          md={4}
+          size={{
+            xs: 12,
+            md: 4,
+          }}
         >
 
           <Paper sx={{ p: 3 }}>
@@ -375,93 +402,49 @@ const Assignments = () => {
               Assign Student
             </Typography>
 
-            <FormControl
-              fullWidth
+            <Autocomplete
               sx={{ mt: 2 }}
-            >
+              options={students}
+              getOptionLabel={(option) =>
+                `${option.admissionNumber || "N/A"} - ${option.name} - ${option.parentId?.name || "No Parent"}`
+              }
+              onChange={(_, value) =>
+                setStudentId(
+                  value?._id || ""
+                )
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search Student"
+                />
+              )}
+            />
 
-              <InputLabel>
-                Student
-              </InputLabel>
-
-              <Select
-                value={studentId}
-                label="Student"
-                onChange={(e) =>
-                  setStudentId(
-                    e.target.value
-                  )
-                }
-              >
-
-                {students.map(
-                  (student) => (
-
-                    <MenuItem
-                      key={student._id}
-                      value={student._id}
-                    >
-                      {
-                        student.name
-                      }
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
-
-            <FormControl
-              fullWidth
-              sx={{ mt: 2 }}
-            >
-
-              <InputLabel>
-                Bus
-              </InputLabel>
-
-              <Select
-                value={studentBus}
-                label="Bus"
-                onChange={(e) =>
-                  setStudentBus(
-                    e.target.value
-                  )
-                }
-              >
-
-                {buses.map(
-                  (bus) => (
-
-                    <MenuItem
-                      key={bus._id}
-                      value={bus._id}
-                    >
-                      {
-                        bus.busNumber
-                      }
-                    </MenuItem>
-
-                  )
-                )}
-
-              </Select>
-
-            </FormControl>
+            <Autocomplete
+  sx={{ mt: 2 }}
+  options={buses}
+  getOptionLabel={(option) =>
+    `${option.busNumber} - ${option.vehicleNumber || "No Vehicle"}`
+  }
+  onChange={(_, value) =>
+    setStudentBus(
+      value?._id || ""
+    )
+  }
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Search Bus"
+    />
+  )}
+/>
 
             <Button
               fullWidth
               sx={{ mt: 2 }}
               variant="contained"
-              onClick={() =>
-                assignStudentToBus({
-                  studentId,
-                  busId:
-                    studentBus,
-                })
-              }
+             onClick={handleAssignStudent}
             >
               Assign Student
             </Button>
@@ -471,6 +454,26 @@ const Assignments = () => {
         </Grid>
 
       </Grid>
+
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() =>
+          setSnackbar({
+            ...snackbar,
+            open: false,
+          })
+        }
+      >
+        <Alert
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
 
     </>
   );

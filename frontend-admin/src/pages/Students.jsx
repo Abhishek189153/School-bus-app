@@ -13,6 +13,8 @@ import {
   Paper,
   Typography,
   Button,
+  TextField,
+  Box
 } from "@mui/material";
 
 import {
@@ -27,6 +29,9 @@ const Students = () => {
 
   const [students, setStudents] =
     useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");  
 
   const [open, setOpen] =
     useState(false);
@@ -95,34 +100,107 @@ const Students = () => {
       setEditOpen(true);
     };
 
+    const filteredStudents =
+      students.filter(
+        (student) =>
+          (
+            (student.admissionNumber || "") +
+            " " +
+            (student.name || "") +
+            " " +
+            (student.parentId?.name || "") +
+            " " +
+            (student.className || "")+
+            " "  +
+            (student.routeId?.routeName || "") +
+            " " +
+            (student.busId?.busNumber || "") +
+            " " +
+            (student.pickupStop || "")    
+          )
+            .toLowerCase()
+            .includes(
+              searchTerm.toLowerCase()
+            )
+      );
+
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
-        Students
-      </Typography>
+      <Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    mb: 2,
+  }}
+>
 
-      <Button
-        variant="contained"
-        sx={{ mb: 2 }}
-        onClick={() =>
-          setOpen(true)
-        }
-      >
-        Add Student
-      </Button>
+  <Typography
+    variant="h4"
+  >
+    Students
+  </Typography>
+
+  <Button
+    variant="contained"
+    onClick={() =>
+      setOpen(true)
+    }
+  >
+    Add Student
+  </Button>
+
+  <TextField
+  label="Search Student, Admission No, Parent, Class, Route, Bus, Pickup Stop"
+  value={searchTerm}
+  onChange={(e) =>
+    setSearchTerm(e.target.value)
+  }
+  size="small"
+  sx={{
+    width: 950,
+    ml: 4,
+
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "12px",
+      backgroundColor: "#fff",
+
+      "& fieldset": {
+        borderColor: "#080000",
+        borderWidth: "2px",
+      },
+
+      "&:hover fieldset": {
+        borderColor: "#1976d2",
+      },
+
+      "&.Mui-focused fieldset": {
+        borderColor: "#1976d2",
+        borderWidth: "2px",
+      },
+    },
+  }}
+/>
+
+</Box>
 
       <TableContainer
         component={Paper}
       >
+
+
+        
+
 
         <Table>
 
           <TableHead>
 
             <TableRow>
+
+              <TableCell>
+                Admission No.
+              </TableCell>
 
               <TableCell>
                 Name
@@ -132,8 +210,17 @@ const Students = () => {
                 Parent
               </TableCell>
 
+
+              <TableCell>
+                Route
+              </TableCell>
+
               <TableCell>
                 Bus
+              </TableCell>
+
+              <TableCell>
+                Pickup Stop
               </TableCell>
 
               <TableCell>
@@ -146,12 +233,16 @@ const Students = () => {
 
           <TableBody>
 
-            {students.map(
+            {filteredStudents.map(
               (student) => (
 
                 <TableRow
                   key={student._id}
                 >
+
+                  <TableCell>
+                    {student.admissionNumber}
+                  </TableCell>  
 
                   <TableCell>
                     {student.name}
@@ -164,12 +255,29 @@ const Students = () => {
                     }
                   </TableCell>
 
+
+                   <TableCell>
+                  {
+                    student.routeId
+                      ?.routeName
+                  }
+                </TableCell>
+
+
                   <TableCell>
                     {
                       student.busId
                         ?.busNumber
                     }
                   </TableCell>
+
+                  <TableCell>
+                    {
+                      student.pickupStop
+                    }
+                  </TableCell>
+
+                 
 
                   <TableCell>
 

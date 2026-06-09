@@ -8,7 +8,10 @@ const authorize = require("../middlewares/role.middleware");
 const {
     assignDriverToBus,
     assignStudentToBus,
-    assignRouteToBus
+    assignRouteToBus,
+    unassignDriverFromBus,
+    unassignRouteFromBus,
+    getBusesByRoute
 } = require("../controllers/assignment.controller");
 
 router.put(
@@ -30,6 +33,33 @@ router.put(
   protect,
   authorize("SCHOOL_ADMIN"),
   assignRouteToBus
+);
+
+router.put(
+    "/unassign-driver",
+    protect,
+    authorize(
+        "SCHOOL_ADMIN"
+    ),
+    unassignDriverFromBus
+);
+
+router.put(
+    "/unassign-route",
+    protect,
+    authorize(
+        "SCHOOL_ADMIN"
+    ),
+    unassignRouteFromBus
+);
+
+router.get(
+  "/route-buses/:routeId",
+  protect,
+    authorize(
+        "SCHOOL_ADMIN"
+    ),
+    getBusesByRoute
 );
 
 module.exports = router;

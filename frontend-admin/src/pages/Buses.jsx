@@ -13,6 +13,8 @@ import {
   Paper,
   Typography,
   Button,
+  TextField,
+  Box,
 } from "@mui/material";
 
 import {
@@ -27,6 +29,9 @@ const Buses = () => {
 
   const [buses, setBuses] =
     useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
 
   const [open, setOpen] =
     useState(false);
@@ -95,24 +100,82 @@ const Buses = () => {
       setEditOpen(true);
     };
 
+
+    const filteredBuses =
+      buses.filter(
+        (bus) =>
+          (
+            (bus.busNumber || "") +
+            " " +
+            (bus.vehicleNumber || "")
+          )
+            .toLowerCase()
+            .includes(
+              searchTerm.toLowerCase()
+            )
+      );
+
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
-        Buses
-      </Typography>
 
-      <Button
-        variant="contained"
-        sx={{ mb: 2 }}
-        onClick={() =>
-          setOpen(true)
-        }
+
+            <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          mb: 2,
+        }}
       >
-        Add Bus
-      </Button>
+
+        <Typography
+          variant="h4"
+        >
+          Buses
+        </Typography>
+
+        <Button
+          variant="contained"
+          onClick={() =>
+            setOpen(true)
+          }
+        >
+          Add Bus
+        </Button>
+
+        <TextField
+          label="Search Bus Number or Vehicle Number"
+          value={searchTerm}
+          onChange={(e) =>
+            setSearchTerm(
+              e.target.value
+            )
+          }
+          size="small"
+          sx={{
+            width: 950,
+
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "12px",
+
+              "& fieldset": {
+                borderColor: "#080000",
+                borderWidth: "2px",
+              },
+
+              "&:hover fieldset": {
+                borderColor: "#1976d2",
+              },
+
+              "&.Mui-focused fieldset": {
+                borderColor: "#1976d2",
+                borderWidth: "2px",
+              },
+            },
+          }}
+        />
+
+      </Box>
 
       <TableContainer
         component={Paper}
@@ -142,7 +205,7 @@ const Buses = () => {
 
           <TableBody>
 
-            {buses.map(
+            {filteredBuses.map(
               (bus) => (
 
                 <TableRow

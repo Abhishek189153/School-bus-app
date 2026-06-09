@@ -13,6 +13,10 @@ import {
   Paper,
   Typography,
   Button,
+  Snackbar,
+  Alert,
+  TextField,
+  Box
 } from "@mui/material";
 
 import {
@@ -27,6 +31,16 @@ const Parents = () => {
 
   const [parents, setParents] =
     useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
+  const [snackbar, setSnackbar] =
+  useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const [open, setOpen] =
     useState(false);
@@ -61,29 +75,43 @@ const Parents = () => {
     fetchParents();
   }, []);
 
-  const handleDelete =
-    async (id) => {
+  const handleDelete = async (id) => {
 
-      const confirmDelete =
-        window.confirm(
-          "Delete parent?"
-        );
+  const confirmDelete =
+    window.confirm(
+      "Delete parent?"
+    );
 
-      if (!confirmDelete)
-        return;
+  if (!confirmDelete)
+    return;
 
-      try {
+  try {
 
-        await deleteParent(id);
+    const response =
+      await deleteParent(id);
 
-        fetchParents();
+    setSnackbar({
+      open: true,
+      message:
+        response.message,
+      severity: "success",
+    });
 
-      } catch (error) {
+    fetchParents();
 
-        console.log(error);
+  } catch (error) {
 
-      }
-    };
+    setSnackbar({
+      open: true,
+      message:
+        error.response?.data
+          ?.message ||
+        "Assigned parent cannot be deleted, unassign first",
+      severity: "error",
+    });
+
+  }
+};
 
   const handleEdit =
     (parent) => {
@@ -97,22 +125,64 @@ const Parents = () => {
 
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
-        Parents
-      </Typography>
 
-      <Button
-        variant="contained"
-        sx={{ mb: 2 }}
-        onClick={() =>
-          setOpen(true)
-        }
+    
+          <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          mb: 2,
+        }}
       >
-        Add Parent
-      </Button>
+
+        <Typography
+          variant="h4"
+          sx={{ mb: 0 }}
+        >
+          Parents
+        </Typography>
+
+        <Button
+          variant="contained"
+          onClick={() =>
+            setOpen(true)
+          }
+        >
+          Add Parent
+        </Button>
+
+        <TextField
+          label="Search Parent, Phone or Student"
+          value={searchTerm}
+          onChange={(e) =>
+            setSearchTerm(e.target.value)
+          }
+          size="small"
+          sx={{
+            width: 950,
+
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "12px",
+
+              "& fieldset": {
+                borderColor: "#080000",
+                borderWidth: "2px",
+              },
+
+              "&:hover fieldset": {
+                borderColor: "#1976d2",
+              },
+
+              "&.Mui-focused fieldset": {
+                borderColor: "#1976d2",
+                borderWidth: "2px",
+              },
+            },
+          }}
+        />
+
+      </Box>
 
       <TableContainer
         component={Paper}
@@ -129,12 +199,16 @@ const Parents = () => {
               </TableCell>
 
               <TableCell>
-                Phone
-              </TableCell>
+  Phone
+                </TableCell>
 
-              <TableCell>
-                Actions
-              </TableCell>
+                <TableCell>
+                  Student
+                </TableCell>
+
+                <TableCell>
+                  Actions
+                </TableCell>
 
             </TableRow>
 
@@ -142,8 +216,26 @@ const Parents = () => {
 
           <TableBody>
 
-            {parents.map(
-              (parent) => (
+            {parents
+              .filter(
+              (parent) =>
+                parent.name
+                  ?.toLowerCase()
+                  .includes(
+                    searchTerm.toLowerCase()
+                  ) ||
+
+                parent.phone
+                  ?.includes(searchTerm) ||
+
+                parent.studentName
+                  ?.toLowerCase()
+                  .includes(
+                    searchTerm.toLowerCase()
+                  )
+            )
+              .map(
+                (parent) => (
 
                 <TableRow
                   key={parent._id}
@@ -153,21 +245,25 @@ const Parents = () => {
                     {parent.name}
                   </TableCell>
 
-                  <TableCell>
-                    {parent.phone}
-                  </TableCell>
+                 <TableCell>
+                  {parent.phone}
+                </TableCell>
 
-                  <TableCell>
+                <TableCell>
+                  {parent.studentName}
+                </TableCell>
 
-                    <Button
-                      onClick={() =>
-                        handleEdit(
-                          parent
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
+                <TableCell>
+
+                  <Button
+                    onClick={() =>
+                      handleEdit(
+                        parent
+                      )
+                    }
+                  >
+                    Edit
+                  </Button>
 
                     <Button
                       color="error"
@@ -213,6 +309,25 @@ const Parents = () => {
           fetchParents
         }
       />
+
+
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={() =>
+    setSnackbar({
+      ...snackbar,
+      open: false,
+    })
+  }
+>
+  <Alert
+    severity={snackbar.severity}
+    variant="filled"
+  >
+    {snackbar.message}
+  </Alert>
+</Snackbar>
 
     </>
   );

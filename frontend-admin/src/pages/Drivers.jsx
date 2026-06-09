@@ -13,6 +13,10 @@ import {
   Paper,
   Typography,
   Button,
+  Snackbar,
+  Alert,
+  TextField,
+  Box
 } from "@mui/material";
 
 import {
@@ -27,6 +31,16 @@ const Drivers = () => {
 
   const [drivers, setDrivers] =
     useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
+  const [snackbar, setSnackbar] =
+  useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const [open, setOpen] =
     useState(false);
@@ -61,29 +75,43 @@ const Drivers = () => {
     fetchDrivers();
   }, []);
 
-  const handleDelete =
-    async (id) => {
+  const handleDelete = async (id) => {
 
-      const confirmDelete =
-        window.confirm(
-          "Delete driver?"
-        );
+  const confirmDelete =
+    window.confirm(
+      "Delete driver?"
+    );
 
-      if (!confirmDelete)
-        return;
+  if (!confirmDelete)
+    return;
 
-      try {
+  try {
 
-        await deleteDriver(id);
+    const response =
+      await deleteDriver(id);
 
-        fetchDrivers();
+    setSnackbar({
+      open: true,
+      message:
+        response.message,
+      severity: "success",
+    });
 
-      } catch (error) {
+    fetchDrivers();
 
-        console.log(error);
+  } catch (error) {
 
-      }
-    };
+    setSnackbar({
+      open: true,
+      message:
+        error.response?.data
+          ?.message ||
+        "Assigned driver cannot be deleted, unassignfirst",
+      severity: "error",
+    });
+
+  }
+};
 
   const handleEdit =
     (driver) => {
@@ -97,22 +125,64 @@ const Drivers = () => {
 
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
-        Drivers
-      </Typography>
 
-      <Button
-        variant="contained"
-        sx={{ mb: 2 }}
-        onClick={() =>
-          setOpen(true)
-        }
-      >
-        Add Driver
-      </Button>
+
+
+            <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            mb: 2,
+          }}
+        >
+
+          <Typography
+            variant="h4"
+          >
+            Drivers
+          </Typography>
+
+          <Button
+            variant="contained"
+            onClick={() =>
+              setOpen(true)
+            }
+          >
+            Add Driver
+          </Button>
+
+          <TextField
+            label="Search Driver Name or Phone"
+            value={searchTerm}
+            onChange={(e) =>
+              setSearchTerm(e.target.value)
+            }
+            size="small"
+            sx={{
+              width: 950,
+
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+
+                "& fieldset": {
+                  borderColor: "#080000",
+                  borderWidth: "2px",
+                },
+
+                "&:hover fieldset": {
+                  borderColor: "#1976d2",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#1976d2",
+                  borderWidth: "2px",
+                },
+              },
+            }}
+          />
+
+        </Box>
 
       <TableContainer
         component={Paper}
@@ -132,6 +202,11 @@ const Drivers = () => {
                 Phone
               </TableCell>
 
+
+              <TableCell>
+                Status
+              </TableCell>
+
               <TableCell>
                 Actions
               </TableCell>
@@ -142,8 +217,20 @@ const Drivers = () => {
 
           <TableBody>
 
-            {drivers.map(
-              (driver) => (
+            {drivers
+              .filter(
+                (driver) =>
+                  driver.name
+                    ?.toLowerCase()
+                    .includes(
+                      searchTerm.toLowerCase()
+                    ) ||
+
+                  driver.phone
+                    ?.includes(searchTerm)
+              )
+              .map(
+                (driver) => (
 
                 <TableRow
                   key={driver._id}
@@ -156,6 +243,27 @@ const Drivers = () => {
                   <TableCell>
                     {driver.phone}
                   </TableCell>
+
+
+                  <TableCell>
+
+                    <Typography
+                      sx={{
+                        color:
+                          driver.isAssigned
+                            ? "green"
+                            : "red",
+                        fontWeight: "normal",
+                      }}
+                    >
+                      {
+                        driver.isAssigned
+                          ? `🟢 Active (${driver.assignedBus})`
+                          : "🔴 Inactive"
+                      }
+                    </Typography>
+
+                  </TableCell>  
 
                   <TableCell>
 
@@ -213,6 +321,25 @@ const Drivers = () => {
           fetchDrivers
         }
       />
+
+
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={() =>
+    setSnackbar({
+      ...snackbar,
+      open: false,
+    })
+  }
+>
+  <Alert
+    severity={snackbar.severity}
+    variant="filled"
+  >
+    {snackbar.message}
+  </Alert>
+</Snackbar>
 
     </>
   );

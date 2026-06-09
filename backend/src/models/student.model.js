@@ -18,7 +18,9 @@ const studentSchema = new mongoose.Schema({
     },
 
     admissionNumber: {
-        type: String
+        type: String,
+         unique: true,
+         sparse: true
     },
 
     parentId: {
@@ -29,6 +31,12 @@ const studentSchema = new mongoose.Schema({
     busId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Bus"
+},
+
+    routeId: {
+    type:
+      mongoose.Schema.Types.ObjectId,
+    ref: "Route",
 },
 
     pickupStop: {

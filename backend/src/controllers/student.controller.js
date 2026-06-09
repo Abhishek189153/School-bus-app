@@ -40,6 +40,10 @@ exports.getStudents = async (req, res) => {
                 .populate(
                     "busId",
                     "busNumber"
+                )
+                .populate(
+                    "routeId",
+                    "routeName"
                 );
 
         res.status(200).json({

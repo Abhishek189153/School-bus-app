@@ -10,7 +10,8 @@ const {
     getBuses,
     getBusById,
     updateBus,
-    deleteBus
+    deleteBus,
+    getBusOverview
 } = require("../controllers/bus.controller");
 
 router.post(
@@ -18,6 +19,13 @@ router.post(
     protect,
     authorize("SCHOOL_ADMIN"),
     createBus
+);
+
+router.get(
+    "/overview",
+    protect,
+    authorize("SCHOOL_ADMIN"),
+    getBusOverview
 );
 
 router.get(
@@ -47,5 +55,7 @@ router.delete(
   authorize("SCHOOL_ADMIN"),
   deleteBus
 );
+
+
 
 module.exports = router;

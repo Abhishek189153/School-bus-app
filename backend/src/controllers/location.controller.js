@@ -10,6 +10,11 @@ async (req, res) => {
 
   try {
 
+    console.log(
+    "Location Update Hit:",
+    req.body
+  );
+
     const {
       busId,
       latitude,

@@ -12,6 +12,12 @@ const {
     createSchoolAdmin
 } = require("../controllers/admin.controller");
 
+const {
+  getAttendanceHistory,
+} = require(
+  "../controllers/admin.controller"
+);
+
 router.post(
     "/school-admin",
     protect,
@@ -24,6 +30,13 @@ router.get(
   protect,
   authorize("SCHOOL_ADMIN"),
   getDashboardStats
+);
+
+router.get(
+  "/attendance-history",
+ protect,
+  authorize("SCHOOL_ADMIN"),
+  getAttendanceHistory
 );
 
 module.exports = router;

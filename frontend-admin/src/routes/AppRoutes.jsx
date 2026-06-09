@@ -16,6 +16,9 @@ import ProtectedRoute from "../guards/ProtectedRoute";
 import AdminLayout from "../layouts/AdminLayout";
 
 import Assignments from "../pages/Assignments";
+import BusOverview from "../pages/BusOverview";
+
+import AttendanceHistory from "../pages/AttendanceHistory";
 
 const AppRoutes = () => {
   return (
@@ -71,6 +74,18 @@ const AppRoutes = () => {
           <Route
             path="/assignments"
             element={<Assignments />}
+          />
+
+          <Route
+            path="/bus-overview"
+            element={<BusOverview />}
+          />
+
+          <Route
+            path="/attendance-history"
+            element={
+              <AttendanceHistory />
+            }
           />
 
         </Route>

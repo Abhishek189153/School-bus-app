@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/user.model");
+const Bus = require("../models/bus.model");
 
 exports.createDriver = async (req, res) => {
 
@@ -67,9 +68,33 @@ exports.getDrivers = async (req, res) => {
                 role: "DRIVER",
             }).select("-password");
 
+        const buses =
+            await Bus.find({
+                schoolId: req.user.schoolId,
+            });
+
+        const driversWithStatus =
+            drivers.map((driver) => {
+
+                const assignedBus =
+                    buses.find(
+                        (bus) =>
+                            bus.driverId?.toString() ===
+                            driver._id.toString()
+                    );
+
+                return {
+                    ...driver.toObject(),
+                    isAssigned:
+                        !!assignedBus,
+                    assignedBus:
+                        assignedBus?.busNumber || null,
+                };
+            });
+
         res.status(200).json({
             success: true,
-            drivers,
+            drivers: driversWithStatus,
         });
 
     } catch (error) {
@@ -210,6 +235,32 @@ exports.deleteDriver = async (req, res) => {
             });
 
         }
+
+        const assignedBus =
+            await Bus.findOne({
+                driverId: req.params.id,
+            });
+
+        if (assignedBus) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Driver is assigned to a bus. Unassign first.",
+            });
+
+        }
+
+        await Bus.updateMany(
+            {
+                driverId: req.params.id,
+            },
+            {
+                $unset: {
+                    driverId: "",
+                },
+            }
+        );
 
         await User.findByIdAndDelete(
             req.params.id

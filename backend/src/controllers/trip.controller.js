@@ -14,6 +14,8 @@ exports.startTrip = async (req, res) => {
 
     const { busId, tripType } = req.body;
 
+    console.log("Received Route ID:", routeId);
+
     if (!busId) {
       return res.status(400).json({
         success: false,
@@ -48,6 +50,8 @@ exports.startTrip = async (req, res) => {
       startTime: new Date(),
       status: "STARTED",
     });
+
+    console.log(trip);
 
     res.status(201).json({
       success: true,

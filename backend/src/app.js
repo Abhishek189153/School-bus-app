@@ -19,7 +19,7 @@ const driverDashboardRoutes =require("./routes/driverDashboard.routes");
 const parentDashboardRoutes =require("./routes/parentDashboard.routes");
 const notificationRoutes =require("./routes/notification.routes");
 const alertRoutes =require("./routes/alert.routes");
-
+const mobileRoutes =require("./routes/mobile.routes");
 
 
 
@@ -53,6 +53,7 @@ app.use("/api/driver/dashboard",driverDashboardRoutes);
 app.use("/api/parent/dashboard",parentDashboardRoutes);
 app.use("/api/notifications",notificationRoutes);
 app.use("/api/alerts",alertRoutes);
+app.use("/api/mobile",mobileRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

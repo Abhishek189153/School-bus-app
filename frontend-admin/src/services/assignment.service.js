@@ -35,3 +35,43 @@ export const assignStudentToBus =
 
     return response.data;
 };
+
+export const
+unassignDriverFromBus =
+async (busId) => {
+
+    const response =
+        await api.put(
+            "/assignments/unassign-driver",
+            { busId }
+        );
+
+    return response.data;
+};
+
+
+export const
+unassignRouteFromBus =
+async (busId, routeId) => {
+
+    const response =
+        await api.put(
+            "/assignments/unassign-route",
+            { busId, routeId }
+        );
+
+    return response.data;
+};
+
+export const
+getBusesByRoute =
+async (routeId) => {
+
+  const response =
+    await api.get(
+      `/assignments/route-buses/${routeId}`
+    );
+
+  return response.data;
+
+};

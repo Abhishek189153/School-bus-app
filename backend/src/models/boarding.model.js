@@ -13,6 +13,7 @@ const boardingSchema = new mongoose.Schema(
       ref: "Student",
       required: true,
     },
+    
 
     boardedAt: {
       type: Date,

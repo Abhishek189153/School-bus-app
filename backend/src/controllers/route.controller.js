@@ -1,4 +1,5 @@
 const Route = require("../models/route.model");
+const Bus = require("../models/bus.model");
 
 exports.createRoute = async (req, res) => {
 
@@ -34,9 +35,33 @@ exports.getRoutes = async (req, res) => {
                 schoolId: req.user.schoolId,
             });
 
+        const buses =
+            await Bus.find({
+                schoolId: req.user.schoolId,
+            });
+
+        const routesWithStatus =
+            routes.map((route) => {
+
+                const assignedBus =
+                    buses.find(
+                        (bus) =>
+                            bus.routeId?.toString() ===
+                            route._id.toString()
+                    );
+
+                return {
+                    ...route.toObject(),
+                    isAssigned:
+                        !!assignedBus,
+                    assignedBus:
+                        assignedBus?.busNumber || null,
+                };
+            });
+
         res.status(200).json({
             success: true,
-            routes,
+            routes: routesWithStatus,
         });
 
     } catch (error) {
@@ -174,6 +199,21 @@ exports.deleteRoute = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: "Access denied",
+            });
+
+        }
+
+        const assignedBus =
+            await Bus.findOne({
+                routeId: req.params.id,
+            });
+
+        if (assignedBus) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Route is assigned to a bus. Unassign first.",
             });
 
         }

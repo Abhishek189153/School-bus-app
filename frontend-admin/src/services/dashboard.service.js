@@ -5,7 +5,7 @@ async () => {
 
   const response =
     await api.get(
-      "/admin/dashboard-stats"
+      "/dashboard/stats"
     );
 
   return response.data;

@@ -6,6 +6,7 @@ import {
   Button,
   TextField,
   MenuItem,
+  Autocomplete,
 } from "@mui/material";
 
 import {
@@ -22,8 +23,16 @@ import {
 } from "../services/bus.service";
 
 import {
+  getBusesByRoute,
+} from "../services/assignment.service";
+
+import {
   updateStudent,
 } from "../services/student.service";
+
+import {
+  getRoutes,
+} from "../services/route.service";
 
 const EditStudentModal = ({
   open,
@@ -38,12 +47,23 @@ const EditStudentModal = ({
   const [buses, setBuses] =
     useState([]);
 
+  const [routes, setRoutes] =
+  useState([]);
+
+  const [routeStops,setRouteStops]=
+  useState([]);
+
+  const [routeBuses,setRouteBuses] =useState([]);
+
   const [formData, setFormData] =
     useState({
+      admissionNumber: "",
       name: "",
       className: "",
       parentId: "",
       busId: "",
+      routeId: "",
+      pickupStop: "",
     });
 
   useEffect(() => {
@@ -57,12 +77,19 @@ const EditStudentModal = ({
         const busesData =
           await getBuses();
 
+        const routesData =
+          await getRoutes();
+
         setParents(
           parentsData.parents
         );
 
         setBuses(
           busesData.buses
+        );
+
+        setRoutes(
+          routesData.routes
         );
       };
 
@@ -71,6 +98,8 @@ const EditStudentModal = ({
       loadData();
 
       setFormData({
+        admissionNumber:
+          student.admissionNumber || "",
         name:
           student.name || "",
 
@@ -82,6 +111,9 @@ const EditStudentModal = ({
 
         busId:
           student.busId?._id || "",
+
+        routeId:
+          student.routeId?._id || "",  
       });
     }
 
@@ -133,6 +165,15 @@ const EditStudentModal = ({
 
         <TextField
           fullWidth
+          label="Admission Number"
+          name="admissionNumber"
+          value={formData.admissionNumber}
+          onChange={handleChange}
+          margin="normal"
+        />
+
+        <TextField
+          fullWidth
           label="Student Name"
           name="name"
           margin="normal"
@@ -149,51 +190,158 @@ const EditStudentModal = ({
           onChange={handleChange}
         />
 
+        <Autocomplete
+          options={parents}
+          getOptionLabel={(option) =>
+          `${option.name} (${option.phone})`
+          }
+          value={
+            parents.find(
+              (parent) =>
+                parent._id === formData.parentId
+            ) || null
+          }
+          onChange={(event, value) =>
+            setFormData({
+              ...formData,
+              parentId: value?._id || "",
+            })
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Parent"
+              margin="normal"
+              fullWidth
+            />
+          )}
+/>
+
+
+        <Autocomplete
+      options={routes}
+      getOptionLabel={(option) =>
+        `${option.routeName}
+        (${option.stops
+          ?.map(
+            stop =>
+            stop.stopName
+          )
+          .join(" → ")})`
+      }
+
+      onChange={
+        async (_, value) => {
+
+          setFormData({
+            ...formData,
+            routeId:
+              value?._id || "",
+          });
+
+          if (value?.stops) {
+
+          const filteredStops =
+            value.stops.slice(
+              1,
+              value.stops.length - 1
+            );
+
+          setRouteStops(
+            filteredStops
+          );
+
+        }
+
+          if (value?._id) {
+
+            const data =
+              await getBusesByRoute(
+                value._id
+              );
+
+            setRouteBuses(
+              data.buses
+            );
+
+          }
+
+        }
+      }
+
+      renderInput={(params) => (
         <TextField
-          select
-          fullWidth
-          label="Parent"
-          name="parentId"
+          {...params}
+          label="Route"
           margin="normal"
-          value={formData.parentId}
-          onChange={handleChange}
-        >
-
-          {parents.map((parent) => (
-
-            <MenuItem
-              key={parent._id}
-              value={parent._id}
-            >
-              {parent.name}
-            </MenuItem>
-
-          ))}
-
-        </TextField>
-
-        <TextField
-          select
           fullWidth
-          label="Bus"
-          name="busId"
-          margin="normal"
-          value={formData.busId}
-          onChange={handleChange}
-        >
+        />
+      )}
+    />
 
-          {buses.map((bus) => (
+       <Autocomplete
+          options={routeBuses}
+          getOptionLabel={(option) =>
+            option.busNumber || ""
+          }
+          value={
+            routeBuses.find(
+              (bus) =>
+                bus._id === formData.busId
+            ) || null
+          }
+          onChange={(event, value) =>
+            setFormData({
+              ...formData,
+              busId: value?._id || "",
+            })
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Bus"
+              margin="normal"
+              fullWidth
+            />
+          )}
+        />
 
-            <MenuItem
-              key={bus._id}
-              value={bus._id}
-            >
-              {bus.busNumber}
-            </MenuItem>
 
-          ))}
+       <Autocomplete
+        options={routeStops}
 
-        </TextField>
+        getOptionLabel={
+          (option) =>
+            option.stopName
+        }
+
+        onChange={
+          (_, value) =>
+
+            setFormData({
+              ...formData,
+
+              pickupStop:
+                value?.stopName ||
+                "",
+            })
+        }
+
+        renderInput={
+          (params) => (
+
+            <TextField
+              {...params}
+              label="Pickup Stop"
+              margin="normal"
+              fullWidth
+            />
+
+          )
+        }
+      />
+
+ 
 
       </DialogContent>
 

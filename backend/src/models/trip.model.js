@@ -20,6 +20,12 @@ const tripSchema = new mongoose.Schema(
       required: true,
     },
 
+    routeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Route",
+      required: true,
+    },
+
     driverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

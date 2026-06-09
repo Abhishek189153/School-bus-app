@@ -13,6 +13,10 @@ import {
   Paper,
   Typography,
   Button,
+  Snackbar,
+  Alert,
+  TextField,
+  Box
 } from "@mui/material";
 
 import {
@@ -27,6 +31,16 @@ const Routes = () => {
 
   const [routes, setRoutes] =
     useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
+  const [snackbar, setSnackbar] =
+  useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const [open, setOpen] =
     useState(false);
@@ -61,29 +75,43 @@ const Routes = () => {
     fetchRoutes();
   }, []);
 
-  const handleDelete =
-    async (id) => {
+  const handleDelete = async (id) => {
 
-      const confirmDelete =
-        window.confirm(
-          "Delete route?"
-        );
+  const confirmDelete =
+    window.confirm(
+      "Delete route?"
+    );
 
-      if (!confirmDelete)
-        return;
+  if (!confirmDelete)
+    return;
 
-      try {
+  try {
 
-        await deleteRoute(id);
+    const response =
+      await deleteRoute(id);
 
-        fetchRoutes();
+    setSnackbar({
+      open: true,
+      message:
+        response.message,
+      severity: "success",
+    });
 
-      } catch (error) {
+    fetchRoutes();
 
-        console.log(error);
+  } catch (error) {
 
-      }
-    };
+    setSnackbar({
+      open: true,
+      message:
+        error.response?.data
+          ?.message ||
+        "Assigned route cannot be deleted, unassign first",
+      severity: "error",
+    });
+
+  }
+};
 
   const handleEdit =
     (route) => {
@@ -95,24 +123,87 @@ const Routes = () => {
       setEditOpen(true);
     };
 
+
+  const filteredRoutes =
+  routes.filter(
+    (route) =>
+      (
+        route.routeName +
+        " " +
+        route.stops
+          ?.map(
+            (stop) =>
+              stop.stopName
+          )
+          .join(" ")
+      )
+        .toLowerCase()
+        .includes(
+          searchTerm.toLowerCase()
+        )
+  );
+
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
-      >
-        Routes
-      </Typography>
 
-      <Button
-        variant="contained"
-        sx={{ mb: 2 }}
-        onClick={() =>
-          setOpen(true)
-        }
+
+          <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          mb: 2,
+        }}
       >
-        Add Route
-      </Button>
+
+        <Typography
+          variant="h4"
+        >
+          Routes
+        </Typography>
+
+        <Button
+          variant="contained"
+          onClick={() =>
+            setOpen(true)
+          }
+        >
+          Add Route
+        </Button>
+
+        <TextField
+          label="Search Route or Stop"
+          value={searchTerm}
+          onChange={(e) =>
+            setSearchTerm(
+              e.target.value
+            )
+          }
+          size="small"
+          sx={{
+            width: 950,
+
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "12px",
+
+              "& fieldset": {
+                borderColor: "#080000",
+                borderWidth: "2px",
+              },
+
+              "&:hover fieldset": {
+                borderColor: "#1976d2",
+              },
+
+              "&.Mui-focused fieldset": {
+                borderColor: "#1976d2",
+                borderWidth: "2px",
+              },
+            },
+          }}
+        />
+
+      </Box>
 
       <TableContainer
         component={Paper}
@@ -133,6 +224,10 @@ const Routes = () => {
               </TableCell>
 
               <TableCell>
+                Status
+              </TableCell>
+
+              <TableCell>
                 Actions
               </TableCell>
 
@@ -142,8 +237,8 @@ const Routes = () => {
 
           <TableBody>
 
-            {routes.map(
-              (route) => (
+            {filteredRoutes.map(
+            (route) => (
 
                 <TableRow
                   key={route._id}
@@ -161,6 +256,27 @@ const Routes = () => {
                       )
                       .join(", ")}
                   </TableCell>
+
+
+                  <TableCell>
+
+                    <Typography
+                      sx={{
+                        color:
+                          route.isAssigned
+                            ? "green"
+                            : "red",
+                        fontWeight: "normal",
+                      }}
+                    >
+                      {
+                        route.isAssigned
+                          ? `🟢 Active`
+                          : "🔴 Inactive"
+                      }
+                    </Typography>
+
+                  </TableCell>    
 
                   <TableCell>
 
@@ -218,6 +334,24 @@ const Routes = () => {
           fetchRoutes
         }
       />
+
+    <Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={() =>
+    setSnackbar({
+      ...snackbar,
+      open: false,
+    })
+  }
+>
+  <Alert
+    severity={snackbar.severity}
+    variant="filled"
+  >
+    {snackbar.message}
+  </Alert>
+</Snackbar>    
 
     </>
   );

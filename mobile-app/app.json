@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "mobile-app",
+    "slug": "mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "mobileapp",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.mobileapp"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image"
+        ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
