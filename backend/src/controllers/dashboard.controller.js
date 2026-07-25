@@ -8,6 +8,8 @@ const User = require("../models/user.model");
 
 const BusRoute = require("../models/busRoute.model");
 
+const StudentAttendance = require("../models/studentAttendance.model");
+
 
 exports.getDashboardStats =
 async (req, res) => {
@@ -113,6 +115,45 @@ const inactiveBuses =
   busesData.length -
   activeBuses;
 
+
+  // Today's Attendance (All PICKUP Trips)
+
+const startOfDay = new Date();
+startOfDay.setHours(0, 0, 0, 0);
+
+const endOfDay = new Date();
+endOfDay.setHours(23, 59, 59, 999);
+
+// Total Present Students
+const presentStudents =
+  await StudentAttendance.countDocuments({
+    schoolId,
+    tripType: "PICKUP",
+    status: "PRESENT",
+    attendanceDate: {
+      $gte: startOfDay,
+      $lte: endOfDay,
+    },
+  });
+
+// Total Students Assigned to Buses
+const totalAttendanceStudents =
+  await Student.countDocuments({
+    schoolId,
+    busId: {
+      $exists: true,
+      $ne: null,
+    },
+  });
+
+const attendancePercentage =
+  totalAttendanceStudents > 0
+    ? Math.round(
+        (presentStudents /
+          totalAttendanceStudents) *
+          100
+      )
+    : 0;
        
 
 
@@ -133,6 +174,12 @@ const inactiveBuses =
 
                 activeBuses,
                 inactiveBuses,
+
+                attendance: {
+                present: presentStudents,
+                total: totalAttendanceStudents,
+                percentage: attendancePercentage,
+    },
             }
         });
 
