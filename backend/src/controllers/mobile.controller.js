@@ -1306,21 +1306,19 @@ const todayTrips =
 
 
    const now = new Date();
+   
 
-   console.log(
-  "SERVER TIME:",
-  now
-);
-
+   console.log("=================================");
+console.log("SERVER NOW:", now);
+console.log("ISO:", now.toISOString());
+console.log("UTC:", now.toUTCString());
 console.log(
-  "SERVER IST:",
-  now.toLocaleString(
-    "en-IN",
-    {
-      timeZone: "Asia/Kolkata",
-    }
-  )
+  "IST:",
+  now.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+  })
 );
+console.log("=================================");
 
 const routesWithStatus =
   routes.map((route) => {
@@ -1382,6 +1380,16 @@ const trip =
     0,
     0
   );
+
+  console.log(
+  route.routeName,
+  "TripTime:",
+  tripTime,
+  "Now:",
+  now,
+  "Diff:",
+  (tripTime - now) / 1000 / 60
+);
 
   const diffMinutes =
     (
