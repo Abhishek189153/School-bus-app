@@ -1283,8 +1283,15 @@ exports.getAssignedRoutes =
     //       trip.routeId.toString()
     //   );
 
-    const startOfDay =
-  new Date();
+
+     // Current time in IST
+const now = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+  })
+);
+
+  const startOfDay = new Date(now);
 
 startOfDay.setHours(
   0,
@@ -1293,32 +1300,39 @@ startOfDay.setHours(
   0
 );
 
+const endOfDay =
+new Date(now);
+
+endOfDay.setHours(
+  23,
+  59,
+  59,
+  999
+);
+
+
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 const todayTrips =
-  await Trip.find({
-    driverId:
-      req.user.id,
-
-    createdAt: {
-      $gte:
-        startOfDay,
-    },
-  });
+await Trip.find({
+  driverId: req.user.id,
+ tripDate: today
+});
 
 
-   const now = new Date();
+ 
    
 
-   console.log("=================================");
-console.log("SERVER NOW:", now);
-console.log("ISO:", now.toISOString());
-console.log("UTC:", now.toUTCString());
-console.log(
-  "IST:",
-  now.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-  })
-);
-console.log("=================================");
+//    console.log("=================================");
+// console.log("SERVER NOW:", now);
+// console.log("ISO:", now.toISOString());
+// console.log("UTC:", now.toUTCString());
+// console.log(
+//   "IST:",
+//   now.toLocaleString("en-IN", {
+//     timeZone: "Asia/Kolkata",
+//   })
+// );
+// console.log("=================================");
 
 const routesWithStatus =
   routes.map((route) => {
@@ -1371,25 +1385,24 @@ const trip =
       .split(":")
       .map(Number);
 
-  const tripTime =
-    new Date();
+ const tripTime = new Date(now);
 
-  tripTime.setHours(
-    hour,
-    minute,
-    0,
-    0
-  );
-
-  console.log(
-  route.routeName,
-  "TripTime:",
-  tripTime,
-  "Now:",
-  now,
-  "Diff:",
-  (tripTime - now) / 1000 / 60
+tripTime.setHours(
+  hour,
+  minute,
+  0,
+  0
 );
+
+//   console.log(
+//   route.routeName,
+//   "TripTime:",
+//   tripTime,
+//   "Now:",
+//   now,
+//   "Diff:",
+//   (tripTime - now) / 1000 / 60
+// );
 
   const diffMinutes =
     (
@@ -1464,17 +1477,14 @@ const trip =
           );
 
         const tripTime =
-          new Date();
+          new Date(now);
 
-        tripTime.setHours(
-          parseInt(hour)
-        );
-
-        tripTime.setMinutes(
-          parseInt(minute)
-        );
-
-        tripTime.setSeconds(0);
+       tripTime.setHours(
+    parseInt(hour),
+    parseInt(minute),
+    0,
+    0
+);
 
        const diffMinutes =
   (
@@ -1527,7 +1537,7 @@ if (route.scheduledTime) {
       .map(Number);
 
   const tripTime =
-    new Date();
+    new Date(now);
 
   tripTime.setHours(
     hour,
