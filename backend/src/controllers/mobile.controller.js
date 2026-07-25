@@ -1398,6 +1398,7 @@ const trip =
   );
 
   if (
+     diffMinutes >= 0 &&
     diffMinutes <= 30 
   ) {
 
@@ -1494,6 +1495,7 @@ console.log(
 );
 
 if (
+   diffMinutes >= 0 &&
   diffMinutes <= 30 
  
 ) {
@@ -1501,6 +1503,8 @@ if (
   status =
     "ACTIVE";
 
+} else {
+  status = "PENDING";
 }
       }
     }
