@@ -20,6 +20,7 @@ const parentDashboardRoutes =require("./routes/parentDashboard.routes");
 const notificationRoutes =require("./routes/notification.routes");
 const alertRoutes =require("./routes/alert.routes");
 const mobileRoutes =require("./routes/mobile.routes");
+const announcementRoutes =require("./routes/announcement.route");
 
 
 
@@ -54,6 +55,7 @@ app.use("/api/parent/dashboard",parentDashboardRoutes);
 app.use("/api/notifications",notificationRoutes);
 app.use("/api/alerts",alertRoutes);
 app.use("/api/mobile",mobileRoutes);
+app.use("/api/announcements",announcementRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

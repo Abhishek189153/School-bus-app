@@ -1,8 +1,9 @@
 import AsyncStorage
 from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "../config/api";
 
 const BASE_URL =
-  "http://192.168.1.7:5000/api/location";
+  `${API_BASE_URL}/location`
 
 export const updateLocation =
 async (

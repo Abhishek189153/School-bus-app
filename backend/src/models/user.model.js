@@ -7,6 +7,18 @@ const userSchema = new mongoose.Schema(
             required: true,
         },
 
+        profileImage: {
+            type: String,
+            default: "",
+            },
+
+        email: {
+        type: String,
+        required: false,
+        trim: true,
+        lowercase: true,
+        },
+
         phone: {
             type: String,
             required: true,
@@ -38,6 +50,29 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+
+        notificationSettings: {
+
+        tripAlerts: {
+            type: Boolean,
+            default: true,
+        },
+
+        boardingAlerts: {
+            type: Boolean,
+            default: true,
+        },
+
+        },
+
+        expoPushToken: {
+        type: String,
+        },
+
+        isFirstLogin: {
+        type: Boolean,
+        default: true,
+    },
 
     },
     {

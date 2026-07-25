@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,320 +12,365 @@ import {
   Snackbar,
   Alert,
   TextField,
-  Box
+  Box,
+  Chip,
+  IconButton,
+  Tooltip,
+  InputAdornment,
+  TablePagination,
 } from "@mui/material";
 
-import {
-  getParents,
-  deleteParent,
-} from "../services/parent.service";
+// Direct file path imports to prevent Vite bundling errors
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
+import { getParents, deleteParent } from "../services/parent.service";
 import AddParentModal from "../components/AddParentModal";
 import EditParentModal from "../components/EditParentModal";
 
 const Parents = () => {
+  const [parents, setParents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const [parents, setParents] =
-    useState([]);
-
-  const [searchTerm, setSearchTerm] =
-    useState("");
-
-  const [snackbar, setSnackbar] =
-  useState({
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedParent, setSelectedParent] = useState(null);
 
-  const [editOpen, setEditOpen] =
-    useState(false);
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [selectedParent,
-    setSelectedParent] =
-    useState(null);
-
-  const fetchParents =
-    async () => {
-
-      try {
-
-        const data =
-          await getParents();
-
-        setParents(
-          data.parents
-        );
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-    };
+  const fetchParents = async () => {
+    try {
+      const data = await getParents();
+      setParents(data.parents || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     fetchParents();
   }, []);
 
   const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Delete parent?");
+    if (!confirmDelete) return;
 
-  const confirmDelete =
-    window.confirm(
-      "Delete parent?"
-    );
+    try {
+      const response = await deleteParent(id);
 
-  if (!confirmDelete)
-    return;
+      setSnackbar({
+        open: true,
+        message: response.message || "Parent deleted successfully",
+        severity: "success",
+      });
 
-  try {
+      fetchParents();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Assigned parent cannot be deleted, unassign first",
+        severity: "error",
+      });
+    }
+  };
 
-    const response =
-      await deleteParent(id);
+  const handleEdit = (parent) => {
+    setSelectedParent(parent);
+    setEditOpen(true);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        response.message,
-      severity: "success",
-    });
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    fetchParents();
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-  } catch (error) {
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(0);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        error.response?.data
-          ?.message ||
-        "Assigned parent cannot be deleted, unassign first",
-      severity: "error",
-    });
+  // Filter list by name, phone, or student name
+  const filteredParents = parents.filter(
+    (parent) =>
+      parent.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parent.phone?.includes(searchTerm) ||
+      parent.studentName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  }
-};
-
-  const handleEdit =
-    (parent) => {
-
-      setSelectedParent(
-        parent
-      );
-
-      setEditOpen(true);
-    };
+  // Slice list for current page
+  const paginatedParents = filteredParents.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
-    <>
-
-    
-          <Box
+    <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>
+      {/* Header Container */}
+      <Paper
+        elevation={0}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 3,
-          mb: 2,
+          p: 2.5,
+          mb: 3,
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
         }}
       >
-
-        <Typography
-          variant="h4"
-          sx={{ mb: 0 }}
-        >
-          Parents
-        </Typography>
-
-        <Button
-          variant="contained"
-          onClick={() =>
-            setOpen(true)
-          }
-        >
-          Add Parent
-        </Button>
-
-        <TextField
-          label="Search Parent, Phone or Student"
-          value={searchTerm}
-          onChange={(e) =>
-            setSearchTerm(e.target.value)
-          }
-          size="small"
+        <Box
           sx={{
-            width: 950,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          {/* Title & Count Badge */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a" }}>
+              Parents
+            </Typography>
+            <Chip
+              label={`${filteredParents.length} Total`}
+              size="small"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                borderRadius: "8px",
+              }}
+            />
+          </Box>
 
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "12px",
+          {/* Search Bar & Action Button */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            <TextField
+              placeholder="Search parent, phone or student..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#94a3b8" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: { xs: "100%", sm: 320 },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#ffffff",
+                  fontSize: "0.875rem",
+                  "& fieldset": { borderColor: "#cbd5e1" },
+                  "&:hover fieldset": { borderColor: "#94a3b8" },
+                  "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+                },
+              }}
+            />
 
-              "& fieldset": {
-                borderColor: "#080000",
-                borderWidth: "2px",
-              },
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpen(true)}
+              sx={{
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: "#2563eb",
+                px: 2.5,
+                py: 0.9,
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                "&:hover": { backgroundColor: "#1d4ed8" },
+              }}
+            >
+              Add Parent
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
 
-              "&:hover fieldset": {
-                borderColor: "#1976d2",
-              },
+      {/* Table Container */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+          overflow: "hidden",
+        }}
+      >
+        <TableContainer>
+          <Table sx={{ minWidth: 600 }}>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  #
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Phone
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Student
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px", pr: 3 }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
 
-              "&.Mui-focused fieldset": {
-                borderColor: "#1976d2",
-                borderWidth: "2px",
-              },
+            <TableBody>
+              {paginatedParents.length > 0 ? (
+                paginatedParents.map((parent, index) => (
+                  <TableRow
+                    key={parent._id || index}
+                    sx={{
+                      "&:hover": { backgroundColor: "#f8fafc" },
+                      transition: "background-color 0.2s ease",
+                      borderBottom: "1px solid #f1f5f9",
+                    }}
+                  >
+                    {/* Dynamic Serial Number */}
+                    <TableCell sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "0.875rem" }}>
+                      {page * rowsPerPage + index + 1}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 600, color: "#0f172a" }}>
+                      {parent.name}
+                    </TableCell>
+
+                    <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                      {parent.phone}
+                    </TableCell>
+
+                    <TableCell>
+                      {parent.studentName ? (
+                        <Chip
+                          label={parent.studentName}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            backgroundColor: "#f1f5f9",
+                            color: "#334155",
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: "#94a3b8" }}>
+                          -
+                        </Typography>
+                      )}
+                    </TableCell>
+
+                    <TableCell align="right" sx={{ pr: 2 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(parent)}
+                          sx={{
+                            color: "#2563eb",
+                            mr: 1,
+                            "&:hover": { backgroundColor: "#eff6ff" },
+                          }}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(parent._id)}
+                          sx={{
+                            color: "#ef4444",
+                            "&:hover": { backgroundColor: "#fef2f2" },
+                          }}
+                        >
+                          <DeleteOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: "#64748b" }}>
+                    <Typography variant="body2">No matching parent records found.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination Bar */}
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 50]}
+          component="div"
+          count={filteredParents.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            borderTop: "1px solid #e2e8f0",
+            ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+              fontSize: "0.875rem",
+              color: "#64748b",
             },
           }}
         />
+      </Paper>
 
-      </Box>
-
-      <TableContainer
-        component={Paper}
-      >
-
-        <Table>
-
-          <TableHead>
-
-            <TableRow>
-
-              <TableCell>
-                Name
-              </TableCell>
-
-              <TableCell>
-  Phone
-                </TableCell>
-
-                <TableCell>
-                  Student
-                </TableCell>
-
-                <TableCell>
-                  Actions
-                </TableCell>
-
-            </TableRow>
-
-          </TableHead>
-
-          <TableBody>
-
-            {parents
-              .filter(
-              (parent) =>
-                parent.name
-                  ?.toLowerCase()
-                  .includes(
-                    searchTerm.toLowerCase()
-                  ) ||
-
-                parent.phone
-                  ?.includes(searchTerm) ||
-
-                parent.studentName
-                  ?.toLowerCase()
-                  .includes(
-                    searchTerm.toLowerCase()
-                  )
-            )
-              .map(
-                (parent) => (
-
-                <TableRow
-                  key={parent._id}
-                >
-
-                  <TableCell>
-                    {parent.name}
-                  </TableCell>
-
-                 <TableCell>
-                  {parent.phone}
-                </TableCell>
-
-                <TableCell>
-                  {parent.studentName}
-                </TableCell>
-
-                <TableCell>
-
-                  <Button
-                    onClick={() =>
-                      handleEdit(
-                        parent
-                      )
-                    }
-                  >
-                    Edit
-                  </Button>
-
-                    <Button
-                      color="error"
-                      onClick={() =>
-                        handleDelete(
-                          parent._id
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-
-                  </TableCell>
-
-                </TableRow>
-
-              )
-            )}
-
-          </TableBody>
-
-        </Table>
-
-      </TableContainer>
-
+      {/* Modals */}
       <AddParentModal
         open={open}
-        handleClose={() =>
-          setOpen(false)
-        }
-        refreshParents={
-          fetchParents
-        }
+        handleClose={() => setOpen(false)}
+        refreshParents={fetchParents}
       />
 
       <EditParentModal
         open={editOpen}
-        handleClose={() =>
-          setEditOpen(false)
-        }
+        handleClose={() => setEditOpen(false)}
         parent={selectedParent}
-        refreshParents={
-          fetchParents
-        }
+        refreshParents={fetchParents}
       />
 
-
-<Snackbar
-  open={snackbar.open}
-  autoHideDuration={3000}
-  onClose={() =>
-    setSnackbar({
-      ...snackbar,
-      open: false,
-    })
-  }
->
-  <Alert
-    severity={snackbar.severity}
-    variant="filled"
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
-
-    </>
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() =>
+          setSnackbar({
+            ...snackbar,
+            open: false,
+          })
+        }
+      >
+        <Alert severity={snackbar.severity} variant="filled">
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user.model");
 const Student = require("../models/student.model");
 const Bus = require("../models/bus.model");
+const Trip = require("../models/trip.model");
+const BusLocation = require("../models/busLocation.model");
+const Route = require("../models/route.model");
 
 
 exports.createParent = async (req, res) => {
@@ -14,30 +17,37 @@ exports.createParent = async (req, res) => {
             password,
         } = req.body;
 
-        const existingParent =
+        const existingUser =
             await User.findOne({
                 phone,
             });
 
-        if (existingParent) {
+        if (existingUser) {
 
             return res.status(400).json({
                 success: false,
-                message: "Parent already exists",
+                message:
+                    "Another user already has the same number",
             });
 
         }
 
         const hashedPassword =
-            await bcrypt.hash(password, 10);
+            await bcrypt.hash(
+                password,
+                10
+            );
 
         const parent =
             await User.create({
                 name,
                 phone,
-                password: hashedPassword,
-                role: "PARENT",
-                schoolId: req.user.schoolId,
+                password:
+                    hashedPassword,
+                role:
+                    "PARENT",
+                schoolId:
+                    req.user.schoolId,
             });
 
         const parentResponse =
@@ -47,17 +57,37 @@ exports.createParent = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            parent: parentResponse,
+            parent:
+                parentResponse,
         });
 
     } catch (error) {
 
+        console.log(
+            "CREATE PARENT ERROR:",
+            error
+        );
+
+        if (
+            error.code === 11000
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Another user already has the same number",
+            });
+
+        }
+
         res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message,
         });
 
     }
+
 };
 
 exports.getParents = async (req, res) => {
@@ -169,7 +199,8 @@ exports.updateParent = async (req, res) => {
 
             return res.status(404).json({
                 success: false,
-                message: "Parent not found",
+                message:
+                    "Parent not found",
             });
 
         }
@@ -181,33 +212,85 @@ exports.updateParent = async (req, res) => {
 
             return res.status(403).json({
                 success: false,
-                message: "Access denied",
+                message:
+                    "Access denied",
             });
+
+        }
+
+        // Check duplicate phone
+        if (req.body.phone) {
+
+            const existingUser =
+                await User.findOne({
+                    phone:
+                        req.body.phone,
+                    _id: {
+                        $ne:
+                            req.params.id,
+                    },
+                });
+
+            if (existingUser) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Another user already has the same number",
+                });
+
+            }
 
         }
 
         const updatedParent =
             await User.findByIdAndUpdate(
                 req.params.id,
-                req.body,
+                {
+                    name:
+                        req.body.name,
+                    phone:
+                        req.body.phone,
+                },
                 {
                     new: true,
+                    runValidators: true,
                 }
             ).select("-password");
 
         res.status(200).json({
             success: true,
-            parent: updatedParent,
+            parent:
+                updatedParent,
         });
 
     } catch (error) {
 
+        console.log(
+            "UPDATE PARENT ERROR:",
+            error
+        );
+
+        if (
+            error.code === 11000
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Another user already has the same number",
+            });
+
+        }
+
         res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message,
         });
 
     }
+
 };
 
 exports.deleteParent = async (req, res) => {
@@ -264,8 +347,8 @@ exports.deleteParent = async (req, res) => {
 exports.getParentDashboard =
 async (req, res) => {
 
- console.log(
-    "Parent Dashboard API Hit"
+  console.log(
+    "Parent Dashboard File Hit"
   );
 
   try {
@@ -311,11 +394,98 @@ async (req, res) => {
         "name phone",
       );
 
-   
+    const activeTrip =
+      await Trip.findOne({
+        busId:
+          firstStudent.busId._id,
 
+        status:
+          "STARTED",
+      });
+
+    const liveLocation =
+      await BusLocation.findOne({
+        busId:
+          firstStudent.busId._id,
+      });
+
+    const route =
+      await Route.findById(
+        firstStudent.routeId._id
+      );
+
+    let approachingStop =
+      null;
+
+    if (
+      activeTrip &&
+      route &&
+      route.stops?.length &&
+      liveLocation
+    ) {
+
+      let nearestDistance =
+        Number.MAX_VALUE;
+
+      route.stops.forEach(
+        (stop) => {
+
+          const distance =
+            Math.sqrt(
+              Math.pow(
+                stop.latitude -
+                liveLocation.latitude,
+                2
+              ) +
+              Math.pow(
+                stop.longitude -
+                liveLocation.longitude,
+                2
+              )
+            );
+
+          if (
+            distance <
+            nearestDistance
+          ) {
+
+            nearestDistance =
+              distance;
+
+            approachingStop =
+              stop.stopName;
+
+          }
+
+        }
+      );
+
+    }
+
+    console.log(
+      "ACTIVE TRIP:",
+      activeTrip
+    );
+
+    console.log(
+      "APPROACHING STOP:",
+      approachingStop
+    );
 
     res.status(200).json({
+
       success: true,
+
+      boardingStatus:
+  students.map(
+    (student) => ({
+      name:
+        student.name,
+
+      boardedToday:
+        student.boardedToday,
+    })
+  ),
 
       studentName:
         firstStudent.name,
@@ -329,7 +499,7 @@ async (req, res) => {
       busNumber:
         bus.busNumber,
 
-     vehicleNumber:
+      vehicleNumber:
         bus.vehicleNumber,
 
       driverName:
@@ -342,6 +512,15 @@ async (req, res) => {
         students.length,
 
       students,
+
+      activeTrip,
+
+      liveLocation,
+
+      approachingStop,
+
+       boardedToday: firstStudent.boardedToday,
+
     });
 
   } catch (error) {

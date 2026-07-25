@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "../config/api";
 
 const BASE_URL =
-  "http://192.168.1.7:5000/api/mobile";
+  `${API_BASE_URL}/mobile`;
 
 const getToken = async () => {
   return await AsyncStorage.getItem("token");
@@ -338,6 +339,11 @@ async () => {
       "token"
     );
 
+    console.log(
+  "MY BUS TOKEN:",
+  token
+);
+
   const response =
     await fetch(
       `${BASE_URL}/my-bus-location`,
@@ -348,6 +354,12 @@ async () => {
         },
       }
     );
+    console.log(
+  "TOKEN:",
+  token
+);
+
+
 
   const text =
     await response.text();
@@ -360,4 +372,314 @@ async () => {
   return JSON.parse(text);
 
 };
+
+export const getProfile =
+async () => {
+
+  const token =
+    await getToken();
+
+  const response =
+    await fetch(
+      `${BASE_URL}/profile`,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  return await response.json();
+
+};
+
+export const updateProfileImage =
+async (imageUrl) => {
+
+  const token =
+    await AsyncStorage.getItem(
+      "token"
+    );
+
+  const response =
+    await fetch(
+
+      `${BASE_URL}/profile-image`,
+
+      {
+
+        method: "PUT",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body: JSON.stringify({
+
+          profileImage:
+            imageUrl,
+
+        }),
+
+      }
+
+    );
+
+  return response.json();
+
+};
   
+export const getHistory =
+async (date = "") => {
+
+  const token =
+    await AsyncStorage.getItem(
+      "token"
+    );
+
+  const response =
+    await fetch(
+
+      `${BASE_URL}/history?date=${date}`,
+
+      {
+
+        headers: {
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+      }
+
+    );
+
+  return response.json();
+
+};
+
+export const
+getAnnouncements =
+async () => {
+
+  const token =
+    await getToken();
+
+  const response =
+    await fetch(
+      `${API_BASE_URL}/announcements`,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  return await response.json();
+
+};
+
+export const
+getNotificationSettings =
+async () => {
+
+  const token =
+    await getToken();
+
+  const response =
+    await fetch(
+      `${BASE_URL}/notification-settings`,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  return response.json();
+
+};
+
+export const
+updateNotificationSettings =
+async (data) => {
+
+  const token =
+    await getToken();
+
+  const response =
+    await fetch(
+
+      `${BASE_URL}/notification-settings`,
+
+      {
+
+        method: "PUT",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body:
+          JSON.stringify(data),
+
+      }
+
+    );
+
+  return response.json();
+
+};
+
+
+export const savePushToken =
+async (tokenValue) => {
+
+  const token =
+    await getToken();
+
+  const response =
+    await fetch(
+
+      `${BASE_URL}/push-token`,
+
+      {
+
+        method: "PUT",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body:
+          JSON.stringify({
+
+            token:
+              tokenValue,
+
+          }),
+
+      }
+
+    );
+
+  const text =
+    await response.text();
+
+  console.log(
+    "PUSH TOKEN STATUS:",
+    response.status
+  );
+
+  console.log(
+    "PUSH TOKEN RESPONSE:",
+    text
+  );
+
+  return {
+    success: response.ok,
+  };
+
+};
+
+export const sendForgotPasswordOTP =
+async (phone) => {
+
+  const response =
+    await fetch(
+      `${BASE_URL}/send-forgot-password-otp`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          phone,
+        }),
+      }
+    );
+
+  return await response.json();
+
+};
+
+export const verifyForgotPasswordOTP =
+async (
+  phone,
+  otp
+) => {
+
+  const response =
+    await fetch(
+      `${BASE_URL}/verify-forgot-password-otp`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          phone,
+          otp,
+        }),
+      }
+    );
+
+  return await response.json();
+
+};
+
+export const resetPassword =
+async (
+  phone,
+  newPassword
+) => {
+
+  const response =
+    await fetch(
+      `${BASE_URL}/reset-password`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          phone,
+          newPassword,
+        }),
+      }
+    );
+
+  return await response.json();
+
+};

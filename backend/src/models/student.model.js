@@ -40,8 +40,13 @@ const studentSchema = new mongoose.Schema({
 },
 
     pickupStop: {
-    type: String
-}
+    type: String,
+    required: true,
+},
+boardedToday: {
+  type: Boolean,
+  default: false,
+},
 
 }, {
     timestamps: true

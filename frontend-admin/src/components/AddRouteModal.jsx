@@ -5,6 +5,7 @@ import {
   DialogActions,
   Button,
   TextField,
+  MenuItem,
 } from "@mui/material";
 
 import { useState } from "react";
@@ -22,6 +23,8 @@ const AddRouteModal = ({
   const [formData, setFormData] =
     useState({
       routeName: "",
+      tripType: "PICKUP",
+    scheduledTime: "",
       stops: "",
     });
 
@@ -40,18 +43,26 @@ const AddRouteModal = ({
 
       try {
 
-        const payload = {
-          routeName:
-            formData.routeName,
+       const payload = {
 
-          stops:
-            formData.stops
-              .split(",")
-              .map((stop) => ({
-                stopName:
-                  stop.trim(),
-              })),
-        };
+  routeName:
+    formData.routeName,
+
+  tripType:
+    formData.tripType,
+
+  scheduledTime:
+    formData.scheduledTime,
+
+  stops:
+    formData.stops
+      .split(",")
+      .map((stop) => ({
+        stopName:
+          stop.trim(),
+      })),
+
+};
 
         await createRoute(
           payload
@@ -88,6 +99,40 @@ const AddRouteModal = ({
           margin="normal"
           onChange={handleChange}
         />
+
+        <TextField
+          select
+          fullWidth
+          label="Trip Type"
+          name="tripType"
+          margin="normal"
+          value={formData.tripType}
+          onChange={handleChange}
+        >
+
+          <MenuItem value="PICKUP">
+            PICKUP
+          </MenuItem>
+
+          <MenuItem value="DROP">
+            DROP
+          </MenuItem>
+
+        </TextField>
+
+        <TextField
+        fullWidth
+        type="time"
+        label="Scheduled Time"
+        name="scheduledTime"
+        margin="normal"
+        value={formData.scheduledTime}
+        onChange={handleChange}
+        InputLabelProps={{
+          shrink: true,
+        }}
+      />
+              
 
         <TextField
           fullWidth

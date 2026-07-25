@@ -1,735 +1,530 @@
+import React, { useEffect, useState } from "react";
 import {
-  useEffect,
-  useState,
-} from "react";
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Box,
+  Chip,
+  MenuItem,
+  InputAdornment,
+  TablePagination,
+  Grid,
+} from "@mui/material";
 
-import {
-  getAttendanceHistory,
-} from "../services/attendance.service";
-
-import {
-  getBuses
-} from "../services/bus.service";
-
-import {
-  getRoutes
-} from "../services/route.service";
+// Direct file path imports to prevent Vite bundling errors
+import SearchIcon from "@mui/icons-material/Search";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import * as XLSX from "xlsx";
-
 import { saveAs } from "file-saver";
 
-export default function
-AttendanceHistory() {
+import { getAttendanceHistory } from "../services/attendance.service";
+import { getBuses } from "../services/bus.service";
+import { getRoutes } from "../services/route.service";
 
+export default function StudentAttendance() {
+  const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const [busId, setBusId] = useState("");
+  const [search, setSearch] = useState("");
+  const [routeId, setRouteId] = useState("");
+  const [tripType, setTripType] = useState("");
 
-const [date, setDate] =
-  useState(
-    new Date()
-      .toLocaleDateString(
-        "en-CA"
-      )
-  );
+  const [buses, setBuses] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [attendance, setAttendance] = useState([]);
 
-const [busId, setBusId] =
-  useState("");
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-const [search, setSearch] =
-  useState("");
-
-const [routeId, setRouteId] =
-  useState("");
-
-const [buses, setBuses] =
-  useState([]);
-
-const [routes, setRoutes] =
-  useState([]);
-
-const [
-  tripType,
-  setTripType
-] = useState("");
-
-  const [
-    attendance,
-    setAttendance
-  ] = useState([]);
-
-  const [currentPage, setCurrentPage] =
-  useState(1);
-
-const recordsPerPage = 15;
-
-  const [
-    summary,
-    setSummary
-  ] = useState({
+  const [summary, setSummary] = useState({
     total: 0,
     present: 0,
     absent: 0,
   });
 
-  useEffect(() => {
-
-    loadAttendance();
-
-    loadFilters();
-
-  }, []);
-
-  const loadAttendance =
-    async () => {
-
-     const data =
-        await getAttendanceHistory(
+  const loadAttendance = async () => {
+    try {
+      // Pass search term to backend if backend API handles search filters
+      const data = await getAttendanceHistory(
         date,
         busId,
         routeId,
         search,
         tripType
-        );
+      );
 
-        console.log(data);
-
-      if (data.success) {
-
-        setAttendance(
-          data.attendance
-        );
-
-        setCurrentPage(1);
-
+      if (data && data.success) {
+        setAttendance(data.attendance || []);
         setSummary({
-          total:
-            data.total,
-
-          present:
-            data.present,
-
-          absent:
-            data.absent,
+          total: data.total || 0,
+          present: data.present || 0,
+          absent: data.absent || 0,
         });
-
       }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-    };
+  const loadFilters = async () => {
+    try {
+      const busData = await getBuses();
+      const routeData = await getRoutes();
 
-    const loadFilters =
-        async () => {
+      setBuses(busData.buses || []);
+      setRoutes(routeData.routes || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-        const busData =
-            await getBuses();
+  // Initial load for buses & routes dropdown options
+  useEffect(() => {
+    loadFilters();
+  }, []);
 
-        const routeData =
-            await getRoutes();
+  // Auto-search / Refetch data whenever search term or filter dropdowns change
+  useEffect(() => {
+    loadAttendance();
+    setPage(0); // Reset pagination to first page on search change
+  }, [date, busId, routeId, tripType, search]);
 
-        setBuses(
-            busData.buses || []
-        );
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-        setRoutes(
-            routeData.routes || []
-        );
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-        };
+  // Client-side auto-search fallback across ALL columns
+  const filteredAttendance = attendance.filter((item) => {
+    if (!search.trim()) return true;
 
-        const exportToExcel =
-() => {
+    const query = search.toLowerCase();
+    const studentName = (item.studentId?.name || "").toLowerCase();
+    const admissionNo = String(item.studentId?.admissionNumber || "").toLowerCase();
+    const busNo = (item.busId?.busNumber || "").toLowerCase();
+    const routeName = (item.routeId?.routeName || "").toLowerCase();
+    const type = (item.tripType || "").toLowerCase();
+    const status = (item.status || "").toLowerCase();
+    const formattedDate = item.attendanceDate
+      ? new Date(item.attendanceDate).toLocaleDateString().toLowerCase()
+      : "";
 
-  const excelData =
-    attendance.map(
-      (item) => ({
-
-        Student:
-          item.studentId?.name,
-
-        AdmissionNumber:
-          item.studentId
-            ?.admissionNumber,
-
-        Bus:
-          item.busId
-            ?.busNumber,
-
-        Route:
-          item.routeId
-            ?.routeName,
-
-        Status:
-          item.status,
-
-        Date:
-          new Date(
-            item.attendanceDate
-          ).toLocaleDateString(),
-
-      })
+    return (
+      studentName.includes(query) ||
+      admissionNo.includes(query) ||
+      busNo.includes(query) ||
+      routeName.includes(query) ||
+      type.includes(query) ||
+      status.includes(query) ||
+      formattedDate.includes(query)
     );
+  });
 
-  const worksheet =
-    XLSX.utils.json_to_sheet(
-      excelData
-    );
+  const exportToExcel = () => {
+    const excelData = filteredAttendance.map((item) => ({
+      Student: item.studentId?.name || "N/A",
+      AdmissionNumber: item.studentId?.admissionNumber || "N/A",
+      Bus: item.busId?.busNumber || "N/A",
+      Route: item.routeId?.routeName || "N/A",
+      TripType: item.tripType || "N/A",
+      Status: item.status || "N/A",
+      Date: item.attendanceDate
+        ? new Date(item.attendanceDate).toLocaleDateString()
+        : "N/A",
+    }));
 
-  const workbook =
-    XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Attendance"
-  );
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
 
-  const excelBuffer =
-    XLSX.write(
-      workbook,
-      {
-        bookType:
-          "xlsx",
+    const fileData = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
 
-        type:
-          "array",
-      }
-    );
-
-  const fileData =
-    new Blob(
-      [excelBuffer],
-      {
-        type:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }
-    );
-
-  saveAs(
-    fileData,
-    `Attendance_Report_${
-      new Date()
+    saveAs(
+      fileData,
+      `Attendance_Report_${new Date()
         .toLocaleDateString()
-        .replaceAll(
-          "/",
-          "-"
-        )
-    }.xlsx`
-  );
+        .replaceAll("/", "-")}.xlsx`
+    );
+  };
 
-};
-
-
-    const indexOfLastRecord =
-  currentPage * recordsPerPage;
-
-const indexOfFirstRecord =
-  indexOfLastRecord -
-  recordsPerPage;
-
-const currentRecords =
-  attendance.slice(
-    indexOfFirstRecord,
-    indexOfLastRecord
-  );
-
-const totalPages =
-  Math.ceil(
-    attendance.length /
-    recordsPerPage
+  const paginatedAttendance = filteredAttendance.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   );
 
   return (
+    <Box sx={{ p: 0.5 }}>
+      {/* Clean & Separated Summary Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "#ffffff",
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "#64748b", fontWeight: 700, letterSpacing: "0.5px" }}
+            >
+              TOTAL ATTENDANCE
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+              {summary.total}
+            </Typography>
+          </Paper>
+        </Grid>
 
-   <div
-  style={{
-    padding: "25px",
-    background: "#F8FAFC",
-    minHeight: "100vh",
-  }}
->
-  <div
-    style={{
-      marginBottom: "25px",
-    }}
-  >
-   <div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  }}
->
-  <div>
-    <h2
-      style={{
-        margin: 0,
-      }}
-    >
-      Student Attendance
-    </h2>
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: "12px",
+              border: "1px solid #bbf7d0",
+              backgroundColor: "#f0fdf4",
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "#166534", fontWeight: 700, letterSpacing: "0.5px" }}
+            >
+              PRESENT
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
+              {summary.present}
+            </Typography>
+          </Paper>
+        </Grid>
 
-    <p
-      style={{
-        marginTop: "5px",
-        color: "#666",
-      }}
-    >
-      View, filter and export student attendance records.
-    </p>
-  </div>
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: "12px",
+              border: "1px solid #fecaca",
+              backgroundColor: "#fef2f2",
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "#991b1b", fontWeight: 700, letterSpacing: "0.5px" }}
+            >
+              ABSENT
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: "#dc2626" }}>
+              {summary.absent}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
 
-  <div
-    style={{
-      display: "flex",
-      gap: "15px",
-    }}
-  >
-    <div
-      style={{
-        padding: "15px",
-        background: "#fff",
-        borderRadius: "10px",
-        minWidth: "120px",
-      }}
-    >
-      <strong>Total</strong>
-      <br />
-      {summary.total}
-    </div>
-
-    <div
-      style={{
-        padding: "15px",
-        background: "#ECFDF5",
-        borderRadius: "10px",
-        minWidth: "120px",
-      }}
-    >
-      <strong>Present</strong>
-      <br />
-      {summary.present}
-    </div>
-
-    <div
-      style={{
-        padding: "15px",
-        background: "#FEF2F2",
-        borderRadius: "10px",
-        minWidth: "120px",
-      }}
-    >
-      <strong>Absent</strong>
-      <br />
-      {summary.absent}
-    </div>
-  </div>
-</div>
-</div>
-
-
-  
-
-  
-
-     <div
-  style={{
-    background: "#FFFFFF",
-    padding: "20px",
-    borderRadius: "16px",
-    boxShadow:
-      "0 2px 12px rgba(0,0,0,0.08)",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "12px",
-    marginBottom: "25px",
-  }}
->
-
-  <input
-    type="date"
-    value={date}
-    onChange={(e) =>
-      setDate(
-        e.target.value
-      )
-    }
-  />
-
-  <select
-    value={busId}
-    onChange={(e) =>
-      setBusId(
-        e.target.value
-      )
-    }
-  >
-
-    <option value="">
-      All Buses
-    </option>
-
-    {buses.map(
-      (bus) => (
-
-        <option
-          key={bus._id}
-          value={bus._id}
-        >
-          {bus.busNumber}
-        </option>
-
-      )
-    )}
-
-  </select>
-
-  <select
-    value={routeId}
-    onChange={(e) =>
-      setRouteId(
-        e.target.value
-      )
-    }
-  >
-
-    <option value="">
-      All Routes
-    </option>
-
-    {routes.map(
-      (route) => (
-
-        <option
-          key={route._id}
-          value={route._id}
-        >
-          {route.routeName}
-        </option>
-
-      )
-    )}
-
-  </select>
-
-
-  <select
-  value={tripType}
-  onChange={(e) =>
-    setTripType(
-      e.target.value
-    )
-  }
->
-
-  <option value="">
-    All Trips
-  </option>
-
-  <option value="PICKUP">
-    Pickup
-  </option>
-
-  <option value="DROP">
-    Drop
-  </option>
-
-</select>
-
-  <input
-  type="text"
-  placeholder="Name / Admission No."
-  value={search}
-  onChange={(e) =>
-    setSearch(
-      e.target.value
-    )
-  }
-/>
-
-  <button
-  onClick={loadAttendance}
-  style={{
-    background: "#2563EB",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 18px",
-    cursor: "pointer",
-    fontWeight: "600",
-  }}
->
-  Search
-</button>
-
-  <button
-  onClick={exportToExcel}
-  style={{
-    background: "#16A34A",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 18px",
-    cursor: "pointer",
-    fontWeight: "600",
-  }}
->
-  Export Excel
-</button>
-
-</div>
-
-      {/* <div
-  style={{
-    display: "flex",
-    gap: "20px",
-    marginBottom: "25px",
-  }}
->
-  <div
-    style={{
-      flex: 1,
-      background: "#FFFFFF",
-      padding: "20px",
-      borderRadius: "16px",
-      boxShadow:
-        "0 2px 12px rgba(0,0,0,0.08)",
-    }}
-  >
-    <div
-      style={{
-        color: "#64748B",
-      }}
-    >
-      Total Attendance
-    </div>
-
-    <h1
-      style={{
-        margin: "10px 0 0",
-      }}
-    >
-      {summary.total}
-    </h1>
-  </div>
-
-  <div
-    style={{
-      flex: 1,
-      background: "#ECFDF5",
-      padding: "20px",
-      borderRadius: "16px",
-    }}
-  >
-    <div
-      style={{
-        color: "#15803D",
-      }}
-    >
-      Present
-    </div>
-
-    <h1
-      style={{
-        margin: "10px 0 0",
-        color: "#15803D",
-      }}
-    >
-      {summary.present}
-    </h1>
-  </div>
-
-  <div
-    style={{
-      flex: 1,
-      background: "#FEF2F2",
-      padding: "20px",
-      borderRadius: "16px",
-    }}
-  >
-    <div
-      style={{
-        color: "#DC2626",
-      }}
-    >
-      Absent
-    </div>
-
-    <h1
-      style={{
-        margin: "10px 0 0",
-        color: "#DC2626",
-      }}
-    >
-      {summary.absent}
-    </h1>
-  </div>
-</div> */}
-
-      <table
-        border="1"
-        width="100%"
+      {/* Filter Control Toolbar with Auto-Search */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 3,
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+        }}
       >
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 1.5,
+            alignItems: "center",
+          }}
+        >
+          {/* Date Picker */}
+          <TextField
+            label="Date"
+            type="date"
+            size="small"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              width: { xs: "100%", sm: 160 },
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          />
 
-        <thead>
+          {/* Bus Dropdown */}
+          <TextField
+            select
+            label="Select Bus"
+            size="small"
+            value={busId}
+            onChange={(e) => setBusId(e.target.value)}
+            sx={{
+              minWidth: 140,
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          >
+            <MenuItem value="">All Buses</MenuItem>
+            {buses.map((bus) => (
+              <MenuItem key={bus._id} value={bus._id}>
+                {bus.busNumber}
+              </MenuItem>
+            ))}
+          </TextField>
 
-          <tr>
+          {/* Route Dropdown */}
+          <TextField
+            select
+            label="Select Route"
+            size="small"
+            value={routeId}
+            onChange={(e) => setRouteId(e.target.value)}
+            sx={{
+              minWidth: 150,
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          >
+            <MenuItem value="">All Routes</MenuItem>
+            {routes.map((route) => (
+              <MenuItem key={route._id} value={route._id}>
+                {route.routeName}
+              </MenuItem>
+            ))}
+          </TextField>
 
-            <th>
-              Student
-            </th>
+          {/* Trip Type Dropdown */}
+          <TextField
+            select
+            label="Trip Type"
+            size="small"
+            value={tripType}
+            onChange={(e) => setTripType(e.target.value)}
+            sx={{
+              minWidth: 130,
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          >
+            <MenuItem value="">All Trips</MenuItem>
+            <MenuItem value="PICKUP">Pickup</MenuItem>
+            <MenuItem value="DROP">Drop</MenuItem>
+          </TextField>
 
-            <th>
-              Admission
-            </th>
+          {/* Universal Auto-Search Field */}
+          <TextField
+            size="small"
+            placeholder="Search by student, bus, route, status..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: "#94a3b8" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              flexGrow: 1,
+              minWidth: 240,
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          />
 
-            <th>
-              Bus
-            </th>
+          {/* Excel Export Button */}
+          <Button
+            variant="contained"
+            startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
+            onClick={exportToExcel}
+            sx={{
+              borderRadius: "8px",
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: "#16a34a",
+              px: 2,
+              py: 0.8,
+              boxShadow: "none",
+              "&:hover": { backgroundColor: "#15803d" },
+            }}
+          >
+            Export Excel
+          </Button>
+        </Box>
+      </Paper>
 
-            <th>
-              Route
-            </th>
+      {/* Table Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+          overflow: "hidden",
+        }}
+      >
+        <TableContainer>
+          <Table sx={{ minWidth: 750 }}>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  #
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Student
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Admission
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Bus
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Route
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Trip Type
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Status
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase", pr: 3 }}>
+                  Date (MM/DD/YYYY)
+                </TableCell>
+              </TableRow>
+            </TableHead>
 
-            <th>
-              Trip Type
-            </th>
+            <TableBody>
+              {paginatedAttendance.length > 0 ? (
+                paginatedAttendance.map((item, index) => {
+                  const isPresent = item.status === "PRESENT";
 
-            <th>
-              Status
-            </th>
+                  return (
+                    <TableRow
+                      key={item._id || index}
+                      sx={{
+                        "&:hover": { backgroundColor: "#f8fafc" },
+                        borderBottom: "1px solid #f1f5f9",
+                      }}
+                    >
+                      <TableCell sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "0.85rem" }}>
+                        {page * rowsPerPage + index + 1}
+                      </TableCell>
 
-            <th>
-            Date (MM/DD/YYYY)
-            </th>
+                      <TableCell sx={{ fontWeight: 600, color: "#0f172a" }}>
+                        {item.studentId?.name || "-"}
+                      </TableCell>
 
-          </tr>
+                      <TableCell>
+                        <Chip
+                          label={item.studentId?.admissionNumber || "N/A"}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            backgroundColor: "#f1f5f9",
+                            color: "#334155",
+                          }}
+                        />
+                      </TableCell>
 
-        </thead>
+                      <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                        {item.busId?.busNumber || "-"}
+                      </TableCell>
 
-        <tbody>
+                      <TableCell sx={{ color: "#475569" }}>
+                        {item.routeId?.routeName || "-"}
+                      </TableCell>
 
-          {currentRecords.map(
-            (item) => (
+                      <TableCell>
+                        <Chip
+                          label={item.tripType || "PICKUP"}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            borderRadius: "6px",
+                            backgroundColor: item.tripType === "DROP" ? "#ffedd5" : "#dcfce7",
+                            color: item.tripType === "DROP" ? "#c2410c" : "#166534",
+                          }}
+                        />
+                      </TableCell>
 
-              <tr
-                key={item._id}
-              >
+                      <TableCell>
+                        <Chip
+                          label={item.status || "PRESENT"}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            borderRadius: "6px",
+                            backgroundColor: isPresent ? "#dcfce7" : "#fee2e2",
+                            color: isPresent ? "#15803d" : "#dc2626",
+                          }}
+                        />
+                      </TableCell>
 
-                <td>
-                  {
-                    item.studentId
-                      ?.name
-                  }
-                </td>
+                      <TableCell align="right" sx={{ pr: 3, color: "#64748b", fontWeight: 500 }}>
+                        {item.attendanceDate ? new Date(item.attendanceDate).toLocaleDateString() : "-"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
+                    <Typography variant="body2">No matching attendance records found.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-                <td>
-                  {
-                    item.studentId
-                      ?.admissionNumber
-                  }
-                </td>
-
-                <td>
-                  {
-                    item.busId
-                      ?.busNumber
-                  }
-                </td>
-
-                <td>
-                  {
-                    item.routeId
-                      ?.routeName
-                  }
-                </td>
-
-
-                <td>
-                    {
-                        item.tripType
-                    }
-                    </td>
-
-                <td
-  style={{
-    color:
-      item.status ===
-      "PRESENT"
-        ? "green"
-        : "red",
-
-    fontWeight:
-      "bold",
-  }}
->
-  {
-    item.status
-  }
-</td>
-
-<td>
-  {
-    new Date(
-      item.attendanceDate
-    ).toLocaleDateString()
-  }
-</td>
-
-              </tr>
-
-            )
-          )}
-
-        </tbody>
-
-      </table>
-
-      <div
-  style={{
-    marginTop: "20px",
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    alignItems: "center",
-  }}
->
-
-  <button
-    disabled={
-      currentPage === 1
-    }
-    onClick={() =>
-      setCurrentPage(
-        currentPage - 1
-      )
-    }
-  >
-    Previous
-  </button>
-
-  <span>
-    Page {currentPage}
-    {" "}of{" "}
-    {totalPages || 1}
-  </span>
-
-  <button
-    disabled={
-      currentPage === totalPages ||
-      totalPages === 0
-    }
-    onClick={() =>
-      setCurrentPage(
-        currentPage + 1
-      )
-    }
-  >
-    Next
-  </button>
-
-</div>
-
-    </div>
-
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 50]}
+          component="div"
+          count={filteredAttendance.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            borderTop: "1px solid #e2e8f0",
+            ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+              fontSize: "0.85rem",
+              color: "#64748b",
+            },
+          }}
+        />
+      </Paper>
+    </Box>
   );
-
 }

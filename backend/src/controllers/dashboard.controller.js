@@ -1,17 +1,12 @@
-const Student =
-require("../models/student.model");
+const Student = require("../models/student.model");
 
-console.log(
-  "🚀 DASHBOARD CONTROLLER FILE LOADED"
-);
+const Bus = require("../models/bus.model");
 
-const Bus =
-require("../models/bus.model");
+const Route = require("../models/route.model");
 
-const Route =
-require("../models/route.model");
+const User = require("../models/user.model");
 
-const User =require("../models/user.model");
+const BusRoute = require("../models/busRoute.model");
 
 
 exports.getDashboardStats =
@@ -80,22 +75,45 @@ async (req, res) => {
         const driversUnassigned =
         drivers - driversAssigned;
 
-        const activeBuses =
-        await Bus.countDocuments({
-            schoolId: req.user.schoolId,
-            driverId: {
-            $exists: true,
-            $ne: null,
-            },
+      const busesData =
+  await Bus.find({
+    schoolId: req.user.schoolId,
+  });
 
-            routeId: {
-            $exists: true,
-            $ne: null,
-    },
-        });
+let activeBuses = 0;
 
-        const inactiveBuses =
-        buses - activeBuses;
+for (const bus of busesData) {
+
+  const studentCount =
+    await Student.countDocuments({
+      busId: bus._id,
+    });
+
+  const additionalRoutes =
+    await BusRoute.countDocuments({
+      busId: bus._id,
+    });
+
+  const hasRoute =
+    bus.routeId ||
+    additionalRoutes > 0;
+
+  const isActive =
+    bus.driverId &&
+    hasRoute &&
+    studentCount > 0;
+
+  if (isActive) {
+    activeBuses++;
+  }
+
+}
+
+const inactiveBuses =
+  busesData.length -
+  activeBuses;
+
+       
 
 
         res.json({

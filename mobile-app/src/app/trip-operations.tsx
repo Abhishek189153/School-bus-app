@@ -25,6 +25,10 @@ import {
   startTrip,
 } from "../services/mobile.service";
 
+import {
+  startBackgroundTracking,
+} from "../services/backgroundLocation";
+
 import * as Location
 from "expo-location";
 
@@ -112,16 +116,24 @@ async (
     "Starting watchPositionAsync..."
   );
 
+  const enabled =
+  await Location.hasServicesEnabledAsync();
+
+console.log(
+  "GPS Enabled:",
+  enabled
+);
+
 locationSubscription.current =
   await Location.watchPositionAsync(    {
       accuracy:
         Location.Accuracy.High,
 
       timeInterval:
-        10000,
+        3000,
 
       distanceInterval:
-        20,
+        5,
     },
 
     async (
@@ -134,6 +146,17 @@ locationSubscription.current =
         location.coords.longitude
       );
 
+      console.log(
+  "SENDING TO API:",
+  {
+    busId,
+    latitude:
+      location.coords.latitude,
+    longitude:
+      location.coords.longitude,
+  }
+);
+
       try {
 
         const response =
@@ -143,8 +166,10 @@ locationSubscription.current =
             location.coords.longitude
           );
 
+          
+
         console.log(
-          "Location API Response:",
+          "LOCATION SENT SUCCESSFULLY:",
           response
         );
 
@@ -182,6 +207,11 @@ locationSubscription.current =
             tripType,
             routeId
           );
+          console.log(
+  "START TRIP RESPONSE:",
+  data
+);
+          
 
         if (data.success) {
 
@@ -196,8 +226,12 @@ locationSubscription.current =
   );
 
   await startLocationTracking(
-    data.trip.busId
-  );
+  data.trip.busId
+);
+
+// await startBackgroundTracking(
+//   data.trip.busId
+// );
 
           router.push({
             pathname:
@@ -210,14 +244,20 @@ locationSubscription.current =
 
         }
 
-      } catch (error) {
+      }catch (error: any) {
 
-        Alert.alert(
-          "Error",
-          "Failed to start trip"
-        );
+  console.log(
+    "START TRIP ERROR:",
+    error
+  );
 
-      }
+  Alert.alert(
+    "Error",
+    error?.message ||
+    JSON.stringify(error)
+  );
+
+}
 
     };
 

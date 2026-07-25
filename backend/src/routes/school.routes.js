@@ -5,10 +5,8 @@ const router = express.Router();
 const protect = require("../middlewares/auth.middleware");
 const authorize = require("../middlewares/role.middleware");
 
-const {
-    createSchool,
-    getSchools
-} = require("../controllers/school.controller");
+const {createSchool, getSchools, getSchool, updateSchool, deleteSchool } 
+= require("../controllers/school.controller");
 
 
 router.post(
@@ -23,6 +21,27 @@ router.get(
     protect,
     authorize("SUPER_ADMIN"),
     getSchools
+);
+
+    router.get(
+    "/:id",
+    protect,
+    authorize("SUPER_ADMIN"),
+    getSchool
+);
+
+    router.put(
+    "/:id",
+    protect,
+    authorize("SUPER_ADMIN"),
+    updateSchool
+);
+
+    router.delete(
+    "/:id",
+    protect,
+    authorize("SUPER_ADMIN"),
+    deleteSchool
 );
 
 module.exports = router;

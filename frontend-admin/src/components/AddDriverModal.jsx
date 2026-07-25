@@ -51,7 +51,10 @@ const AddDriverModal = ({
 
       } catch (error) {
 
-        console.log(error);
+        alert(
+    error.response?.data?.message ||
+    "Failed to create driver"
+  );
 
       }
     };

@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,344 +12,413 @@ import {
   Snackbar,
   Alert,
   TextField,
-  Box
+  Box,
+  Chip,
+  IconButton,
+  Tooltip,
+  InputAdornment,
+  TablePagination,
 } from "@mui/material";
 
-import {
-  getRoutes,
-  deleteRoute,
-} from "../services/route.service";
+// Direct file path imports to avoid Vite bundling errors
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
+import { getRoutes, deleteRoute } from "../services/route.service";
 import AddRouteModal from "../components/AddRouteModal";
 import EditRouteModal from "../components/EditRouteModal";
 
 const Routes = () => {
+  const [routes, setRoutes] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const [routes, setRoutes] =
-    useState([]);
-
-  const [searchTerm, setSearchTerm] =
-    useState("");
-
-  const [snackbar, setSnackbar] =
-  useState({
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
 
-  const [editOpen, setEditOpen] =
-    useState(false);
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [selectedRoute,
-    setSelectedRoute] =
-    useState(null);
+  const formatTime = (time) => {
+    if (!time) return "-";
+    const [hour, minute] = time.split(":");
+    const date = new Date();
+    date.setHours(hour);
+    date.setMinutes(minute);
 
-  const fetchRoutes =
-    async () => {
+    return date.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
-      try {
-
-        const data =
-          await getRoutes();
-
-        setRoutes(
-          data.routes
-        );
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-    };
+  const fetchRoutes = async () => {
+    try {
+      const data = await getRoutes();
+      setRoutes(data.routes || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     fetchRoutes();
   }, []);
 
   const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Delete route?");
+    if (!confirmDelete) return;
 
-  const confirmDelete =
-    window.confirm(
-      "Delete route?"
-    );
+    try {
+      const response = await deleteRoute(id);
 
-  if (!confirmDelete)
-    return;
+      setSnackbar({
+        open: true,
+        message: response.message || "Route deleted successfully",
+        severity: "success",
+      });
 
-  try {
+      fetchRoutes();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Assigned route cannot be deleted, unassign first",
+        severity: "error",
+      });
+    }
+  };
 
-    const response =
-      await deleteRoute(id);
+  const handleEdit = (route) => {
+    setSelectedRoute(route);
+    setEditOpen(true);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        response.message,
-      severity: "success",
-    });
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    fetchRoutes();
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-  } catch (error) {
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(0);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        error.response?.data
-          ?.message ||
-        "Assigned route cannot be deleted, unassign first",
-      severity: "error",
-    });
+  const filteredRoutes = routes.filter((route) =>
+    (
+      (route.routeName || "") +
+      " " +
+      (route.tripType || "") +
+      " " +
+      (route.scheduledTime || "") +
+      " " +
+      (route.stops?.map((stop) => stop.stopName).join(" ") || "")
+    )
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
-  }
-};
-
-  const handleEdit =
-    (route) => {
-
-      setSelectedRoute(
-        route
-      );
-
-      setEditOpen(true);
-    };
-
-
-  const filteredRoutes =
-  routes.filter(
-    (route) =>
-      (
-        route.routeName +
-        " " +
-        route.stops
-          ?.map(
-            (stop) =>
-              stop.stopName
-          )
-          .join(" ")
-      )
-        .toLowerCase()
-        .includes(
-          searchTerm.toLowerCase()
-        )
+  const paginatedRoutes = filteredRoutes.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   );
 
   return (
-    <>
-
-
-          <Box
+    <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>
+      {/* Header Container */}
+      <Paper
+        elevation={0}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 3,
-          mb: 2,
+          p: 2.5,
+          mb: 3,
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
         }}
       >
-
-        <Typography
-          variant="h4"
-        >
-          Routes
-        </Typography>
-
-        <Button
-          variant="contained"
-          onClick={() =>
-            setOpen(true)
-          }
-        >
-          Add Route
-        </Button>
-
-        <TextField
-          label="Search Route or Stop"
-          value={searchTerm}
-          onChange={(e) =>
-            setSearchTerm(
-              e.target.value
-            )
-          }
-          size="small"
+        <Box
           sx={{
-            width: 950,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          {/* Title & Total Count Badge */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a" }}>
+              Routes
+            </Typography>
+            <Chip
+              label={`${filteredRoutes.length} Total`}
+              size="small"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                borderRadius: "8px",
+              }}
+            />
+          </Box>
 
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "12px",
+          {/* Search Bar & Action Button */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            <TextField
+              placeholder="Search route name or stop..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#94a3b8" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: { xs: "100%", sm: 320 },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#ffffff",
+                  fontSize: "0.875rem",
+                  "& fieldset": { borderColor: "#cbd5e1" },
+                  "&:hover fieldset": { borderColor: "#94a3b8" },
+                  "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+                },
+              }}
+            />
 
-              "& fieldset": {
-                borderColor: "#080000",
-                borderWidth: "2px",
-              },
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpen(true)}
+              sx={{
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: "#2563eb",
+                px: 2.5,
+                py: 0.9,
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                "&:hover": { backgroundColor: "#1d4ed8" },
+              }}
+            >
+              Add Route
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
 
-              "&:hover fieldset": {
-                borderColor: "#1976d2",
-              },
+      {/* Table Container */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+          overflow: "hidden",
+        }}
+      >
+        <TableContainer>
+          <Table sx={{ minWidth: 700 }}>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  #
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Route Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Trip Type
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Scheduled Time
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Stops
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Status
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px", pr: 3 }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
 
-              "&.Mui-focused fieldset": {
-                borderColor: "#1976d2",
-                borderWidth: "2px",
-              },
+            <TableBody>
+              {paginatedRoutes.length > 0 ? (
+                paginatedRoutes.map((route, index) => (
+                  <TableRow
+                    key={route._id || index}
+                    sx={{
+                      "&:hover": { backgroundColor: "#f8fafc" },
+                      transition: "background-color 0.2s ease",
+                      borderBottom: "1px solid #f1f5f9",
+                    }}
+                  >
+                    {/* Dynamic Serial Number */}
+                    <TableCell sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "0.875rem" }}>
+                      {page * rowsPerPage + index + 1}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 600, color: "#0f172a" }}>
+                      {route.routeName}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={route.tripType || "N/A"}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          borderRadius: "6px",
+                          backgroundColor:
+                            route.tripType === "PICKUP" ? "#dcfce7" : "#ffedd5",
+                          color:
+                            route.tripType === "PICKUP" ? "#166534" : "#c2410c",
+                        }}
+                      />
+                    </TableCell>
+
+                    <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                      {formatTime(route.scheduledTime)}
+                    </TableCell>
+
+                    <TableCell sx={{ color: "#475569", maxWidth: 280 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          color: "#475569",
+                        }}
+                      >
+                        {route.stops?.map((s) => s.stopName).join(", ") || "-"}
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={route.status ? "Active" : "Disabled"}
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          borderRadius: "6px",
+                          backgroundColor: route.status ? "#dcfce7" : "#fee2e2",
+                          color: route.status ? "#166534" : "#991b1b",
+                        }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="right" sx={{ pr: 2 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(route)}
+                          sx={{
+                            color: "#2563eb",
+                            mr: 1,
+                            "&:hover": { backgroundColor: "#eff6ff" },
+                          }}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(route._id)}
+                          sx={{
+                            color: "#ef4444",
+                            "&:hover": { backgroundColor: "#fef2f2" },
+                          }}
+                        >
+                          <DeleteOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748b" }}>
+                    <Typography variant="body2">No matching route records found.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination Bar */}
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 50]}
+          component="div"
+          count={filteredRoutes.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            borderTop: "1px solid #e2e8f0",
+            ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+              fontSize: "0.875rem",
+              color: "#64748b",
             },
           }}
         />
+      </Paper>
 
-      </Box>
-
-      <TableContainer
-        component={Paper}
-      >
-
-        <Table>
-
-          <TableHead>
-
-            <TableRow>
-
-              <TableCell>
-                Route Name
-              </TableCell>
-
-              <TableCell>
-                Stops
-              </TableCell>
-
-              <TableCell>
-                Status
-              </TableCell>
-
-              <TableCell>
-                Actions
-              </TableCell>
-
-            </TableRow>
-
-          </TableHead>
-
-          <TableBody>
-
-            {filteredRoutes.map(
-            (route) => (
-
-                <TableRow
-                  key={route._id}
-                >
-
-                  <TableCell>
-                    {route.routeName}
-                  </TableCell>
-
-                  <TableCell>
-                    {route.stops
-                      ?.map(
-                        (s) =>
-                          s.stopName
-                      )
-                      .join(", ")}
-                  </TableCell>
-
-
-                  <TableCell>
-
-                    <Typography
-                      sx={{
-                        color:
-                          route.isAssigned
-                            ? "green"
-                            : "red",
-                        fontWeight: "normal",
-                      }}
-                    >
-                      {
-                        route.isAssigned
-                          ? `🟢 Active`
-                          : "🔴 Inactive"
-                      }
-                    </Typography>
-
-                  </TableCell>    
-
-                  <TableCell>
-
-                    <Button
-                      onClick={() =>
-                        handleEdit(
-                          route
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
-
-                    <Button
-                      color="error"
-                      onClick={() =>
-                        handleDelete(
-                          route._id
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-
-                  </TableCell>
-
-                </TableRow>
-
-              )
-            )}
-
-          </TableBody>
-
-        </Table>
-
-      </TableContainer>
-
+      {/* Modals */}
       <AddRouteModal
         open={open}
-        handleClose={() =>
-          setOpen(false)
-        }
-        refreshRoutes={
-          fetchRoutes
-        }
+        handleClose={() => setOpen(false)}
+        refreshRoutes={fetchRoutes}
       />
 
       <EditRouteModal
         open={editOpen}
-        handleClose={() =>
-          setEditOpen(false)
-        }
+        handleClose={() => setEditOpen(false)}
         route={selectedRoute}
-        refreshRoutes={
-          fetchRoutes
-        }
+        refreshRoutes={fetchRoutes}
       />
 
-    <Snackbar
-  open={snackbar.open}
-  autoHideDuration={3000}
-  onClose={() =>
-    setSnackbar({
-      ...snackbar,
-      open: false,
-    })
-  }
->
-  <Alert
-    severity={snackbar.severity}
-    variant="filled"
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>    
-
-    </>
+      {/* Snackbar Alert */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() =>
+          setSnackbar({
+            ...snackbar,
+            open: false,
+          })
+        }
+      >
+        <Alert severity={snackbar.severity} variant="filled">
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

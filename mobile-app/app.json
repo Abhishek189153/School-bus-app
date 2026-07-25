@@ -8,14 +8,30 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobileapp"
+      "package": "com.anonymous.mobileapp",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-image"
-        ],
+      "expo-image",
+      "@react-native-community/datetimepicker",
+      "expo-notifications"
+    ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "16d6f39d-2c6f-4e9a-9756-4572f1c04a43"
+      }
+    },
+    "owner": "abhishekpant"
   }
 }

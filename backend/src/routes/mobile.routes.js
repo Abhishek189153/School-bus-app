@@ -22,6 +22,18 @@ const {
     getDutyStatus,
     getBoardedStudents,
     getMyBusLocation,
+    getProfile,
+    updateProfileImage,
+    getHistory,
+    updateNotificationSettings,
+    getNotificationSettings,
+    savePushToken,
+    testNotification,
+    sendForgotPasswordOTP,
+    verifyForgotPasswordOTP,
+    resetPassword,
+      
+
 } = require("../controllers/mobile.controller");
 
 const {
@@ -117,6 +129,65 @@ router.get(
   protect,
   authorize("PARENT"),
   getMyBusLocation
+);
+
+router.get(
+  "/profile",
+  protect,
+  authorize("PARENT"),
+  getProfile
+);
+
+router.put(
+  "/profile-image",
+  protect,
+  updateProfileImage
+);
+
+router.get(
+  "/history",
+  protect,
+  authorize("PARENT"),
+  getHistory
+);
+
+router.put(
+  "/notification-settings",
+  protect,
+  updateNotificationSettings
+);
+
+router.get(
+  "/notification-settings",
+  protect,
+  getNotificationSettings
+);
+
+router.put(
+  "/push-token",
+  protect,
+  savePushToken
+);
+
+router.get(
+  "/test-notification",
+protect,
+  testNotification
+);
+
+router.post(
+  "/send-forgot-password-otp",
+  sendForgotPasswordOTP
+);
+
+router.post(
+  "/verify-forgot-password-otp",
+  verifyForgotPasswordOTP
+);
+
+router.post(
+  "/reset-password",
+  resetPassword
 );
 
 module.exports = router;

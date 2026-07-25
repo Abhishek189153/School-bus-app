@@ -5,6 +5,7 @@ import {
   DialogActions,
   Button,
   TextField,
+  MenuItem,
 } from "@mui/material";
 
 import {
@@ -26,7 +27,9 @@ const EditRouteModal = ({
   const [formData, setFormData] =
     useState({
       routeName: "",
-      stops: "",
+      tripType: "PICKUP",
+      scheduledTime: "",
+      stops: [],
     });
 
   useEffect(() => {
@@ -34,16 +37,19 @@ const EditRouteModal = ({
     if (route) {
 
       setFormData({
+
         routeName:
           route.routeName || "",
 
+        tripType:
+          route.tripType || "PICKUP",
+
+        scheduledTime:
+          route.scheduledTime || "",
+
         stops:
-          route.stops
-            ?.map(
-              (s) =>
-                s.stopName
-            )
-            .join(", ") || "",
+          route.stops || [],
+
       });
 
     }
@@ -60,22 +66,65 @@ const EditRouteModal = ({
 
   };
 
+ const handleStopChange = (
+  index,
+  field,
+  value
+) => {
+
+  const updatedStops =
+    [...formData.stops];
+
+  updatedStops[index] = {
+
+    ...updatedStops[index],
+
+    [field]: value,
+
+  };
+
+  setFormData({
+
+    ...formData,
+
+    stops:
+      updatedStops,
+
+  });
+
+};
+
   const handleSubmit =
     async () => {
 
       try {
 
-        const payload = {
+       const payload = {
+
           routeName:
             formData.routeName,
 
+           tripType:
+            formData.tripType,
+
+          scheduledTime:
+            formData.scheduledTime,
+
           stops:
-            formData.stops
-              .split(",")
-              .map((stop) => ({
-                stopName:
-                  stop.trim(),
-              })),
+            formData.stops.map(
+              (stop) => ({
+
+                ...stop,
+
+                latitude:
+                  Number(stop.latitude),
+
+                longitude:
+                  Number(stop.longitude),
+
+              })
+            ),
+
         };
 
         await updateRoute(
@@ -92,13 +141,16 @@ const EditRouteModal = ({
         console.log(error);
 
       }
+
     };
 
   return (
+
     <Dialog
       open={open}
       onClose={handleClose}
       fullWidth
+      maxWidth="md"
     >
 
       <DialogTitle>
@@ -117,15 +169,117 @@ const EditRouteModal = ({
         />
 
         <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label="Stops"
-          name="stops"
-          margin="normal"
-          value={formData.stops}
-          onChange={handleChange}
-        />
+        select
+        fullWidth
+        label="Trip Type"
+        name="tripType"
+        margin="normal"
+        value={formData.tripType}
+        onChange={handleChange}
+      >
+
+        <MenuItem value="PICKUP">
+          PICKUP
+        </MenuItem>
+
+        <MenuItem value="DROP">
+          DROP
+        </MenuItem>
+
+      </TextField>
+
+
+      <TextField
+        fullWidth
+        type="time"
+        label="Scheduled Time"
+        name="scheduledTime"
+        margin="normal"
+        value={formData.scheduledTime}
+        onChange={handleChange}
+        InputLabelProps={{
+          shrink: true,
+        }}
+      />
+
+            
+
+        {formData.stops.map(
+          (stop, index) => (
+
+            <div
+              key={index}
+              style={{
+                border:
+                  "1px solid #ddd",
+
+                borderRadius:
+                  "8px",
+
+                padding:
+                  "15px",
+
+                marginTop:
+                  "15px",
+              }}
+            >
+
+             
+
+              <TextField
+                fullWidth
+                label="Stop Name"
+                margin="normal"
+                value={
+                  stop.stopName || ""
+                }
+                onChange={(e) =>
+                  handleStopChange(
+                    index,
+                    "stopName",
+                    e.target.value
+                  )
+                }
+              />
+
+             <TextField
+            fullWidth
+            label="Latitude"
+            type="text"
+            margin="normal"
+            value={
+              stop.latitude ?? ""
+            }
+            onChange={(e) =>
+              handleStopChange(
+                index,
+                "latitude",
+                e.target.value
+              )
+            }
+          />
+
+              <TextField
+                fullWidth
+                label="Longitude"
+                type="text"
+                margin="normal"
+                value={
+                  stop.longitude ?? ""
+                }
+                onChange={(e) =>
+                  handleStopChange(
+                    index,
+                    "longitude",
+                    e.target.value
+                  )
+                }
+              />
+
+            </div>
+
+          )
+        )}
 
       </DialogContent>
 
@@ -147,7 +301,9 @@ const EditRouteModal = ({
       </DialogActions>
 
     </Dialog>
+
   );
+
 };
 
 export default EditRouteModal;

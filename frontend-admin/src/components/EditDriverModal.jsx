@@ -68,9 +68,12 @@ const EditDriverModal = ({
 
       } catch (error) {
 
-        console.log(error);
+  alert(
+    error.response?.data?.message ||
+    "Failed to update driver"
+  );
 
-      }
+}
     };
 
   return (

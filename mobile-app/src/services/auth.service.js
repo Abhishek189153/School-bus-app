@@ -1,5 +1,5 @@
 const BASE_URL =
-  "http://192.168.1.7:5000/api/auth";
+  `${API_BASE_URL}/auth`;
 
 export const loginUser = async (
   phone,

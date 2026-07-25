@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,332 +12,371 @@ import {
   Snackbar,
   Alert,
   TextField,
-  Box
+  Box,
+  Chip,
+  IconButton,
+  Tooltip,
+  InputAdornment,
+  TablePagination,
 } from "@mui/material";
 
-import {
-  getDrivers,
-  deleteDriver,
-} from "../services/driver.service";
+// Direct file path imports to prevent Vite bundling errors
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
+import { getDrivers, deleteDriver } from "../services/driver.service";
 import AddDriverModal from "../components/AddDriverModal";
 import EditDriverModal from "../components/EditDriverModal";
 
 const Drivers = () => {
+  const [drivers, setDrivers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const [drivers, setDrivers] =
-    useState([]);
-
-  const [searchTerm, setSearchTerm] =
-    useState("");
-
-  const [snackbar, setSnackbar] =
-  useState({
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
-  const [editOpen, setEditOpen] =
-    useState(false);
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [selectedDriver,
-    setSelectedDriver] =
-    useState(null);
-
-  const fetchDrivers =
-    async () => {
-
-      try {
-
-        const data =
-          await getDrivers();
-
-        setDrivers(
-          data.drivers
-        );
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-    };
+  const fetchDrivers = async () => {
+    try {
+      const data = await getDrivers();
+      setDrivers(data.drivers || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     fetchDrivers();
   }, []);
 
   const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Delete driver?");
+    if (!confirmDelete) return;
 
-  const confirmDelete =
-    window.confirm(
-      "Delete driver?"
-    );
+    try {
+      const response = await deleteDriver(id);
 
-  if (!confirmDelete)
-    return;
+      setSnackbar({
+        open: true,
+        message: response.message || "Driver deleted successfully",
+        severity: "success",
+      });
 
-  try {
+      fetchDrivers();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message:
+          error.response?.data?.message ||
+          "Assigned driver cannot be deleted, unassign first",
+        severity: "error",
+      });
+    }
+  };
 
-    const response =
-      await deleteDriver(id);
+  const handleEdit = (driver) => {
+    setSelectedDriver(driver);
+    setEditOpen(true);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        response.message,
-      severity: "success",
-    });
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    fetchDrivers();
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-  } catch (error) {
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(0);
+  };
 
-    setSnackbar({
-      open: true,
-      message:
-        error.response?.data
-          ?.message ||
-        "Assigned driver cannot be deleted, unassignfirst",
-      severity: "error",
-    });
+  // Filter list by name or phone
+  const filteredDrivers = drivers.filter(
+    (driver) =>
+      driver.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.phone?.includes(searchTerm)
+  );
 
-  }
-};
-
-  const handleEdit =
-    (driver) => {
-
-      setSelectedDriver(
-        driver
-      );
-
-      setEditOpen(true);
-    };
+  // Paginate filtered drivers
+  const paginatedDrivers = filteredDrivers.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
-    <>
-
-
-
-            <Box
+    <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>
+      {/* Header Container */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          mb: 3,
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        <Box
           sx={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            gap: 3,
-            mb: 2,
+            flexWrap: "wrap",
+            gap: 2,
           }}
         >
+          {/* Title & Count Badge */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a" }}>
+              Drivers
+            </Typography>
+            <Chip
+              label={`${filteredDrivers.length} Total`}
+              size="small"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                borderRadius: "8px",
+              }}
+            />
+          </Box>
 
-          <Typography
-            variant="h4"
-          >
-            Drivers
-          </Typography>
-
-          <Button
-            variant="contained"
-            onClick={() =>
-              setOpen(true)
-            }
-          >
-            Add Driver
-          </Button>
-
-          <TextField
-            label="Search Driver Name or Phone"
-            value={searchTerm}
-            onChange={(e) =>
-              setSearchTerm(e.target.value)
-            }
-            size="small"
-            sx={{
-              width: 950,
-
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "12px",
-
-                "& fieldset": {
-                  borderColor: "#080000",
-                  borderWidth: "2px",
+          {/* Search Bar & Action Button */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            <TextField
+              placeholder="Search driver name or phone..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#94a3b8" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: { xs: "100%", sm: 320 },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#ffffff",
+                  fontSize: "0.875rem",
+                  "& fieldset": { borderColor: "#cbd5e1" },
+                  "&:hover fieldset": { borderColor: "#94a3b8" },
+                  "&.Mui-focused fieldset": { borderColor: "#2563eb" },
                 },
+              }}
+            />
 
-                "&:hover fieldset": {
-                  borderColor: "#1976d2",
-                },
-
-                "&.Mui-focused fieldset": {
-                  borderColor: "#1976d2",
-                  borderWidth: "2px",
-                },
-              },
-            }}
-          />
-
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpen(true)}
+              sx={{
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: "#2563eb",
+                px: 2.5,
+                py: 0.9,
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
+                "&:hover": { backgroundColor: "#1d4ed8" },
+              }}
+            >
+              Add Driver
+            </Button>
+          </Box>
         </Box>
+      </Paper>
 
-      <TableContainer
-        component={Paper}
+      {/* Table Container */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
+          overflow: "hidden",
+        }}
       >
+        <TableContainer>
+          <Table sx={{ minWidth: 600 }}>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  #
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Phone
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Status
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px", pr: 3 }}>
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
 
-        <Table>
+            <TableBody>
+              {paginatedDrivers.length > 0 ? (
+                paginatedDrivers.map((driver, index) => (
+                  <TableRow
+                    key={driver._id || index}
+                    sx={{
+                      "&:hover": { backgroundColor: "#f8fafc" },
+                      transition: "background-color 0.2s ease",
+                      borderBottom: "1px solid #f1f5f9",
+                    }}
+                  >
+                    {/* Dynamic Serial Number */}
+                    <TableCell sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "0.875rem" }}>
+                      {page * rowsPerPage + index + 1}
+                    </TableCell>
 
-          <TableHead>
+                    <TableCell sx={{ fontWeight: 600, color: "#0f172a" }}>
+                      {driver.name}
+                    </TableCell>
 
-            <TableRow>
+                    <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                      {driver.phone}
+                    </TableCell>
 
-              <TableCell>
-                Name
-              </TableCell>
+                    <TableCell>
+                      {driver.isAssigned ? (
+                        <Chip
+                          label={`Active (${driver.assignedBus || "Assigned"})`}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            backgroundColor: "#dcfce7",
+                            color: "#166534",
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Inactive"
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            backgroundColor: "#fee2e2",
+                            color: "#991b1b",
+                          }}
+                        />
+                      )}
+                    </TableCell>
 
-              <TableCell>
-                Phone
-              </TableCell>
+                    <TableCell align="right" sx={{ pr: 2 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(driver)}
+                          sx={{
+                            color: "#2563eb",
+                            mr: 1,
+                            "&:hover": { backgroundColor: "#eff6ff" },
+                          }}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-
-              <TableCell>
-                Status
-              </TableCell>
-
-              <TableCell>
-                Actions
-              </TableCell>
-
-            </TableRow>
-
-          </TableHead>
-
-          <TableBody>
-
-            {drivers
-              .filter(
-                (driver) =>
-                  driver.name
-                    ?.toLowerCase()
-                    .includes(
-                      searchTerm.toLowerCase()
-                    ) ||
-
-                  driver.phone
-                    ?.includes(searchTerm)
-              )
-              .map(
-                (driver) => (
-
-                <TableRow
-                  key={driver._id}
-                >
-
-                  <TableCell>
-                    {driver.name}
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(driver._id)}
+                          sx={{
+                            color: "#ef4444",
+                            "&:hover": { backgroundColor: "#fef2f2" },
+                          }}
+                        >
+                          <DeleteOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: "#64748b" }}>
+                    <Typography variant="body2">No matching driver records found.</Typography>
                   </TableCell>
-
-                  <TableCell>
-                    {driver.phone}
-                  </TableCell>
-
-
-                  <TableCell>
-
-                    <Typography
-                      sx={{
-                        color:
-                          driver.isAssigned
-                            ? "green"
-                            : "red",
-                        fontWeight: "normal",
-                      }}
-                    >
-                      {
-                        driver.isAssigned
-                          ? `🟢 Active (${driver.assignedBus})`
-                          : "🔴 Inactive"
-                      }
-                    </Typography>
-
-                  </TableCell>  
-
-                  <TableCell>
-
-                    <Button
-                      onClick={() =>
-                        handleEdit(
-                          driver
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
-
-                    <Button
-                      color="error"
-                      onClick={() =>
-                        handleDelete(
-                          driver._id
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-
-                  </TableCell>
-
                 </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-              )
-            )}
+        {/* Pagination Controls */}
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 50]}
+          component="div"
+          count={filteredDrivers.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            borderTop: "1px solid #e2e8f0",
+            ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+              fontSize: "0.875rem",
+              color: "#64748b",
+            },
+          }}
+        />
+      </Paper>
 
-          </TableBody>
-
-        </Table>
-
-      </TableContainer>
-
+      {/* Modals */}
       <AddDriverModal
         open={open}
-        handleClose={() =>
-          setOpen(false)
-        }
-        refreshDrivers={
-          fetchDrivers
-        }
+        handleClose={() => setOpen(false)}
+        refreshDrivers={fetchDrivers}
       />
 
       <EditDriverModal
         open={editOpen}
-        handleClose={() =>
-          setEditOpen(false)
-        }
+        handleClose={() => setEditOpen(false)}
         driver={selectedDriver}
-        refreshDrivers={
-          fetchDrivers
-        }
+        refreshDrivers={fetchDrivers}
       />
 
-
-<Snackbar
-  open={snackbar.open}
-  autoHideDuration={3000}
-  onClose={() =>
-    setSnackbar({
-      ...snackbar,
-      open: false,
-    })
-  }
->
-  <Alert
-    severity={snackbar.severity}
-    variant="filled"
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
-
-    </>
+      {/* Alert Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() =>
+          setSnackbar({
+            ...snackbar,
+            open: false,
+          })
+        }
+      >
+        <Alert severity={snackbar.severity} variant="filled">
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

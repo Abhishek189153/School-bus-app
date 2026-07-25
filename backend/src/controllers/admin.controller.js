@@ -13,6 +13,7 @@ exports.createSchoolAdmin = async (req, res) => {
 
         const {
             name,
+            email,
             phone,
             password,
             schoolId
@@ -31,6 +32,7 @@ exports.createSchoolAdmin = async (req, res) => {
 
         const admin = await User.create({
             name,
+            email,
             phone,
             password: hashedPassword,
             role: "SCHOOL_ADMIN",
@@ -256,5 +258,211 @@ exports.getAttendanceHistory =async (req, res) => {
     });
 
   }
+
+};
+
+exports.getSchoolAdmins = async (req, res) => {
+
+    try {
+
+        const admins = await User.find({
+            role: "SCHOOL_ADMIN",
+        })
+        .populate(
+            "schoolId",
+            "schoolName"
+        )
+        .sort({
+            createdAt: -1,
+        });
+
+        res.status(200).json({
+            success: true,
+            admins,
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
+
+};
+
+exports.getSchoolAdmin = async (req, res) => {
+
+    try {
+
+        const admin = await User.findOne({
+
+            _id: req.params.id,
+
+            role: "SCHOOL_ADMIN",
+
+        }).populate(
+            "schoolId",
+            "schoolName"
+        );
+
+        if (!admin) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "School Admin not found",
+
+            });
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            admin,
+
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message,
+
+        });
+
+    }
+
+};
+
+exports.updateSchoolAdmin = async (req, res) => {
+
+    try {
+
+        const {
+
+            name,
+
+            email,
+
+            phone,
+
+            schoolId,
+
+        } = req.body;
+
+        const admin = await User.findOneAndUpdate(
+
+            {
+
+                _id: req.params.id,
+
+                role: "SCHOOL_ADMIN",
+
+            },
+
+            {
+
+                name,
+
+                email,
+
+                phone,
+
+                schoolId,
+
+            },
+
+            {
+
+                new: true,
+
+            }
+
+        );
+
+        if (!admin) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "School Admin not found",
+
+            });
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            admin,
+
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message,
+
+        });
+
+    }
+
+};
+
+exports.deleteSchoolAdmin = async (req, res) => {
+
+    try {
+
+        const admin = await User.findOneAndDelete({
+
+            _id: req.params.id,
+
+            role: "SCHOOL_ADMIN",
+
+        });
+
+        if (!admin) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "School Admin not found",
+
+            });
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "School Admin deleted successfully",
+
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message,
+
+        });
+
+    }
 
 };

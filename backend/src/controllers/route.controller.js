@@ -18,6 +18,11 @@ exports.createRoute = async (req, res) => {
 
     } catch (error) {
 
+        console.log(
+      "CREATE ROUTE ERROR:",
+      error
+    );
+
         res.status(500).json({
             success: false,
             message: error.message,
@@ -149,14 +154,23 @@ exports.updateRoute = async (req, res) => {
 
         }
 
-        const updatedRoute =
-            await Route.findByIdAndUpdate(
-                req.params.id,
-                req.body,
-                {
-                    new: true,
-                }
-            );
+       const updatedRoute =
+  await Route.findByIdAndUpdate(
+    req.params.id,
+    {
+      ...req.body,
+      reActivatedAt:
+        new Date(),
+    },
+    {
+      new: true,
+    }
+  );
+
+            console.log(
+  "UPDATE BODY:",
+  req.body
+);
 
         res.status(200).json({
             success: true,

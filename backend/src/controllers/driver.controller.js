@@ -12,30 +12,37 @@ exports.createDriver = async (req, res) => {
             password,
         } = req.body;
 
-        const existingDriver =
+        const existingUser =
             await User.findOne({
                 phone,
             });
 
-        if (existingDriver) {
+        if (existingUser) {
 
             return res.status(400).json({
                 success: false,
-                message: "Driver already exists",
+                message:
+                    "Another user already has the same number",
             });
 
         }
 
         const hashedPassword =
-            await bcrypt.hash(password, 10);
+            await bcrypt.hash(
+                password,
+                10
+            );
 
         const driver =
             await User.create({
                 name,
                 phone,
-                password: hashedPassword,
-                role: "DRIVER",
-                schoolId: req.user.schoolId,
+                password:
+                    hashedPassword,
+                role:
+                    "DRIVER",
+                schoolId:
+                    req.user.schoolId,
             });
 
         const driverResponse =
@@ -45,17 +52,38 @@ exports.createDriver = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            driver: driverResponse,
+            driver:
+                driverResponse,
         });
 
     } catch (error) {
 
+        console.log(
+            "CREATE DRIVER ERROR:",
+            error
+        );
+
+        // Safety for duplicate key errors
+        if (
+            error.code === 11000
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Another user already has the same number",
+            });
+
+        }
+
         res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.message,
         });
 
     }
+
 };
 
 exports.getDrivers = async (req, res) => {
@@ -182,12 +210,39 @@ exports.updateDriver = async (req, res) => {
 
         }
 
+        // Check if phone already exists for another user
+        if (req.body.phone) {
+
+            const existingUser =
+                await User.findOne({
+                    phone: req.body.phone,
+                    _id: {
+                        $ne: req.params.id,
+                    },
+                });
+
+            if (existingUser) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Another user already has the same number",
+                });
+
+            }
+
+        }
+
         const updatedDriver =
             await User.findByIdAndUpdate(
                 req.params.id,
-                req.body,
+                {
+                    name: req.body.name,
+                    phone: req.body.phone,
+                },
                 {
                     new: true,
+                    runValidators: true,
                 }
             ).select("-password");
 
@@ -198,12 +253,29 @@ exports.updateDriver = async (req, res) => {
 
     } catch (error) {
 
+        console.log(
+            "UPDATE DRIVER ERROR:",
+            error
+        );
+
+        // Mongo duplicate key safety check
+        if (error.code === 11000) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Another user already has the same number",
+            });
+
+        }
+
         res.status(500).json({
             success: false,
             message: error.message,
         });
 
     }
+
 };
 
 exports.deleteDriver = async (req, res) => {

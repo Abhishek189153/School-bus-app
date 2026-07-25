@@ -20,6 +20,14 @@ import BusOverview from "../pages/BusOverview";
 
 import AttendanceHistory from "../pages/AttendanceHistory";
 
+import ChangePassword from "../pages/ChangePassword";
+
+import ForgotPassword from "../pages/ForgotPassword";
+
+import VerifyOtp from "../pages/VerifyOtp";
+
+import PasswordResetSuccess from "../pages/PasswordResetSuccess";
+
 const AppRoutes = () => {
   return (
     <BrowserRouter>
@@ -31,6 +39,30 @@ const AppRoutes = () => {
           path="/login"
           element={<Login />}
         />
+
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePassword />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+      />
+
+      <Route
+        path="/verify-otp"
+        element={<VerifyOtp />}
+    />
+
+          <Route
+          path="/password-reset-success"
+          element={<PasswordResetSuccess />}
+      />
 
         {/* Protected Layout */}
         <Route

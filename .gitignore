@@ -1,0 +1,21 @@
+# Node
+**/node_modules/
+**/dist/
+
+# Environment files
+**/.env
+**/.env.*
+
+# Logs
+**/logs/
+**/npm-debug.log
+
+# Firebase
+**/firebase-service-account.json
+**/google-services.json
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

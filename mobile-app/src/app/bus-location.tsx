@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useState,
+  useRef
 } from "react";
 
 import {
@@ -9,10 +10,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
-  Alert,
 } from "react-native";
 
-import { router } from "expo-router";
+import  WebView  from "react-native-webview";
+
+import { router, useFocusEffect } from "expo-router";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   getMyBusLocation,
@@ -20,11 +24,51 @@ import {
 
 export default function BusLocation() {
 
+  console.log(
+  "BUS LOCATION SCREEN RENDERED"
+);
+
   const [location, setLocation] =
     useState<any>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [stops, setStops] =
+  useState([]);
+
+  const [pickupStop, setPickupStop] =
+  useState<any>(null);
+
+  const [
+    darkMode,
+    setDarkMode,
+  ] = useState(false);
+
+  const [distance, setDistance] =
+  useState("");
+
+  const [eta, setEta] =
+  useState("");
+
+  const webViewRef =
+  useRef<WebView>(null);
+
+  const loadTheme = async () => {
+
+  const theme =
+    await AsyncStorage.getItem(
+      "darkMode"
+    );
+
+  setDarkMode(
+    theme === "true"
+  );
+
+};
+
+useEffect(() => {
+
+  loadTheme();
+
+}, []);
 
   useEffect(() => {
 
@@ -33,7 +77,7 @@ export default function BusLocation() {
     const interval =
       setInterval(
         loadLocation,
-        10000
+        5000
       );
 
     return () =>
@@ -42,6 +86,77 @@ export default function BusLocation() {
       );
 
   }, []);
+
+  useEffect(() => {
+
+  if (
+    !location ||
+    !webViewRef.current
+  ) return;
+
+ webViewRef.current.injectJavaScript(
+`
+if(window.busMarker){
+
+  busMarker.setLatLng([
+    ${location.latitude},
+    ${location.longitude}
+  ]);
+
+}
+
+if(window.routeLine){
+
+  map.removeLayer(
+    window.routeLine
+  );
+
+}
+
+(async () => {
+
+const response =
+  await fetch(
+    "https://router.project-osrm.org/route/v1/driving/" +
+    "${location.longitude}," +
+    "${location.latitude};" +
+    "${pickupStop?.longitude}," +
+    "${pickupStop?.latitude}" +
+    "?overview=full&geometries=geojson"
+  );
+
+const data =
+  await response.json();
+
+const coordinates =
+  data.routes[0]
+    .geometry
+    .coordinates
+    .map(
+      point => [
+        point[1],
+        point[0]
+      ]
+    );
+
+window.routeLine =
+  L.polyline(
+    coordinates,
+    {
+      color: "#1976D2",
+      weight: 5,
+    }
+  ).addTo(map);
+
+})();
+
+true;
+
+true;
+`
+);
+
+}, [location, pickupStop]);
 
   const loadLocation =
     async () => {
@@ -52,227 +167,485 @@ export default function BusLocation() {
           await getMyBusLocation();
 
         if (
-          data.success &&
-          data.location
-        ) {
+  data.success &&
+  data.location
+) {
 
-          setLocation(
-            data.location
-          );
+  console.log(
+    "API RESPONSE:",
+    data
+  );
 
-        }
+  console.log(
+    "PICKUP STOP:",
+    data.pickupStop
+  );
+
+  setLocation(
+    data.location
+  );
+
+  setPickupStop(
+    data.pickupStop
+  );
+
+  setStops(
+  data.stops || []
+);
+
+}
 
       } catch (error) {
 
-        console.log(
-          "Location Error:",
-          error
-        );
-
-      } finally {
-
-        setLoading(
-          false
-        );
+        console.log(error);
 
       }
 
     };
 
-  const openMap =
-    async () => {
+    const mapHtml = `
+<!DOCTYPE html>
+<html>
+<head>
 
-      if (!location) {
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
 
-        Alert.alert(
-          "Location Unavailable",
-          "Bus location is not available right now."
-        );
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
 
-        return;
+<style>
 
+html,
+body,
+#map {
+
+  height: 100%;
+  margin: 0;
+  padding: 0;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+const map =
+  L.map("map").setView(
+    [
+      ${location?.latitude || 30.3165},
+      ${location?.longitude || 78.0322}
+    ],
+    15
+  );
+
+L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+  {
+    attribution:
+      "&copy; OpenStreetMap contributors",
+    maxZoom: 20,
+  }
+).addTo(map);
+
+const busIcon =
+  L.divIcon({
+
+    html:
+      '<div style="font-size:40px;">🚌</div>',
+
+    className: '',
+
+    iconSize: [40, 40],
+
+    iconAnchor: [20, 20],
+
+  });
+
+window.busMarker =
+  L.marker(
+    [
+      ${location?.latitude || 30.3165},
+      ${location?.longitude || 78.0322}
+    ],
+    {
+      icon: busIcon,
+    }
+  )
+  .addTo(map)
+  .bindPopup("🚌 School Bus");
+
+${
+  pickupStop
+    ? `
+
+
+const pickupIcon =
+  L.divIcon({
+
+    html:
+      '<div style="font-size:30px;">🚩</div>',
+
+    className: '',
+
+    iconSize: [30,30],
+
+  });
+
+const stopIcon =
+  L.divIcon({
+
+
+    html:
+      '<div style="font-size:22px;">📍</div>',
+
+    className: '',
+
+    iconSize: [22,22],
+
+  });
+
+window.pickupMarker =
+  L.marker(
+    [
+      ${pickupStop.latitude},
+      ${pickupStop.longitude}
+    ],
+    {
+      icon: pickupIcon,
+    }
+  )
+  .addTo(map)
+  .bindPopup(
+    "📍 ${pickupStop.stopName}"
+  );
+
+window.routeStops =
+  ${JSON.stringify(stops)};
+
+routeStops.forEach(
+  stop => {
+
+    if(
+      stop.stopName ===
+      "${pickupStop.stopName}"
+    ){
+      return;
+    }
+
+    L.marker(
+      [
+        stop.latitude,
+        stop.longitude
+      ],
+      {
+        icon: stopIcon,
       }
+    )
+    .addTo(map)
+    .bindPopup(
+      "📍 " +
+      stop.stopName
+    );
 
-      const url =
-        `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
+  }
+);
 
-      const supported =
-        await Linking.canOpenURL(
-          url
-        );
+`
+    : ""
+}
+${
+  pickupStop
+    ? `
+async function drawRoadRoute() {
 
-      if (supported) {
+  const response =
+    await fetch(
+      "https://router.project-osrm.org/route/v1/driving/" +
+      "${location?.longitude}," +
+      "${location?.latitude};" +
+      "${pickupStop?.longitude}," +
+      "${pickupStop?.latitude}" +
+      "?overview=full&geometries=geojson"
+    );
 
-        Linking.openURL(
-          url
-        );
+  const data =
+    await response.json();
 
-      } else {
+  const route =
+    data.routes[0];
 
-        Alert.alert(
-          "Error",
-          "Unable to open Google Maps."
-        );
+  const coordinates =
+    route.geometry.coordinates.map(
+      point => [
+        point[1],
+        point[0]
+      ]
+    );
 
+  window.routeLine =
+    L.polyline(
+      coordinates,
+      {
+        color: "#1976D2",
+        weight: 5,
       }
+    ).addTo(map);
 
-    };
+  window.ReactNativeWebView.postMessage(
+    JSON.stringify({
+      distance:
+        (
+          route.distance /
+          1000
+        ).toFixed(2),
 
-  return (
+      eta:
+        Math.ceil(
+          route.duration /
+          60
+        ),
+    })
+  );
 
-    <View
-      style={
-        styles.container
-      }
-    >
+}
 
-      <TouchableOpacity
-        onPress={() =>
-          router.replace(
-            "/parent-dashboard"
-          )
-        }
-        style={
-          styles.backBtn
-        }
-      >
+drawRoadRoute();
+`
+    : ""
+}
 
-        <Text
-          style={
-            styles.backText
-          }
-        >
-          ← Back
-        </Text>
+window.map = map;
 
-      </TouchableOpacity>
 
-      <Text
-        style={
-          styles.title
-        }
-      >
-        Live Bus Tracking
-      </Text>
 
-      <Text
-        style={
-          styles.subtitle
-        }
-      >
-        Stay updated with your
-        child's transportation.
-      </Text>
+</script>
+
+</body>
+</html>
+`;
+
+  const openMap = () => {
+
+    if (!location) return;
+
+    Linking.openURL(
+      `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
+    );
+
+    // If you want direct navigation,
+    // replace the above with:
+    //
+    // Linking.openURL(
+    //   `google.navigation:q=${location.latitude},${location.longitude}`
+    // );
+  };
+
+  console.log(
+  "CURRENT PICKUP STOP:",
+  pickupStop
+);
+
+  if (!location) {
+
+    return (
 
       <View
-        style={
-          styles.card
-        }
+        style={styles.loader}
       >
 
-        <Text
-          style={
-            styles.busIcon
+        <TouchableOpacity
+          onPress={() =>
+            router.replace(
+              "/parent-dashboard"
+            )
           }
+          style={styles.backBtn}
         >
-          🚌
+          <Text
+            style={styles.backText}
+          >
+            ← Back
+          </Text>
+        </TouchableOpacity>
+
+        <Text
+          style={styles.loadingText}
+        >
+          Fetching Bus Location...
         </Text>
-
-        {loading ? (
-
-          <Text
-            style={
-              styles.loadingText
-            }
-          >
-            Fetching Bus Location...
-          </Text>
-
-        ) : location ? (
-
-          <>
-
-            <Text
-              style={
-                styles.cardTitle
-              }
-            >
-              Bus Location Available
-            </Text>
-
-            <Text
-              style={
-                styles.coordinateText
-              }
-            >
-              Latitude:
-              {" "}
-              {
-                location.latitude
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.coordinateText
-              }
-            >
-              Longitude:
-              {" "}
-              {
-                location.longitude
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.cardSubtitle
-              }
-            >
-              Tap below to open
-              Google Maps and
-              track the live bus.
-            </Text>
-
-            <TouchableOpacity
-              onPress={
-                openMap
-              }
-              style={
-                styles.trackButton
-              }
-            >
-
-              <Text
-                style={
-                  styles.trackText
-                }
-              >
-                Track Bus
-              </Text>
-
-            </TouchableOpacity>
-
-          </>
-
-        ) : (
-
-          <Text
-            style={
-              styles.loadingText
-            }
-          >
-            Bus location is
-            currently unavailable.
-          </Text>
-
-        )}
 
       </View>
 
-    </View>
+    );
 
-  );
+  }
+
+ return (
+
+  <View
+    style={{
+      flex: 1,
+    }}
+  >
+
+    <TouchableOpacity
+      onPress={() =>
+        router.replace(
+          "/parent-dashboard"
+        )
+      }
+      style={{
+        position: "absolute",
+        top: 22,
+        left: 50,
+        zIndex: 999,
+
+        backgroundColor:
+  darkMode
+    ? "#1E293B"
+    : "#FFFFFF",
+
+        padding: 10,
+
+        borderRadius: 8,
+      }}
+    >
+
+      <Text
+  style={{
+    color:
+      darkMode
+        ? "#FFFFFF"
+        : "#000000",
+  }}
+>
+  ← Back
+</Text>
+
+    </TouchableOpacity>
+
+   <View
+  style={{
+    flex: 1,
+  }}
+>
+
+  <WebView
+  ref={webViewRef}
+
+  onMessage={(event) => {
+
+    const data =
+      JSON.parse(
+        event.nativeEvent.data
+      );
+
+    setDistance(
+      data.distance
+    );
+
+    setEta(
+      data.eta
+    );
+
+  }}
+
+  originWhitelist={["*"]}
+  source={{
+    html: mapHtml,
+  }}
+  style={{
+    flex: 1,
+  }}
+/>
+
+  <View
+    style={{
+      position: "absolute",
+      bottom: 20,
+      left: 20,
+      right: 20,
+      backgroundColor:
+      darkMode
+        ? "#1E293B"
+        : "#FFFFFF",
+      padding: 12,
+      borderRadius: 10,
+    }}
+  >
+
+    {/* <Text>
+      Latitude:
+      {" "}
+      {location.latitude}
+    </Text>
+
+    <Text>
+      Longitude:
+      {" "}
+      {location.longitude}
+    </Text> */}
+
+    {pickupStop && (
+
+  <>
+
+   <Text style={{ marginTop: 10,  color:
+      darkMode
+        ? "#FFFFFF"
+        : "#000000", }}>
+  <Text style={{ fontWeight: "bold" }}>
+    Pickup Stop:
+  </Text>
+  {" "}
+  {pickupStop.stopName}
+</Text>
+
+<Text style={{ marginTop: 10,  color:
+      darkMode
+        ? "#FFFFFF"
+        : "#000000", }}>
+  <Text style={{ fontWeight: "bold" }}>
+    Distance:
+  </Text>
+  {" "}
+  {distance} km
+</Text>
+
+<Text style={{ marginTop: 10 ,  color:
+      darkMode
+        ? "#FFFFFF"
+        : "#000000"}}>
+  <Text style={{ fontWeight: "bold" }}>
+    ETA:
+  </Text>
+  {" "}
+  {eta} min
+</Text>
+  </>
+
+)}
+
+  </View>
+
+</View>
+
+  </View>
+
+);
 
 }
 
@@ -285,6 +658,21 @@ const styles =
         "#F5F7FB",
       paddingHorizontal: 20,
       paddingTop: 90,
+    },
+
+    loader: {
+      flex: 1,
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#F5F7FB",
+    },
+
+    loadingText: {
+      fontSize: 16,
+      color: "#64748B",
     },
 
     title: {
@@ -306,16 +694,24 @@ const styles =
     card: {
       backgroundColor:
         "#FFFFFF",
+
       borderRadius: 24,
+
       padding: 30,
+
       alignItems: "center",
+
       shadowColor: "#000",
+
       shadowOffset: {
         width: 0,
         height: 4,
       },
+
       shadowOpacity: 0.1,
+
       shadowRadius: 10,
+
       elevation: 6,
     },
 
@@ -328,13 +724,7 @@ const styles =
       fontSize: 22,
       fontWeight: "700",
       color: "#1E293B",
-      marginBottom: 20,
-    },
-
-    coordinateText: {
-      fontSize: 15,
-      color: "#475569",
-      marginBottom: 8,
+      marginBottom: 12,
     },
 
     cardSubtitle: {
@@ -342,22 +732,19 @@ const styles =
       color: "#64748B",
       lineHeight: 24,
       fontSize: 15,
-      marginTop: 20,
       marginBottom: 30,
-    },
-
-    loadingText: {
-      fontSize: 16,
-      color: "#64748B",
-      textAlign: "center",
     },
 
     trackButton: {
       backgroundColor:
         "#1976D2",
+
       paddingHorizontal: 35,
+
       paddingVertical: 14,
+
       borderRadius: 14,
+
       elevation: 4,
     },
 
@@ -372,18 +759,27 @@ const styles =
       top: 40,
       left: 20,
       zIndex: 100,
+
       backgroundColor:
         "#FFFFFF",
+
       paddingHorizontal: 14,
+
       paddingVertical: 8,
+
       borderRadius: 10,
+
       shadowColor: "#000",
+
       shadowOffset: {
         width: 0,
         height: 2,
       },
+
       shadowOpacity: 0.1,
+
       shadowRadius: 4,
+
       elevation: 3,
     },
 

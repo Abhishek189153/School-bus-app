@@ -32,6 +32,10 @@ const tripSchema = new mongoose.Schema(
       required: true,
     },
 
+    tripDate: {
+  type: String,
+},
+
     startTime: Date,
 
     endTime: Date,

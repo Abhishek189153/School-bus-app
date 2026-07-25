@@ -6,6 +6,10 @@ const Trip = require("../models/trip.model");
 const BusLocation = require("../models/busLocation.model");
 
 exports.getParentDashboard = async (req, res) => {
+
+  console.log(
+  "PARENT DASHBOARD CONTROLLER FILE HIT"
+);
   try {
 
     const parentId = req.user.id;
@@ -39,10 +43,61 @@ exports.getParentDashboard = async (req, res) => {
         status: "STARTED",
       });
 
+      console.log(
+  "ACTIVE TRIP FOUND:",
+  activeTrip
+);
+
     const liveLocation =
       await BusLocation.findOne({
         busId: student.busId,
       });
+
+    let approachingStop = null;
+
+if (
+  route &&
+  route.stops?.length &&
+  liveLocation
+) {
+
+  let nearestDistance =
+    Number.MAX_VALUE;
+
+  route.stops.forEach(
+    (stop) => {
+
+      const distance =
+        Math.sqrt(
+          Math.pow(
+            stop.latitude -
+            liveLocation.latitude,
+            2
+          ) +
+          Math.pow(
+            stop.longitude -
+            liveLocation.longitude,
+            2
+          )
+        );
+
+      if (
+        distance <
+        nearestDistance
+      ) {
+
+        nearestDistance =
+          distance;
+
+        approachingStop =
+          stop.stopName;
+
+      }
+
+    }
+  );
+
+}
 
     res.status(200).json({
       success: true,
@@ -52,6 +107,7 @@ exports.getParentDashboard = async (req, res) => {
         route,
         activeTrip,
         liveLocation,
+        approachingStop,
       },
     });
 
