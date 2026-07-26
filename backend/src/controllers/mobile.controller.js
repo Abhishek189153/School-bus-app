@@ -468,6 +468,9 @@ exports.endTrip = async (
             tripType:
               trip.tripType,
 
+             tripDate: 
+              trip.tripDate,
+
             busId:
               trip.busId,
 

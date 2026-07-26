@@ -47,6 +47,11 @@ new mongoose.Schema({
     required: true,
   },
 
+  tripDate: {
+  type: String,
+  required: true,
+},
+
   status: {
     type: String,
     enum: [

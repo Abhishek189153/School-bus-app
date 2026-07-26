@@ -118,23 +118,28 @@ const inactiveBuses =
 
   // Today's Attendance (All PICKUP Trips)
 
-const startOfDay = new Date();
-startOfDay.setHours(0, 0, 0, 0);
+const now = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+  })
+);
 
-const endOfDay = new Date();
-endOfDay.setHours(23, 59, 59, 999);
+const today =
+`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
 
 // Total Present Students
 const presentStudents =
-  await StudentAttendance.countDocuments({
+await StudentAttendance.countDocuments({
+
     schoolId,
-    tripType: "PICKUP",
-    status: "PRESENT",
-    attendanceDate: {
-      $gte: startOfDay,
-      $lte: endOfDay,
-    },
-  });
+
+    tripType:"PICKUP",
+
+    status:"PRESENT",
+
+    tripDate: today,
+
+});
 
 // Total Students Assigned to Buses
 const totalAttendanceStudents =

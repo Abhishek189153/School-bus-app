@@ -37,8 +37,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchStats = async () => {
+   const fetchStats = async () => {
       try {
         const data = await getDashboardStats();
         setStats(data.stats);
@@ -49,8 +48,15 @@ const Dashboard = () => {
       }
     };
 
+  useEffect(() => {
+  fetchStats();
+
+  const interval = setInterval(() => {
     fetchStats();
-  }, []);
+  }, 10000); // Refresh every 10 seconds
+
+  return () => clearInterval(interval);
+}, []);
 
   if (loading) {
     return (
