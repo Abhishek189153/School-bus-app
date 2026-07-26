@@ -212,8 +212,8 @@ if (completedTrip) {
 
 }
 
-  const now =
-  new Date();
+  // const now =
+  // new Date();
 
 const [hours, minutes] =
   route.scheduledTime
