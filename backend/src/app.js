@@ -21,6 +21,7 @@ const notificationRoutes =require("./routes/notification.routes");
 const alertRoutes =require("./routes/alert.routes");
 const mobileRoutes =require("./routes/mobile.routes");
 const announcementRoutes =require("./routes/announcement.route");
+const holidayRoutes = require("./routes/holiday.routes");
 
 
 
@@ -56,6 +57,7 @@ app.use("/api/notifications",notificationRoutes);
 app.use("/api/alerts",alertRoutes);
 app.use("/api/mobile",mobileRoutes);
 app.use("/api/announcements",announcementRoutes);
+app.use("/api/holiday", holidayRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

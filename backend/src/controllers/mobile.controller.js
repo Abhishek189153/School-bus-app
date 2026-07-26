@@ -9,9 +9,11 @@ const StudentAttendance =require("../models/studentAttendance.model");
 const BusLocation = require("../models/busLocation.model");
 const User = require("../models/user.model");
 const Otp = require("../models/otp.model");
+const Holiday = require("../models/holiday.model");
 const bcrypt = require("bcryptjs");
 const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
+
 
 
 
@@ -1318,10 +1320,42 @@ endOfDay.setHours(
 
 
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+// Sunday Check
+if (now.getDay() === 0) {
+
+  return res.status(200).json({
+    success: true,
+    holiday: true,
+    holidayName: "Sunday",
+    message: "Today is a holiday.",
+    routes: [],
+  });
+
+}
+
+// School Holiday Check
+const holiday = await Holiday.findOne({
+  schoolId: req.user.schoolId,
+  date: today,
+});
+
+if (holiday) {
+
+  return res.status(200).json({
+    success: true,
+    holiday: true,
+    holidayName: holiday.title,
+    message: "Today is a holiday.",
+    routes: [],
+  });
+
+}
+
 const todayTrips =
 await Trip.find({
   driverId: req.user.id,
- tripDate: today
+  tripDate: today
 });
 
 

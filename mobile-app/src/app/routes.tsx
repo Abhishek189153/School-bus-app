@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  Alert,
 } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getAssignedRoutes, startTrip } from "../services/mobile.service";
@@ -124,14 +125,33 @@ async (busId:any) => {
 };
 
   const loadRoutes = async () => {
-    const data = await getAssignedRoutes();
-    console.log("Assigned Routes API:", data);
 
-    if (data.success) {
-      setRoutes(data.routes);
-      setBusNumber(data.busNumber);
-    }
-  };
+  const data = await getAssignedRoutes();
+
+  console.log("Assigned Routes API:", data);
+
+  if (!data.success) return;
+
+  // Holiday Check
+  if (data.holiday) {
+
+    Alert.alert(
+      "Holiday",
+      `${data.message}\n\nReason: ${data.holidayName}`,
+      [
+        {
+          text: "OK",
+          onPress: () => router.replace("/driver-dashboard"),
+        },
+      ]
+    );
+
+    return;
+  }
+
+  setRoutes(data.routes);
+  setBusNumber(data.busNumber);
+};
 
   return (
     <SafeAreaView style={styles.container}>
