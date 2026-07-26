@@ -133,21 +133,25 @@ async (busId:any) => {
   if (!data.success) return;
 
   // Holiday Check
-  if (data.holiday) {
+ if (data.holiday) {
 
-    Alert.alert(
-      "Holiday",
-      `${data.message}\n\nReason: ${data.holidayName}`,
-      [
-        {
-          text: "OK",
-          onPress: () => router.replace("/driver-dashboard"),
-        },
-      ]
-    );
+  router.replace({
 
-    return;
-  }
+    pathname: "/holiday",
+
+    params: {
+
+      holidayName: data.holidayName,
+
+      message: data.message,
+
+    },
+
+  });
+
+  return;
+
+}
 
   setRoutes(data.routes);
   setBusNumber(data.busNumber);

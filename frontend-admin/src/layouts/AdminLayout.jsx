@@ -21,6 +21,7 @@ import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import RouteIcon from "@mui/icons-material/Route";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import MapIcon from "@mui/icons-material/Map";
+import EventIcon from "@mui/icons-material/Event";
 
 import { logout } from "../redux/slices/authSlice";
 
@@ -80,6 +81,11 @@ const AdminLayout = () => {
     icon: <MapIcon />,
     path: "/attendance-history",
   },
+  {
+  text: "Holiday Management",
+  icon: <EventIcon />,
+  path: "/holidays",
+},
 ];
 
   const handleLogout = () => {

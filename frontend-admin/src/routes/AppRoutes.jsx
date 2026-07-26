@@ -18,6 +18,8 @@ import AdminLayout from "../layouts/AdminLayout";
 import Assignments from "../pages/Assignments";
 import BusOverview from "../pages/BusOverview";
 
+import Holidays from "../pages/Holidays";
+
 import AttendanceHistory from "../pages/AttendanceHistory";
 
 import ChangePassword from "../pages/ChangePassword";
@@ -119,6 +121,11 @@ const AppRoutes = () => {
               <AttendanceHistory />
             }
           />
+
+          <Route
+            path="/holidays"
+            element={<Holidays />}
+        />
 
         </Route>
 
