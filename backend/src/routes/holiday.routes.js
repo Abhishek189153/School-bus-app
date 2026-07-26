@@ -2,34 +2,36 @@ const express = require("express");
 
 const router = express.Router();
 
+const protect = require("../middlewares/auth.middleware");
+const authorize = require("../middlewares/role.middleware");
+
 const {
   createHoliday,
   getHolidays,
   deleteHoliday,
 } = require("../controllers/holiday.controller");
 
-const {
-  authenticate,
-} = require("../middleware/auth.middleware");
-
 // Add Holiday
 router.post(
   "/",
-  authenticate,
+  protect,
+  authorize("SCHOOL_ADMIN"),
   createHoliday
 );
 
 // Get Holidays
 router.get(
   "/",
-  authenticate,
+  protect,
+  authorize("SCHOOL_ADMIN"),
   getHolidays
 );
 
 // Delete Holiday
 router.delete(
   "/:id",
-  authenticate,
+  protect,
+  authorize("SCHOOL_ADMIN"),
   deleteHoliday
 );
 
