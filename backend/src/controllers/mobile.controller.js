@@ -169,10 +169,13 @@ exports.startTrip = async (
 
     }
 
-    const today =
-  new Date()
-    .toISOString()
-    .split("T")[0];
+   const now = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+  })
+);
+
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
 const completedTrip =
   await Trip.findOne({
@@ -218,7 +221,7 @@ const [hours, minutes] =
     .map(Number);
 
 const scheduledTime =
-  new Date();
+  new Date(now);
 
 scheduledTime.setHours(
   hours,
@@ -1512,17 +1515,10 @@ console.log(
     : "PENDING"
 );
 
-if (
-   diffMinutes >= 0 &&
-  diffMinutes <= 30 
- 
-) {
-
-  status =
-    "ACTIVE";
-
-} else {
+if (diffMinutes > 30) {
   status = "PENDING";
+} else {
+  status = "ACTIVE";
 }
       }
     }
