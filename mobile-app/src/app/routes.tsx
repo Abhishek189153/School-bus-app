@@ -124,7 +124,7 @@ async (busId:any) => {
 
 };
 
-  const loadRoutes = async () => {
+ const loadRoutes = async () => {
 
   const data = await getAssignedRoutes();
 
@@ -132,29 +132,62 @@ async (busId:any) => {
 
   if (!data.success) return;
 
-  // Holiday Check
- if (data.holiday) {
+  // ==========================
+  // Weekly Off
+  // ==========================
 
-  router.replace({
+  if (data.weeklyOff) {
 
-    pathname: "/holiday",
+    router.replace({
 
-    params: {
+      pathname: "/weekly-off",
 
-      holidayName: data.holidayName,
+      params: {
 
-      message: data.message,
+        day: data.day,
 
-    },
+        message: data.message,
 
-  });
+      },
 
-  return;
+    });
 
-}
+    return;
+
+  }
+
+  // ==========================
+  // Holiday
+  // ==========================
+
+  if (data.holiday) {
+
+    router.replace({
+
+      pathname: "/holiday",
+
+      params: {
+
+        holidayName: data.holidayName,
+
+        message: data.message,
+
+      },
+
+    });
+
+    return;
+
+  }
+
+  // ==========================
+  // Normal Routes
+  // ==========================
 
   setRoutes(data.routes);
+
   setBusNumber(data.busNumber);
+
 };
 
   return (

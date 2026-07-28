@@ -60,7 +60,7 @@ app.use("/api/mobile",mobileRoutes);
 app.use("/api/announcements",announcementRoutes);
 app.use("/api/holiday", holidayRoutes);
 app.use( "/api/working-days", workingDayRoutes);
-s
+
 // Test Route
 app.get("/", (req, res) => {
     res.send("School Bus Management Backend Running");
