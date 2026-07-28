@@ -22,7 +22,7 @@ const alertRoutes =require("./routes/alert.routes");
 const mobileRoutes =require("./routes/mobile.routes");
 const announcementRoutes =require("./routes/announcement.route");
 const holidayRoutes = require("./routes/holiday.routes");
-const workingDayRoutes= require("./routes/workinDayRoutes")
+const workingDayRoutes= require("./routes/workinDay.routes")
 
 
 
