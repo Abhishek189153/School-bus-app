@@ -13,6 +13,7 @@ const Holiday = require("../models/holiday.model");
 const bcrypt = require("bcryptjs");
 const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
+const WorkingDay = require("../models/workingDay.model");
 
 
 
@@ -1321,18 +1322,59 @@ endOfDay.setHours(
 
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-// Sunday Check
-if (now.getDay() === 0) {
+
+// =============================
+// Working Day Check
+// =============================
+
+const weekdays = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+const todayKey = weekdays[now.getDay()];
+
+const workingDay = await WorkingDay.findOne({
+  schoolId: req.user.schoolId,
+});
+
+if (workingDay && !workingDay[todayKey]) {
 
   return res.status(200).json({
+
     success: true,
-    holiday: true,
-    holidayName: "Sunday",
-    message: "Today is a holiday.",
+
+    weeklyOff: true,
+
+    day:
+      todayKey.charAt(0).toUpperCase() +
+      todayKey.slice(1),
+
+    message: "Today is a weekly off.",
+
     routes: [],
+
   });
 
 }
+
+// Sunday Check
+// if (now.getDay() === 0) {
+
+//   return res.status(200).json({
+//     success: true,
+//     holiday: true,
+//     holidayName: "Sunday",
+//     message: "Today is a holiday.",
+//     routes: [],
+//   });
+
+// }
 
 // School Holiday Check
 const holiday = await Holiday.findOne({

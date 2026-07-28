@@ -3,21 +3,19 @@ import {
   Typography,
   Box,
   Button,
+  Chip,
 } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getWorkingDays,
-} from "../services/workingDay.service";
+import { getWorkingDays } from "../services/workingDay.service";
 
-import UpdateWorkingDaysDialog
-from "./UpdateWorkingDaysDialog";
+import UpdateWorkingDaysDialog from "./UpdateWorkingDaysDialog";
 
 export default function WorkingDaysCard() {
 
@@ -29,16 +27,15 @@ export default function WorkingDaysCard() {
 
     try {
 
-      const data =
-        await getWorkingDays();
+      const data = await getWorkingDays();
 
-      setWorkingDays(
-        data.workingDays
-      );
+      setWorkingDays(data.workingDays);
 
-    } catch (error) {
+    }
 
-      console.log(error);
+    catch (err) {
+
+      console.log(err);
 
     }
 
@@ -50,8 +47,7 @@ export default function WorkingDaysCard() {
 
   }, []);
 
-  if (!workingDays)
-    return null;
+  if (!workingDays) return null;
 
   const days = [
 
@@ -92,171 +88,159 @@ export default function WorkingDaysCard() {
 
   ];
 
+  const activeCount = days.filter(
+    (d) => workingDays[d.key]
+  ).length;
+
   return (
-
-    <>
-
-      <Paper
-        elevation={0}
+  <>
+    <Paper
+      elevation={0}
+      sx={{
+        width: "100%",
+        maxWidth: { xs: "100%", lg: 420 },
+        borderRadius: "18px",
+        border: "1px solid #E2E8F0",
+        boxShadow: "0 8px 22px rgba(15,23,42,.05)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <Box
         sx={{
-
-          p: 2.5,
-
-          borderRadius: "18px",
-
-          border:
-            "1px solid #E2E8F0",
-
-          boxShadow:
-            "0 10px 25px rgba(15,23,42,.05)",
-
-          minWidth: 520,
-
+          px: 2,
+          py: 1.3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid #EEF2F7",
         }}
       >
-
-        <Box
+        <Typography
           sx={{
-
-            display: "flex",
-
-            justifyContent:
-              "space-between",
-
-            alignItems:
-              "center",
-
-            mb: 2,
-
+            fontWeight: 800,
+            color: "#0F172A",
+            fontSize: "1rem",
           }}
         >
+          Working Schedule
+        </Typography>
 
-          <Typography
-            sx={{
-
-              fontWeight: 800,
-
-              fontSize: "1.05rem",
-
-            }}
-          >
-
-            Working Days
-
-          </Typography>
-
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() =>
-              setOpen(true)
-            }
-          >
-
-            Update
-
-          </Button>
-
-        </Box>
-
-        <Box
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<EditIcon />}
+          onClick={() => setOpen(true)}
           sx={{
-
-            display: "flex",
-
-            justifyContent:
-              "space-between",
-
+            minWidth: 0,
+            px: 1.6,
+            py: 0.6,
+            fontSize: "0.75rem",
+            borderRadius: "10px",
+            textTransform: "none",
+            fontWeight: 700,
+            background:
+              "linear-gradient(135deg,#6366F1,#4F46E5)",
+            boxShadow:
+              "0 6px 14px rgba(99,102,241,.25)",
           }}
         >
+          Update
+        </Button>
+      </Box>
 
-          {days.map((day) => (
+      {/* Days */}
+      <Box sx={{ p: 1.6 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7,1fr)",
+            gap: 1,
+          }}
+        >
+          {days.map((day) => {
+            const active = workingDays[day.key];
 
-            <Box
-              key={day.key}
-              sx={{
-
-                display: "flex",
-
-                flexDirection:
-                  "column",
-
-                alignItems:
-                  "center",
-
-                gap: 1,
-
-              }}
-            >
-
-              <Typography
+            return (
+              <Box
+                key={day.key}
                 sx={{
-
-                  fontWeight: 700,
-
-                  fontSize:
-                    ".85rem",
-
-                  color:
-                    "#475569",
-
+                  borderRadius: "12px",
+                  border: active
+                    ? "1px solid #BBF7D0"
+                    : "1px solid #E2E8F0",
+                  background: active
+                    ? "#F0FDF4"
+                    : "#F8FAFC",
+                  py: 0.9,
+                  textAlign: "center",
+                  transition: ".25s",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow:
+                      "0 8px 16px rgba(15,23,42,.06)",
+                  },
                 }}
               >
+                <Typography
+                  sx={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: "#334155",
+                  }}
+                >
+                  {day.label}
+                </Typography>
 
-                {day.label}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    my: 0.5,
+                  }}
+                >
+                  {active ? (
+                    <CheckRoundedIcon
+                      sx={{
+                        color: "#16A34A",
+                        fontSize: 18,
+                      }}
+                    />
+                  ) : (
+                    <CloseRoundedIcon
+                      sx={{
+                        color: "#94A3B8",
+                        fontSize: 18,
+                      }}
+                    />
+                  )}
+                </Box>
 
-              </Typography>
-
-              <Box
-                sx={{
-
-                  width: 18,
-
-                  height: 18,
-
-                  borderRadius:
-                    "50%",
-
-                  backgroundColor:
-                    workingDays[
-                      day.key
-                    ]
-                      ? "#10B981"
-                      : "#CBD5E1",
-
-                  border:
-                    "2px solid #fff",
-
-                  boxShadow:
-                    "0 2px 8px rgba(0,0,0,.12)",
-
-                }}
-              />
-
-            </Box>
-
-          ))}
-
+                <Typography
+                  sx={{
+                    fontSize: "0.58rem",
+                    color: active
+                      ? "#16A34A"
+                      : "#94A3B8",
+                    fontWeight: 600,
+                  }}
+                >
+                  {active ? "Open" : "Off"}
+                </Typography>
+              </Box>
+            );
+          })}
         </Box>
+      </Box>
+    </Paper>
 
-      </Paper>
-
-      <UpdateWorkingDaysDialog
-        open={open}
-        handleClose={() =>
-          setOpen(false)
-        }
-        refresh={
-          fetchWorkingDays
-        }
-        workingDays={
-          workingDays
-        }
-      />
-
-    </>
-
-  );
+    <UpdateWorkingDaysDialog
+      open={open}
+      handleClose={() => setOpen(false)}
+      refresh={fetchWorkingDays}
+      workingDays={workingDays}
+    />
+  </>
+);
 
 }

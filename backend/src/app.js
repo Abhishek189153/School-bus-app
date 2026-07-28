@@ -22,7 +22,7 @@ const alertRoutes =require("./routes/alert.routes");
 const mobileRoutes =require("./routes/mobile.routes");
 const announcementRoutes =require("./routes/announcement.route");
 const holidayRoutes = require("./routes/holiday.routes");
-const workingDayRoutes= require("./routes/workingDay.routes")
+const workingDayRoutes = require("./routes/workingDay.routes");
 
 
 
@@ -59,8 +59,8 @@ app.use("/api/alerts",alertRoutes);
 app.use("/api/mobile",mobileRoutes);
 app.use("/api/announcements",announcementRoutes);
 app.use("/api/holiday", holidayRoutes);
-app.use("/api/working-days", workingDayRoutes);
-
+app.use( "/api/working-days", workingDayRoutes);
+s
 // Test Route
 app.get("/", (req, res) => {
     res.send("School Bus Management Backend Running");

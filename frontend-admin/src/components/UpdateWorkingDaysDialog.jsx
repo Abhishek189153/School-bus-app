@@ -1,169 +1,495 @@
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    FormGroup,
-    FormControlLabel,
-    Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+  Paper,
 } from "@mui/material";
 
-import {
-    useEffect,
-    useState,
-} from "react";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 
-import {
-    updateWorkingDays,
-} from "../services/workingDay.service";
+import { useEffect, useState } from "react";
+
+import { updateWorkingDays } from "../services/workingDay.service";
 
 export default function UpdateWorkingDaysDialog({
 
-    open,
+  open,
 
-    handleClose,
+  handleClose,
 
-    refresh,
+  refresh,
 
-    workingDays,
+  workingDays,
 
-})
-{
+}) {
 
-    const [form,setForm]=useState({});
+  const [form, setForm] = useState({});
 
-    useEffect(()=>{
+  useEffect(() => {
 
-        if(workingDays){
+    if (workingDays) {
 
-            setForm({
+      setForm({
 
-                monday:workingDays.monday,
+        monday: workingDays.monday,
 
-                tuesday:workingDays.tuesday,
+        tuesday: workingDays.tuesday,
 
-                wednesday:workingDays.wednesday,
+        wednesday: workingDays.wednesday,
 
-                thursday:workingDays.thursday,
+        thursday: workingDays.thursday,
 
-                friday:workingDays.friday,
+        friday: workingDays.friday,
 
-                saturday:workingDays.saturday,
+        saturday: workingDays.saturday,
 
-                sunday:workingDays.sunday,
+        sunday: workingDays.sunday,
 
-            });
+      });
+
+    }
+
+  }, [workingDays]);
+
+  const handleToggle = (day) => {
+
+    setForm({
+
+      ...form,
+
+      [day]: !form[day],
+
+    });
+
+  };
+
+  const handleSave = async () => {
+
+    await updateWorkingDays(form);
+
+    refresh();
+
+    handleClose();
+
+  };
+
+  const days = [
+
+    {
+      label: "Monday",
+      key: "monday",
+    },
+
+    {
+      label: "Tuesday",
+      key: "tuesday",
+    },
+
+    {
+      label: "Wednesday",
+      key: "wednesday",
+    },
+
+    {
+      label: "Thursday",
+      key: "thursday",
+    },
+
+    {
+      label: "Friday",
+      key: "friday",
+    },
+
+    {
+      label: "Saturday",
+      key: "saturday",
+    },
+
+    {
+      label: "Sunday",
+      key: "sunday",
+    },
+
+  ];
+
+  return (
+
+    <Dialog
+
+      open={open}
+
+      onClose={handleClose}
+
+      fullWidth
+
+      maxWidth="sm"
+
+      PaperProps={{
+
+        sx:{
+
+          borderRadius:"22px",
+
+          overflow:"hidden",
 
         }
 
-    },[workingDays]);
+      }}
 
+    >
 
+      <DialogTitle
 
-    const handleChange=(e)=>{
+        sx={{
 
-        setForm({
+          display:"flex",
 
-            ...form,
+          alignItems:"center",
 
-            [e.target.name]:
-            e.target.checked,
+          gap:1.5,
 
-        });
+          borderBottom:"1px solid #EEF2F7",
 
-    };
+          py:2,
 
+        }}
 
+      >
 
-    const handleSave=async()=>{
+        <CalendarMonthRoundedIcon
 
-        await updateWorkingDays(form);
+          sx={{
 
-        refresh();
+            color:"#6366F1",
 
-        handleClose();
+            fontSize:30,
 
-    };
+          }}
 
+        />
 
+        <Box>
 
-    return(
+          <Typography
 
-        <Dialog
-            open={open}
-            onClose={handleClose}
-            fullWidth
-            maxWidth="xs"
+            sx={{
+
+              fontWeight:800,
+
+              fontSize:"1.2rem",
+
+            }}
+
+          >
+
+            Working Schedule
+
+          </Typography>
+
+          <Typography
+
+            sx={{
+
+              color:"#64748B",
+
+              fontSize:13,
+
+            }}
+
+          >
+
+            Select the days when your school operates.
+
+          </Typography>
+
+        </Box>
+
+      </DialogTitle>
+
+      <DialogContent
+
+        sx={{
+
+          py:3,
+
+        }}
+
+      >
+
+        <Box
+
+          sx={{
+
+            display:"grid",
+
+            gridTemplateColumns:{
+
+              xs:"1fr",
+
+              sm:"1fr 1fr",
+
+            },
+
+            gap:2,
+
+          }}
+
         >
 
-            <DialogTitle>
+          {
 
-                Working Days
+            days.map((day)=>{
 
-            </DialogTitle>
+              const active=form[day.key];
 
-            <DialogContent>
+              return(
 
-                <FormGroup>
+                <Paper
 
-                    {Object.keys(form).map(day=>(
+                  key={day.key}
 
-                        <FormControlLabel
+                  elevation={0}
 
-                            key={day}
+                  onClick={()=>handleToggle(day.key)}
 
-                            control={
+                  sx={{
 
-                                <Checkbox
+                    p:2,
 
-                                    checked={form[day]}
+                    cursor:"pointer",
 
-                                    onChange={handleChange}
+                    borderRadius:"16px",
 
-                                    name={day}
+                    border:
 
-                                />
+                      active
 
-                            }
+                      ?
 
-                            label={
-                                day.charAt(0).toUpperCase()
-                                +
-                                day.slice(1)
-                            }
+                      "2px solid #10B981"
 
-                        />
+                      :
 
-                    ))}
+                      "2px solid #E2E8F0",
 
-                </FormGroup>
+                    background:
 
-            </DialogContent>
+                      active
 
-            <DialogActions>
+                      ?
 
-                <Button
-                    onClick={handleClose}
+                      "#F0FDF4"
+
+                      :
+
+                      "#FFFFFF",
+
+                    transition:".25s",
+
+                    "&:hover":{
+
+                      transform:"translateY(-2px)",
+
+                      boxShadow:
+
+                      "0 10px 20px rgba(15,23,42,.08)"
+
+                    }
+
+                  }}
+
                 >
 
-                    Cancel
+                  <Box
 
-                </Button>
+                    sx={{
 
-                <Button
-                    variant="contained"
-                    onClick={handleSave}
-                >
+                      display:"flex",
 
-                    Save
+                      justifyContent:"space-between",
 
-                </Button>
+                      alignItems:"center",
 
-            </DialogActions>
+                    }}
 
-        </Dialog>
+                  >
 
-    );
+                    <Typography
+
+                      sx={{
+
+                        fontWeight:700,
+
+                        color:"#0F172A",
+
+                      }}
+
+                    >
+
+                      {day.label}
+
+                    </Typography>
+
+                    {
+
+                      active ?
+
+                      <CheckRoundedIcon
+
+                        sx={{
+
+                          color:"#10B981",
+
+                          fontSize:24,
+
+                        }}
+
+                      />
+
+                      :
+
+                      <CloseRoundedIcon
+
+                        sx={{
+
+                          color:"#94A3B8",
+
+                          fontSize:22,
+
+                        }}
+
+                      />
+
+                    }
+
+                  </Box>
+
+                  <Typography
+
+                    sx={{
+
+                      mt:1,
+
+                      fontSize:13,
+
+                      color:"#64748B",
+
+                    }}
+
+                  >
+
+                    {
+
+                      active
+
+                      ?
+
+                      "School will remain operational."
+
+                      :
+
+                      "School will remain closed."
+
+                    }
+
+                  </Typography>
+
+                </Paper>
+
+              )
+
+            })
+
+          }
+
+        </Box>
+
+      </DialogContent>
+
+      <DialogActions
+
+        sx={{
+
+          px:3,
+
+          py:2,
+
+          borderTop:"1px solid #EEF2F7",
+
+        }}
+
+      >
+
+        <Button
+
+          onClick={handleClose}
+
+          sx={{
+
+            borderRadius:"10px",
+
+            textTransform:"none",
+
+            px:3,
+
+          }}
+
+        >
+
+          Cancel
+
+        </Button>
+
+        <Button
+
+          variant="contained"
+
+          onClick={handleSave}
+
+          sx={{
+
+            borderRadius:"12px",
+
+            px:4,
+
+            textTransform:"none",
+
+            fontWeight:700,
+
+            background:
+
+            "linear-gradient(135deg,#6366F1,#4F46E5)",
+
+            boxShadow:
+
+            "0 8px 18px rgba(99,102,241,.30)",
+
+            "&:hover":{
+
+              background:
+
+              "linear-gradient(135deg,#4F46E5,#4338CA)"
+
+            }
+
+          }}
+
+        >
+
+          Save Changes
+
+        </Button>
+
+      </DialogActions>
+
+    </Dialog>
+
+  );
 
 }
