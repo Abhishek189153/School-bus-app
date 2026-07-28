@@ -31,6 +31,7 @@ import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 import { getDashboardStats } from "../services/dashboard.service";
+import WorkingDaysCard from "../components/WorkingDaysCard";
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -165,49 +166,81 @@ const Dashboard = () => {
       }}
     >
       {/* Top Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <Typography
-            sx={{
-              fontSize: { xs: "2.2rem", md: "2.8rem" },
-              fontWeight: 900,
-              color: "#0F172A",
-              letterSpacing: "-0.5px",
-              lineHeight: 1.1,
-            }}
-          >
-            Welcome Back, Admin
-          </Typography>
-
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => navigate("/students")}
-            sx={{
-              borderRadius: "15px",
-              px: 5.5,
-              py: 2,
-              textTransform: "none",
-              fontWeight: 600,
-              boxShadow: "0 8px 16px -2px rgba(99, 102, 241, 0.35)",
-              backgroundColor: "#6366F1",
-              "&:hover": { backgroundColor: "#4F46E5" },
-            }}
-          >
-            Add Student
-          </Button>
-        </Box>
-
-        <Typography variant="body1" color="#64748B" sx={{ 
-    mt: 0.8, 
-    fontSize: { xs: "0.95rem", md: "1.1rem" }, // <--- INCREASED FONT SIZE
-    fontWeight: 300,                         // <--- ADDED MEDIUM WEIGHT
-    maxWidth: "600px",                       // <--- OPTIONAL: STRETCHES TEXT WIDTH
+     <Box
+  sx={{
+    mb: 3,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 3,
+    flexWrap: "wrap",
   }}
 >
-          Here is what's happening with your school transportation network today.
-        </Typography>
-      </Box>
+
+  <Box>
+
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+      }}
+    >
+
+      <Typography
+        sx={{
+          fontSize: {
+            xs: "2.2rem",
+            md: "2.8rem",
+          },
+          fontWeight: 900,
+          color: "#0F172A",
+        }}
+      >
+
+        Welcome Back, Admin
+
+      </Typography>
+
+      <Button
+        variant="contained"
+        startIcon={<Add />}
+        onClick={() =>
+          navigate("/students")
+        }
+        sx={{
+          borderRadius: "15px",
+          px: 5.5,
+          py: 2,
+          textTransform: "none",
+          fontWeight: 600,
+          backgroundColor: "#6366F1",
+        }}
+      >
+
+        Add Student
+
+      </Button>
+
+    </Box>
+
+    <Typography
+      sx={{
+        mt: 1,
+        color: "#64748B",
+      }}
+    >
+
+      Here is what's happening with your school transportation network today.
+
+    </Typography>
+
+  </Box>
+
+  <WorkingDaysCard />
+
+</Box>
 
       {/* Main Top Grid (5 Stat Cards Left + System Efficiency Graph Right) */}
       <Box
