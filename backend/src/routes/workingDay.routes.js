@@ -1,20 +1,14 @@
-import express from "express";
-
-import
-{
-    getWorkingDays,
-    updateWorkingDays,
-}
-from "../controllers/workingDay.controller.js";
-
-import
-{
-    protect,
-    authorize,
-}
-from "../middleware/auth.middleware.js";
+const express = require("express");
 
 const router = express.Router();
+
+const protect = require("../middlewares/auth.middleware");
+const authorize = require("../middlewares/role.middleware");
+
+const {
+    getWorkingDays,
+    updateWorkingDays,
+} = require("../controllers/workingDay.controller");
 
 router.get(
     "/",
@@ -30,4 +24,4 @@ router.put(
     updateWorkingDays
 );
 
-export default router;
+module.exports = router;

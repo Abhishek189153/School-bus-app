@@ -1,29 +1,18 @@
-import WorkingDay from "../models/workingDay.model.js";
+const WorkingDay = require("../models/workingDay.model");
 
-/*
-GET
-*/
+const getWorkingDays = async (req, res) => {
 
-export const getWorkingDays =
-async (req, res) =>
-{
+    try {
 
-    try
-    {
-
-        let settings =
-        await WorkingDay.findOne({
+        let settings = await WorkingDay.findOne({
             schoolId: req.user.schoolId,
         });
 
-        if (!settings)
-        {
+        if (!settings) {
 
-            settings =
-            await WorkingDay.create({
+            settings = await WorkingDay.create({
 
-                schoolId:
-                req.user.schoolId,
+                schoolId: req.user.schoolId,
 
                 monday: true,
                 tuesday: true,
@@ -38,50 +27,31 @@ async (req, res) =>
         }
 
         res.json({
-
             success: true,
-
             workingDays: settings,
-
         });
 
-    }
-    catch (error)
-    {
+    } catch (error) {
 
-        console.log(error);
+        console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: "Unable to fetch working days.",
-
         });
 
     }
 
 };
 
+const updateWorkingDays = async (req, res) => {
 
+    try {
 
-/*
-UPDATE
-*/
-
-export const updateWorkingDays =
-async (req, res) =>
-{
-
-    try
-    {
-
-        const settings =
-        await WorkingDay.findOneAndUpdate(
+        const settings = await WorkingDay.findOneAndUpdate(
 
             {
-                schoolId:
-                req.user.schoolId,
+                schoolId: req.user.schoolId,
             },
 
             req.body,
@@ -97,29 +67,29 @@ async (req, res) =>
 
             success: true,
 
-            message:
-            "Working days updated successfully.",
+            message: "Working days updated successfully.",
 
             workingDays: settings,
 
         });
 
-    }
+    } catch (error) {
 
-    catch (error)
-    {
-
-        console.log(error);
+        console.error(error);
 
         res.status(500).json({
 
             success: false,
 
-            message:
-            "Unable to update working days.",
+            message: "Unable to update working days.",
 
         });
 
     }
 
+};
+
+module.exports = {
+    getWorkingDays,
+    updateWorkingDays,
 };

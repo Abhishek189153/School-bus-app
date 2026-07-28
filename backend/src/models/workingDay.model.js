@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const workingDaySchema = new mongoose.Schema(
 {
@@ -57,7 +57,7 @@ const workingDaySchema = new mongoose.Schema(
     timestamps: true,
 });
 
-export default mongoose.model(
+module.exports = mongoose.model(
     "WorkingDay",
     workingDaySchema
 );
