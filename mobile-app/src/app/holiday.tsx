@@ -1,258 +1,258 @@
-import React from "react";
+// import React from "react";
 
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   TouchableOpacity,
+// } from "react-native";
 
-import { Ionicons } from "@expo/vector-icons";
+// import { Ionicons } from "@expo/vector-icons";
 
-import {
-  useLocalSearchParams,
-  useRouter,
-} from "expo-router";
+// import {
+//   useLocalSearchParams,
+//   useRouter,
+// } from "expo-router";
 
-export default function HolidayScreen() {
+// export default function HolidayScreen() {
 
-  const router = useRouter();
+//   const router = useRouter();
 
-  const {
-    holidayName,
-  } = useLocalSearchParams();
+//   const {
+//     holidayName,
+//   } = useLocalSearchParams();
 
-  return (
+//   return (
 
-    <View style={styles.container}>
+//     <View style={styles.container}>
 
-      <View style={styles.iconContainer}>
+//       <View style={styles.iconContainer}>
 
-        <Text style={styles.emoji}>
-          🎉
-        </Text>
+//         <Text style={styles.emoji}>
+//           🎉
+//         </Text>
 
-      </View>
+//       </View>
 
-      <Text style={styles.title}>
-        School Holiday
-      </Text>
+//       <Text style={styles.title}>
+//         School Holiday
+//       </Text>
 
-      <Text style={styles.subtitle}>
-        No routes are scheduled today.
-      </Text>
+//       <Text style={styles.subtitle}>
+//         No routes are scheduled today.
+//       </Text>
 
-      <View style={styles.divider} />
+//       <View style={styles.divider} />
 
-      <View style={styles.card}>
+//       <View style={styles.card}>
 
-        <Text style={styles.label}>
-          Holiday
-        </Text>
+//         <Text style={styles.label}>
+//           Holiday
+//         </Text>
 
-        <Text style={styles.holidayName}>
-          {holidayName}
-        </Text>
+//         <Text style={styles.holidayName}>
+//           {holidayName}
+//         </Text>
 
-      </View>
+//       </View>
 
-      <View style={styles.divider} />
+//       <View style={styles.divider} />
 
-      <Text style={styles.footerText}>
-        Have a wonderful day!
-      </Text>
+//       <Text style={styles.footerText}>
+//         Have a wonderful day!
+//       </Text>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() =>
-          router.replace("/driver-dashboard")
-        }
-      >
+//       <TouchableOpacity
+//         style={styles.button}
+//         onPress={() =>
+//           router.replace("/driver-dashboard")
+//         }
+//       >
 
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color="#fff"
-        />
+//         <Ionicons
+//           name="arrow-back"
+//           size={20}
+//           color="#fff"
+//         />
 
-        <Text style={styles.buttonText}>
-          Back to Dashboard
-        </Text>
+//         <Text style={styles.buttonText}>
+//           Back to Dashboard
+//         </Text>
 
-      </TouchableOpacity>
+//       </TouchableOpacity>
 
-    </View>
+//     </View>
 
-  );
+//   );
 
-}
+// }
 
-const styles = StyleSheet.create({
+// const styles = StyleSheet.create({
 
-  container: {
+//   container: {
 
-    flex: 1,
+//     flex: 1,
 
-    backgroundColor: "#F8FAFC",
+//     backgroundColor: "#F8FAFC",
 
-    justifyContent: "center",
+//     justifyContent: "center",
 
-    alignItems: "center",
+//     alignItems: "center",
 
-    paddingHorizontal: 24,
+//     paddingHorizontal: 24,
 
-  },
+//   },
 
-  iconContainer: {
+//   iconContainer: {
 
-    width: 120,
+//     width: 120,
 
-    height: 120,
+//     height: 120,
 
-    borderRadius: 60,
+//     borderRadius: 60,
 
-    backgroundColor: "#E8F5E9",
+//     backgroundColor: "#E8F5E9",
 
-    justifyContent: "center",
+//     justifyContent: "center",
 
-    alignItems: "center",
+//     alignItems: "center",
 
-    marginBottom: 25,
+//     marginBottom: 25,
 
-  },
+//   },
 
-  emoji: {
+//   emoji: {
 
-    fontSize: 60,
+//     fontSize: 60,
 
-  },
+//   },
 
-  title: {
+//   title: {
 
-    fontSize: 30,
+//     fontSize: 30,
 
-    fontWeight: "700",
+//     fontWeight: "700",
 
-    color: "#1E293B",
+//     color: "#1E293B",
 
-  },
+//   },
 
-  subtitle: {
+//   subtitle: {
 
-    marginTop: 12,
+//     marginTop: 12,
 
-    fontSize: 18,
+//     fontSize: 18,
 
-    color: "#64748B",
+//     color: "#64748B",
 
-    textAlign: "center",
+//     textAlign: "center",
 
-    lineHeight: 28,
+//     lineHeight: 28,
 
-  },
+//   },
 
-  divider: {
+//   divider: {
 
-    width: "80%",
+//     width: "80%",
 
-    height: 1,
+//     height: 1,
 
-    backgroundColor: "#E2E8F0",
+//     backgroundColor: "#E2E8F0",
 
-    marginVertical: 30,
+//     marginVertical: 30,
 
-  },
+//   },
 
-  card: {
+//   card: {
 
-    width: "100%",
+//     width: "100%",
 
-    backgroundColor: "#FFFFFF",
+//     backgroundColor: "#FFFFFF",
 
-    borderRadius: 18,
+//     borderRadius: 18,
 
-    padding: 22,
+//     padding: 22,
 
-    elevation: 3,
+//     elevation: 3,
 
-    shadowColor: "#000",
+//     shadowColor: "#000",
 
-    shadowOpacity: 0.08,
+//     shadowOpacity: 0.08,
 
-    shadowRadius: 8,
+//     shadowRadius: 8,
 
-    shadowOffset: {
+//     shadowOffset: {
 
-      width: 0,
+//       width: 0,
 
-      height: 3,
+//       height: 3,
 
-    },
+//     },
 
-  },
+//   },
 
-  label: {
+//   label: {
 
-    fontSize: 16,
+//     fontSize: 16,
 
-    color: "#64748B",
+//     color: "#64748B",
 
-    marginBottom: 10,
+//     marginBottom: 10,
 
-  },
+//   },
 
-  holidayName: {
+//   holidayName: {
 
-    fontSize: 24,
+//     fontSize: 24,
 
-    fontWeight: "700",
+//     fontWeight: "700",
 
-    color: "#2563EB",
+//     color: "#2563EB",
 
-  },
+//   },
 
-  footerText: {
+//   footerText: {
 
-    marginTop: 5,
+//     marginTop: 5,
 
-    fontSize: 18,
+//     fontSize: 18,
 
-    color: "#475569",
+//     color: "#475569",
 
-    marginBottom: 45,
+//     marginBottom: 45,
 
-  },
+//   },
 
-  button: {
+//   button: {
 
-    flexDirection: "row",
+//     flexDirection: "row",
 
-    alignItems: "center",
+//     alignItems: "center",
 
-    justifyContent: "center",
+//     justifyContent: "center",
 
-    backgroundColor: "#2563EB",
+//     backgroundColor: "#2563EB",
 
-    width: "100%",
+//     width: "100%",
 
-    paddingVertical: 16,
+//     paddingVertical: 16,
 
-    borderRadius: 14,
+//     borderRadius: 14,
 
-    elevation: 2,
+//     elevation: 2,
 
-  },
+//   },
 
-  buttonText: {
+//   buttonText: {
 
-    color: "#FFFFFF",
+//     color: "#FFFFFF",
 
-    fontSize: 17,
+//     fontSize: 17,
 
-    fontWeight: "600",
+//     fontWeight: "600",
 
-    marginLeft: 10,
+//     marginLeft: 10,
 
-  },
+//   },
 
-});
+// });

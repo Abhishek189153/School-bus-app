@@ -138,19 +138,21 @@ async (busId:any) => {
 
   if (data.weeklyOff) {
 
-    router.replace({
+   router.replace({
 
-      pathname: "/weekly-off",
+  pathname: "/day-status",
 
-      params: {
+  params: {
 
-        day: data.day,
+    type: "weeklyOff",
 
-        message: data.message,
+    title: data.day,
 
-      },
+    message: data.message,
 
-    });
+  },
+
+});
 
     return;
 
@@ -162,19 +164,21 @@ async (busId:any) => {
 
   if (data.holiday) {
 
-    router.replace({
+   router.replace({
 
-      pathname: "/holiday",
+  pathname: "/day-status",
 
-      params: {
+  params: {
 
-        holidayName: data.holidayName,
+    type: "holiday",
 
-        message: data.message,
+    title: data.holidayName,
 
-      },
+    message: data.message,
 
-    });
+  },
+
+});
 
     return;
 
