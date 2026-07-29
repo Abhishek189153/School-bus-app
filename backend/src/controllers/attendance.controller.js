@@ -213,46 +213,33 @@ const drivers =
 
               }
 
-            const attendance =
-              await Attendance.findOne({
+           const selectedTripDate =
+date ||
+`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
 
-                driverId:
-                  driver._id,
+const attendance =
+await Attendance.findOne({
 
-                dutyOnTime: {
-                  $gte:
-                    startDate,
+    driverId: driver._id,
 
-                  $lte:
-                    endDate,
-                },
+    schoolId: req.user.schoolId,
 
-              });
+    tripDate: selectedTripDate,
 
-            const completedTrips =
-              await Trip.countDocuments({
+});
 
-                driverId:
-                  driver._id,
+           const completedTrips =
+await Trip.countDocuments({
 
-                status:
-                  "COMPLETED",
+    driverId: driver._id,
 
-                createdAt: {
-                  $gte:
-                    startDate,
+    tripDate: selectedTripDate,
 
-                  $lte:
-                    endDate,
-                },
+    status: "COMPLETED",
 
-              });
+});
 
-            const isPresent =
-
-              attendance &&
-
-              completedTrips > 0;
+            const isPresent = !!attendance;
 
             return {
 
