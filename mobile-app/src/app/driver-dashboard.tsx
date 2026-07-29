@@ -31,9 +31,6 @@ import {
   getAssignedRoutes,
   startTrip,
   endTrip,
-  dutyOn,
-  dutyOff,
-  getDutyStatus
 } from "../services/mobile.service";
 
 export default function DriverDashboard() {
@@ -69,7 +66,6 @@ export default function DriverDashboard() {
 
   const { routeId, routeName } = useLocalSearchParams();
 
-  const [onDuty, setOnDuty] = useState(false);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [activeRoutesCount, setActiveRoutesCount] = useState(0);
 
@@ -132,9 +128,7 @@ export default function DriverDashboard() {
     try {
       const data = await getDriverDashboard();
       const routesData = await getAssignedRoutes();
-      const dutyData = await getDutyStatus();
-
-      setOnDuty(dutyData.onDuty);
+      
 
     if (data.success) {
 
@@ -177,23 +171,23 @@ if (
     }, [])
   );
 
-  const handleDutyOn = async () => {
-    const data = await dutyOn();
-    if (data.success || data.message === "Already On Duty") {
-      setOnDuty(true);
-      router.push("/routes");
-    } else {
-      Alert.alert("Error", data.message);
-    }
-  };
+  // const handleDutyOn = async () => {
+  //   const data = await dutyOn();
+  //   if (data.success || data.message === "Already On Duty") {
+  //     setOnDuty(true);
+  //     router.push("/routes");
+  //   } else {
+  //     Alert.alert("Error", data.message);
+  //   }
+  // };
 
-  const handleDutyOff = async () => {
-    const data = await dutyOff();
-    if (data.success) {
-      setOnDuty(false);
-      Alert.alert("Success", "Duty Off");
-    }
-  };
+  // const handleDutyOff = async () => {
+  //   const data = await dutyOff();
+  //   if (data.success) {
+  //     setOnDuty(false);
+  //     Alert.alert("Success", "Duty Off");
+  //   }
+  // };
 
   const handleStartTrip = async (tripType: string) => {
     try {
@@ -291,7 +285,7 @@ if (
             <View style={[styles.badgeIconBg, { backgroundColor: "#D1E5FF" }]}>
               <Text style={styles.badgeIconSymbol}>🛡️</Text>
             </View>
-            <Text style={styles.statNumber}>{onDuty ? "ON" : "OFF"}</Text>
+            <Text style={styles.statNumber}>{activeTrip ? "ON" : "OFF"}</Text>
             <Text style={styles.statLabel}>Duty Status</Text>
             
             <View style={styles.subPillBlue}>
@@ -332,32 +326,38 @@ if (
           </View>
         </View>
 
-        {/* Action Button: DUTY ON / DUTY OFF */}
-        {!activeTrip ? (
-          !onDuty ? (
-           <TouchableOpacity style={styles.pickupBtn} onPress={handleDutyOn}>
-          <View style={styles.actionIconContainer}>
-            {/* REPLACE THE OLD TEXT TAG WITH THIS: */}
-            <Ionicons name="power" size={24} color="#16A34A" />
-          </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.btnText}>DUTY ON</Text>
-                <Text style={styles.dutySubText}>Tap to start your duty</Text>
-              </View>
-              <Text style={styles.chevronRight}>❯</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.pickupBtn, { backgroundColor: "#1565C0" }]}
-              onPress={() => router.replace("/routes")}
-            >
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.btnText}>VIEW ROUTES</Text>
-              </View>
-              <Text style={styles.chevronRight}>❯</Text>
-            </TouchableOpacity>
-          )
-       ) : (
+        {/* Action Button */}
+
+{!activeTrip ? (
+
+<TouchableOpacity
+    style={[
+        styles.pickupBtn,
+        {
+            backgroundColor: "#1565C0",
+        },
+    ]}
+    onPress={() => router.replace("/routes")}
+>
+
+    <View style={styles.actionTextContainer}>
+        <Text style={styles.btnText}>
+            VIEW ROUTES
+        </Text>
+
+        <Text style={styles.dutySubText}>
+            Select a route to begin your trip
+        </Text>
+    </View>
+
+    <Text style={styles.chevronRight}>
+        ❯
+    </Text>
+
+</TouchableOpacity>
+
+) : (
+       
  <Animated.View
   style={{
     transform: [
@@ -430,7 +430,7 @@ if (
         </TouchableOpacity>
 
        {/* Duty Off only when NO active trip */}
-{onDuty && !activeTrip && (
+{/* {onDuty && !activeTrip && (
   <TouchableOpacity
     style={[
       styles.listCardRow,
@@ -492,7 +492,7 @@ if (
     </Text>
 
   </TouchableOpacity>
-)}
+)} */}
 
        {/* Logout Card Row */}
 <TouchableOpacity style={[styles.listCardRow, { marginTop: 15, marginBottom: 40 }]} onPress={() =>

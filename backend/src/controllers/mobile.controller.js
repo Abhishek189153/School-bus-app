@@ -603,62 +603,11 @@ exports.endTrip = async (
 
     await trip.save();
 
-    // Find today's attendance
-const attendance =
-await Attendance.findOne({
-
-  driverId: req.user.id,
-
-  schoolId: req.user.schoolId,
-
-  tripDate: trip.tripDate,
-
-});
-
-if (attendance) {
-
-  // Total assigned routes
-  const bus =
-    await Bus.findOne({
-      driverId: req.user.id,
-      schoolId: req.user.schoolId,
-    });
-
-  const extraRoutes =
-    await BusRoute.find({
-      busId: bus._id,
-    });
-
-  const totalAssignedRoutes =
-    (bus.routeId ? 1 : 0) +
-    extraRoutes.length;
-
-  // Total completed trips today
-  const completedTrips =
-    await Trip.countDocuments({
-
-      driverId: req.user.id,
-
-      tripDate: trip.tripDate,
-
-      status: "COMPLETED",
-
-    });
-
-  // Last trip completed
-  if (
-    completedTrips ===
-    totalAssignedRoutes
-  ) {
-
-    attendance.dutyOffTime =
-      new Date();
-
-    await attendance.save();
-
-  }
-
-}
+    await updateDriverDutyOff(
+  req.user.id,
+  req.user.schoolId,
+  trip.tripDate
+);
 
     await Student.updateMany(
   {
@@ -2673,3 +2622,70 @@ await User.updateOne(
   }
 
 };
+
+async function updateDriverDutyOff(
+  driverId,
+  schoolId,
+  tripDate
+) {
+
+  // Find today's attendance
+  const attendance =
+    await Attendance.findOne({
+      driverId,
+      schoolId,
+      tripDate,
+    });
+
+  if (!attendance) return;
+
+  // Driver's bus
+  const bus =
+    await Bus.findOne({
+      driverId,
+      schoolId,
+    });
+
+  if (!bus) return;
+
+  // Extra assigned routes
+  const extraRoutes =
+    await BusRoute.find({
+      busId: bus._id,
+    });
+
+  // Total assigned routes
+  const totalAssignedRoutes =
+    (bus.routeId ? 1 : 0) +
+    extraRoutes.length;
+
+  // Completed trips today
+  const completedTrips =
+    await Trip.countDocuments({
+      driverId,
+      tripDate,
+      status: "COMPLETED",
+    });
+
+  console.log("========== DUTY OFF CHECK ==========");
+  console.log("Assigned Routes:", totalAssignedRoutes);
+  console.log("Completed Trips:", completedTrips);
+
+  // Driver finished all assigned routes
+  if (
+    completedTrips === totalAssignedRoutes &&
+    !attendance.dutyOffTime
+  ) {
+
+    attendance.dutyOffTime =
+      new Date();
+
+    await attendance.save();
+
+    console.log(
+      "Duty OFF marked."
+    );
+
+  }
+
+}
