@@ -98,7 +98,8 @@ export default function WorkingDaysCard() {
       elevation={0}
       sx={{
         width: "100%",
-        maxWidth: { xs: "100%", lg: 420 },
+        maxWidth: 360,
+         minHeight: 145, 
         borderRadius: "18px",
         border: "1px solid #E2E8F0",
         boxShadow: "0 8px 22px rgba(15,23,42,.05)",
@@ -123,7 +124,7 @@ export default function WorkingDaysCard() {
             fontSize: "1rem",
           }}
         >
-          Working Schedule
+          Working Days Schedule
         </Typography>
 
         <Button
@@ -150,14 +151,17 @@ export default function WorkingDaysCard() {
       </Box>
 
       {/* Days */}
-      <Box sx={{ p: 1.6 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7,1fr)",
-            gap: 1,
-          }}
-        >
+      <Box sx={{ p: 2 }}>
+       <Box
+    sx={{
+        display: "grid",
+
+        gridTemplateColumns:
+            "repeat(7,minmax(38px,1fr))",
+
+        gap: 1,
+    }}
+>
           {days.map((day) => {
             const active = workingDays[day.key];
 
@@ -172,7 +176,7 @@ export default function WorkingDaysCard() {
                   background: active
                     ? "#F0FDF4"
                     : "#F8FAFC",
-                  py: 0.9,
+                  py: 0.55,
                   textAlign: "center",
                   transition: ".25s",
                   "&:hover": {
@@ -184,7 +188,7 @@ export default function WorkingDaysCard() {
               >
                 <Typography
                   sx={{
-                    fontSize: "0.72rem",
+                    fontSize: "0.68rem",
                     fontWeight: 700,
                     color: "#334155",
                   }}

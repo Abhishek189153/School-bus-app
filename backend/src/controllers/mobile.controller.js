@@ -337,6 +337,51 @@ if (existingTrip) {
           "STARTED",
       });
 
+      // Check if attendance already exists for today
+const existingAttendance =
+await Attendance.findOne({
+
+    driverId: req.user.id,
+
+    schoolId: req.user.schoolId,
+
+    tripDate: today,
+
+});
+
+// First trip of the day
+if (!existingAttendance) {
+
+    console.log("Creating Attendance...");
+
+    const attendance =
+    await Attendance.create({
+
+        driverId: req.user.id,
+
+        schoolId: req.user.schoolId,
+
+        tripDate: today,
+
+        dutyOnTime: new Date(),
+
+        status: "PRESENT",
+
+    });
+
+    console.log(
+        "Attendance Created:",
+        attendance
+    );
+
+} else {
+
+    console.log(
+        "Attendance already exists"
+    );
+
+}
+
      const students =
   await Student.find({
     busId: bus._id,
@@ -557,6 +602,63 @@ exports.endTrip = async (
       "COMPLETED";
 
     await trip.save();
+
+    // Find today's attendance
+const attendance =
+await Attendance.findOne({
+
+  driverId: req.user.id,
+
+  schoolId: req.user.schoolId,
+
+  tripDate: trip.tripDate,
+
+});
+
+if (attendance) {
+
+  // Total assigned routes
+  const bus =
+    await Bus.findOne({
+      driverId: req.user.id,
+      schoolId: req.user.schoolId,
+    });
+
+  const extraRoutes =
+    await BusRoute.find({
+      busId: bus._id,
+    });
+
+  const totalAssignedRoutes =
+    (bus.routeId ? 1 : 0) +
+    extraRoutes.length;
+
+  // Total completed trips today
+  const completedTrips =
+    await Trip.countDocuments({
+
+      driverId: req.user.id,
+
+      tripDate: trip.tripDate,
+
+      status: "COMPLETED",
+
+    });
+
+  // Last trip completed
+  if (
+    completedTrips ===
+    totalAssignedRoutes
+  ) {
+
+    attendance.dutyOffTime =
+      new Date();
+
+    await attendance.save();
+
+  }
+
+}
 
     await Student.updateMany(
   {

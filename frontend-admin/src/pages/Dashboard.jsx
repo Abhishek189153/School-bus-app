@@ -9,6 +9,7 @@ import {
   Avatar,
   Paper,
   Button,
+  Grid,
 } from "@mui/material";
 
 import {
@@ -26,16 +27,20 @@ import {
   TrendingUp,
 } from "@mui/icons-material";
 
+import AddIcon from "@mui/icons-material/Add";
+
 import CircularProgress from "@mui/material/CircularProgress";
 import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 import { getDashboardStats } from "../services/dashboard.service";
 import WorkingDaysCard from "../components/WorkingDaysCard";
+import AddStudentModal from "../components/AddStudentModal";
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
    const fetchStats = async () => {
@@ -165,82 +170,97 @@ const Dashboard = () => {
         minHeight: "100vh",
       }}
     >
-      {/* Top Header */}
-      <Box
+     {/* ==================== Top Header ==================== */}
+<Box
   sx={{
-    mb: 3,
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 3,
+    alignItems: {
+      xs: "flex-start",
+      lg: "center",
+    },
     flexWrap: "wrap",
+    gap: 3,
+    mb: 4,
   }}
 >
-
-  <Box>
-
-    <Box
+  {/* Left Side */}
+  <Box
+    sx={{
+      flex: 1,
+      minWidth: 320,
+    }}
+  >
+    <Typography
+      variant="h3"
       sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        flexWrap: "wrap",
+        fontWeight: 800,
+        mb: 1,
       }}
     >
-
-      <Typography
-        sx={{
-          fontSize: {
-            xs: "2.2rem",
-            md: "2.8rem",
-          },
-          fontWeight: 900,
-          color: "#0F172A",
-        }}
-      >
-
-        Welcome Back, Admin
-
-      </Typography>
-
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() =>
-          navigate("/students")
-        }
-        sx={{
-          borderRadius: "15px",
-          px: 5.5,
-          py: 2,
-          textTransform: "none",
-          fontWeight: 600,
-          backgroundColor: "#6366F1",
-        }}
-      >
-
-        Add Student
-
-      </Button>
-
-    </Box>
+      Welcome Back, Admin
+    </Typography>
 
     <Typography
       sx={{
-        mt: 1,
         color: "#64748B",
       }}
     >
-
       Here is what's happening with your school transportation network today.
-
     </Typography>
-
   </Box>
 
-  <WorkingDaysCard />
+  {/* Right Side */}
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "flex-end",
+      gap: 3,
+      flexWrap: {
+        xs: "wrap",
+        lg: "nowrap",
+      },
+    }}
+  >
+   <Button
+  variant="contained"
+  startIcon={<AddIcon />}
+  onClick={() => setOpen(true)}
+  sx={{
+    px: 7,
+    height: 52,
+    borderRadius: 3,
+    textTransform: "none",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    mr: {
+      xs: 0,
+      md: 4,
+      lg: 10,
+      xl: 10,
+    },
+  }}
+>
+  Add Student
+</Button>
 
+    <Box
+      sx={{
+        width: {
+          xs: "100%",
+          sm: 340,
+          md: 350,
+        },
+        maxWidth: 350,
+      }}
+    >
+      <WorkingDaysCard />
+    </Box>
+  </Box>
 </Box>
+{/* </Grid> */}
 
       {/* Main Top Grid (5 Stat Cards Left + System Efficiency Graph Right) */}
       <Box
@@ -296,16 +316,16 @@ const Dashboard = () => {
       mb: 1,
     }}
   >
-   <Typography
+   {/* <Typography
   sx={{
     color: "#64748B",
     fontSize: ".85rem",
     mb: 1,
   }}
->
+> */}
   {stats?.attendance?.present ?? 0} / {stats?.attendance?.total ?? 0} Students Present
 </Typography>
-  </Typography>
+  {/* </Typography> */}
 
   <Box
     sx={{
@@ -798,6 +818,11 @@ const Dashboard = () => {
           </Box>
         </Box>
       </Paper>
+      <AddStudentModal
+  open={open}
+  handleClose={() => setOpen(false)}
+  refreshStudents={fetchStats}
+/>
     </Box>
   );
 };
