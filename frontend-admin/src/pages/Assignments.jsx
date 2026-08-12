@@ -180,21 +180,21 @@ const Assignments = () => {
   }
 
   // FRONTEND CHECK
-  const routeAlreadyAssigned = buses.some(
-    (bus) =>
-      bus.routeId?.toString() === routeId.toString()
-  );
+  // const routeAlreadyAssigned = buses.some(
+  //   (bus) =>
+  //     bus.routeId?.toString() === routeId.toString()
+  // );
 
-  if (routeAlreadyAssigned) {
-    setSnackbar({
-      open: true,
-      message:
-        "Route is already assigned to another bus.",
-      severity: "error",
-    });
+  // if (routeAlreadyAssigned) {
+  //   setSnackbar({
+  //     open: true,
+  //     message:
+  //       "Route is already assigned to another bus.",
+  //     severity: "error",
+  //   });
 
-    return;
-  }
+  //   return;
+  // }
 
   try {
     await assignRouteToBus({

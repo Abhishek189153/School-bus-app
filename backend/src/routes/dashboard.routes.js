@@ -15,9 +15,9 @@ require("../controllers/dashboard.controller");
 
 router.get(
     "/stats",
-    protect,
-    authorize("SCHOOL_ADMIN"),
-    getDashboardStats
-);
-
-module.exports = router;
+    protect, 
+    authorize("SCHOOL_ADMIN"), 
+    getDashboardStats 
+); 
+  
+module.exports = router; 
