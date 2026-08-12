@@ -14,6 +14,7 @@ import React, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { scaleW, scaleF } from "../utils/responsive"; // adjust path to match this file's location
 
 export default function HomeScreen() {
     useEffect(() => {
@@ -154,8 +155,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   brandIcon: {
-    width: 72,
-    height: 72,
+    width: scaleW(72),
+    height: scaleW(72),
     borderRadius: 24,
     backgroundColor: "#2D2D2D",
     alignItems: "center",
@@ -165,16 +166,16 @@ const styles = StyleSheet.create({
     borderColor: "#3D3D3D",
   },
   brandEmoji: {
-    fontSize: 36,
+    fontSize: scaleF(36),
   },
   title: {
-    fontSize: 36,
+    fontSize: scaleF(36),
     fontWeight: "900",
     color: "#FFFFFF",
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: scaleF(18),
     fontWeight: "600",
     color: "#A0AEC0",
     marginBottom: 16,
@@ -182,12 +183,16 @@ const styles = StyleSheet.create({
   description: {
     textAlign: "center",
     color: "#718096",
-    fontSize: 15,
+    fontSize: scaleF(15),
     lineHeight: 22,
     maxWidth: "85%",
   },
+  // justifyContent: "center" keeps the two cards visually balanced
+  // in the available space instead of stacking at the top and
+  // leaving a large empty gap above the footer on tall screens.
   cardContainer: {
     flex: 1,
+    justifyContent: "center",
   },
   card: {
     borderRadius: 24,
@@ -218,18 +223,18 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: scaleF(20),
     fontWeight: "bold",
     marginBottom: 4,
   },
   cardText: {
     color: "#DBEAFE",
-    fontSize: 14,
+    fontSize: scaleF(14),
     fontWeight: "500",
     lineHeight: 18,
   },
   arrow: {
-    fontSize: 24,
+    fontSize: scaleF(24),
     color: "#FFFFFF",
     fontWeight: "bold",
     opacity: 0.8,
@@ -241,7 +246,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: scaleF(10),
     fontWeight: "600",
     letterSpacing: 0.5,
     textTransform: "uppercase",

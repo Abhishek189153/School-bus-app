@@ -9,6 +9,8 @@ import {
   Linking,
   Animated,
   ScrollView,
+  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 
 import ParentMiniMap
@@ -30,7 +32,13 @@ import {
   getParentDashboard, getAnnouncements,
 } from "../../services/mobile.service";
 
+import { scaleW, scaleH, scaleF, scaleHF } from "../../utils/responsive"; // adjust path to match this file's location
+
 export default function ParentDashboard() {
+  // useWindowDimensions re-renders automatically on rotation / fold,
+  // unlike Dimensions.get() which is captured once at import time.
+  const { width: winWidth } = useWindowDimensions();
+
   const greetingOpacity =
     useRef(new Animated.Value(0)).current;
 
@@ -76,13 +84,6 @@ const previousBoardingRef =
 
 const previousAnnouncementRef =
   React.useRef("");
-
-// const [activeAlert, setActiveAlert] =
-//   React.useState<
-//     "boarding" |
-//     "announcement" |
-//     null
-//   >(null);
 
   useEffect(() => {
 
@@ -296,10 +297,6 @@ useEffect(() => {
           true
         );
 
-      //   setActiveAlert(
-      //   "boarding"
-      // );
-
       }
 
     };
@@ -342,10 +339,6 @@ useEffect(() => {
           false
         );
 
-    //     setActiveAlert(
-    //   "announcement"
-    // );
-
       }
 
     };
@@ -355,14 +348,6 @@ useEffect(() => {
 }, [
   announcements
 ]);
-
-// useEffect(() => {
-
-//   setHideAnnouncement(false);
-
-// }, [
-//   announcements
-// ]);
 
  useFocusEffect(
   React.useCallback(() => {
@@ -499,6 +484,9 @@ useEffect(() => {
           }
         >
          <Animated.Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
             style={[
               styles.greeting,
               {
@@ -512,7 +500,7 @@ useEffect(() => {
               },
             ]}
           >
-            Hello, I'm your Driver
+            Hello, I'm Marshal
           </Animated.Text>
 
         <Animated.Text
@@ -614,7 +602,7 @@ useEffect(() => {
   }
 >
 
-  <View style={{ marginTop:-20}}>
+  <View style={{ marginTop: -40 }}>
 
   <ParentMiniMap />
 
@@ -818,119 +806,6 @@ announcements.length > 0 && (
   )
 }
 
-
-{/* {
-  dashboard?.boardingStatus?.some(
-    (student: any) =>
-      student.boardedToday
-  ) ? (
-
-    <View
-      style={{
-        backgroundColor: "#E8F5E9",
-        borderColor: "#2E7D32",
-        borderWidth: 2,
-        padding: 15,
-        borderRadius: 15,
-        marginTop: 15,
-      }}
-    >
-
-
-      
-
-      <Text
-        style={{
-          fontWeight: "bold",
-          color: "#2E7D32",
-          fontSize: 18,
-          textAlign: "center",
-        }}
-      >
-        🟢 Students Boarded
-      </Text>
-
-      {
-        dashboard?.boardingStatus
-          ?.filter(
-            (student: any) =>
-              student.boardedToday
-          )
-          .map(
-            (
-              student: any,
-              index: number
-            ) => (
-
-              <Text
-                key={index}
-                style={{
-                  marginTop: 8,
-                  textAlign: "center",
-                }}
-              >
-                • {student.name} has boarded the bus
-              </Text>
-
-            )
-          )
-      }
-
-    </View>
-
-  ) : (
-
-    announcements.length > 0 && (
-
-      <View
-        style={{
-          backgroundColor: "#FFF8E1",
-          borderColor: "#F59E0B",
-          borderWidth: 2,
-          padding: 15,
-          borderRadius: 15,
-          marginTop: 15,
-        }}
-      >
-
-        <Text
-          style={{
-            fontWeight: "bold",
-            color: "#D97706",
-            fontSize: 18,
-            textAlign: "center",
-            marginBottom: 10,
-          }}
-        >
-          📢 Announcement
-        </Text>
-
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: "bold",
-            textAlign: "center",
-          }}
-        >
-          {announcements[0]?.title}
-        </Text>
-
-        <Text
-          style={{
-            marginTop: 8,
-            textAlign: "center",
-          }}
-        >
-          {announcements[0]?.message}
-        </Text>
-
-      </View>
-
-    )
-
-  )
-} */}
-
     <View
   style={{
     backgroundColor:
@@ -976,15 +851,6 @@ announcements.length > 0 && (
     }
   </Text>
 
-  {/* <Text>
-  Active Trip:
-  {
-    dashboard?.activeTrip
-      ? "YES"
-      : "NO"
-  }
-</Text> */}
-
   <Text
     style={{
       marginTop: 8,
@@ -1006,93 +872,24 @@ announcements.length > 0 && (
 
 </ScrollView>
 
-{/* <TouchableOpacity
-  style={styles.logoutButton}
-  onPress={handleLogout}
->
-  <Text
-    style={styles.logoutText}
-  >
-    Logout
-  </Text>
-</TouchableOpacity> */}
-
-{/* </TouchableOpacity> */}
-
-      {/* <View
-  style={styles.bottomNav}
->
-
-  <TouchableOpacity
-    style={styles.navItem}
-  >
-    <Ionicons
-      name="home"
-      size={24}
-      color="#1565C0"
-    />
-    <Text>
-      Home
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.navItem}
-    onPress={() =>
-    router.navigate("/(tabs)/profile")
-    }
-  >
-    <Ionicons
-      name="person"
-      size={24}
-      color="#666"
-    />
-    <Text>
-      Profile
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.navItem}
-    onPress={() =>
-      router.push(
-        "/history"
-      )
-    }
-  >
-    <Ionicons
-      name="time"
-      size={24}
-      color="#666"
-    />
-    <Text>
-      History
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.navItem}
-    onPress={() =>
-      router.push(
-        "/settings"
-      )
-    }
-  >
-    <Ionicons
-      name="settings"
-      size={24}
-      color="#666"
-    />
-    <Text>
-      Settings
-    </Text>
-  </TouchableOpacity>
-
-</View> */}
     </View>
   );
 }
 
+/**
+ * ---------------------------------------------------------------
+ * STYLES
+ * ---------------------------------------------------------------
+ * Every value that previously described an absolute pixel offset
+ * or size tied to ONE physical screen (heights, widths, top/left/
+ * right positions on the overlay, and font sizes) now goes through
+ * scaleW / scaleH / scaleF so it resizes proportionally to
+ * whatever device it's running on.
+ *
+ * Padding/border/margin values that are not screen-critical are
+ * left as-is — they don't meaningfully break layout across devices.
+ * ---------------------------------------------------------------
+ */
 const styles =
   StyleSheet.create({
     container: {
@@ -1105,47 +902,47 @@ const styles =
     },
 
     card: {
-     
-      height: 285,
-      marginTop: -30,
+      // minHeight (not height) + moderate scaling: the card can still
+      // shrink on small screens, but never below what the overlay
+      // content (text + button) actually needs, so the Call Driver
+      // button can't get pushed out and hidden behind the map below.
+      minHeight: Math.max(scaleHF(285), 270),
+      marginTop: -scaleH(30),
       borderRadius: 24,
-
-      
     },
 
     driverImage: {
       width: "100%",
-      height: 350,
+      height: scaleHF(350),
       resizeMode: "contain",
-      marginTop: -37,
-      left: -67,
-      
+      marginTop: -scaleHF(37),
+      left: -scaleW(67),
     },
 
     overlayContent: {
       position: "absolute",
 
-      top: 70,
-      right: -20,
+      top: scaleHF(70),
+      right: -scaleW(20),
 
-      width: 185,
+      width: scaleW(205),
 
       alignItems: "center",
     },
 
     greeting: {
-      fontSize: 16,
+      fontSize: scaleF(16),
       fontWeight: "700",
       color: "#1565C0",
       textAlign: "center",
-      marginRight: 18,
-      marginTop: -17,
+      marginRight: scaleW(18),
+      marginTop: -scaleH(17),
       paddingHorizontal: 8,
     },
 
     name: {
       marginTop: 5,
-      fontSize: 25,
+      fontSize: scaleF(25),
       fontWeight: "bold",
       color: "#1E293B",
       textAlign: "center",
@@ -1153,12 +950,12 @@ const styles =
 
     contactLabel: {
       marginTop: 12,
-      fontSize: 20,
+      fontSize: scaleF(20),
       color: "#64748B",
     },
 
     phoneNumber: {
-      fontSize: 18,
+      fontSize: scaleF(18),
       fontWeight: "700",
       color: "#2E7D32",
       marginTop: 4,
@@ -1167,12 +964,10 @@ const styles =
     busNumber: {
       position: "absolute",
 
-      top: 64,
-      left: 40,
+      top: scaleHF(64),
+      left: scaleW(40),
 
-      width: 60,
-
-      fontSize: 14,
+      fontSize: scaleF(14),
       fontWeight: "700",
 
       color: "#FFFFFF",
@@ -1190,13 +985,11 @@ const styles =
     vehicleNumber: {
       position: "absolute",
 
-      top: 185,
-      left: 21,
+      top: scaleHF(185),
+      left: scaleW(21),
 
-      fontSize: 12,
+      fontSize: scaleF(12),
       fontWeight: "700",
-
-       width: 100, 
 
       color: "#FFFFFF",
 
@@ -1222,7 +1015,7 @@ const styles =
     buttonText: {
       color: "#FFFFFF",
       fontWeight: "700",
-      fontSize: 16,
+      fontSize: scaleF(16),
     },
 
     logoutButton: {
@@ -1235,37 +1028,5 @@ const styles =
       fontSize: 16,
       fontWeight: "600",
     },
-
-//    bottomNav: {
-//   position: "absolute",
-
-//   bottom: 40,
-
-//   left: 15,
-
-//   right: 15,
-
-//   height: 65,
-
-//   backgroundColor: "#fff",
-
-//   flexDirection: "row",
-
-//   justifyContent: "space-around",
-
-//   alignItems: "center",
-
-//   elevation: 10,
-
-//   shadowColor: "#f2f8f8",
-
-//   shadowOpacity: 0.15,
-
-//   shadowRadius: 10,
-// },
-
-// navItem: {
-//   alignItems: "center",
-// },
 
   });

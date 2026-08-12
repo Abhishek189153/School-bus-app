@@ -18,6 +18,7 @@ import {
   Tooltip,
   InputAdornment,
   TablePagination,
+  CircularProgress,
 } from "@mui/material";
 
 // Direct file path imports to prevent Vite bundling errors
@@ -25,13 +26,35 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import GroupsIcon from "@mui/icons-material/Groups";
 
 import { getParents, deleteParent } from "../services/parent.service";
 import AddParentModal from "../components/AddParentModal";
 import EditParentModal from "../components/EditParentModal";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known parents instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const PARENTS_CACHE_KEY = "parentsPageCache";
+
 const Parents = () => {
-  const [parents, setParents] = useState([]);
+  const [parents, setParents] = useState(() => {
+    try {
+      const cached = localStorage.getItem(PARENTS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(PARENTS_CACHE_KEY) === null;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [snackbar, setSnackbar] = useState({
@@ -51,9 +74,13 @@ const Parents = () => {
   const fetchParents = async () => {
     try {
       const data = await getParents();
-      setParents(data.parents || []);
+      const nextParents = data.parents || [];
+      setParents(nextParents);
+      localStorage.setItem(PARENTS_CACHE_KEY, JSON.stringify(nextParents));
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -118,6 +145,27 @@ const Parents = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <GroupsIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Parents...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>

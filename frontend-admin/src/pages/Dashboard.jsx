@@ -37,32 +37,55 @@ import { getDashboardStats } from "../services/dashboard.service";
 import WorkingDaysCard from "../components/WorkingDaysCard";
 import AddStudentModal from "../components/AddStudentModal";
 
+// ---------------------------------------------------------------
+// Stale-while-revalidate cache key. On repeat visits we show the
+// last-known stats INSTANTLY from localStorage while a fresh fetch
+// happens quietly in the background, instead of blocking the whole
+// screen behind a spinner every single time. The very first load
+// (empty cache) still has to wait for the real API response — that
+// part depends on your backend/network, not this component.
+// ---------------------------------------------------------------
+const STATS_CACHE_KEY = "dashboardStatsCache";
+
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = localStorage.getItem(STATS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Only show the full-screen spinner if we truly have nothing to show yet.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(STATS_CACHE_KEY) === null;
+  });
+
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-   const fetchStats = async () => {
-      try {
-        const data = await getDashboardStats();
-        setStats(data.stats);
-      } catch (error) {
-        console.error("Failed to load dashboard stats:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchStats = async () => {
+    try {
+      const data = await getDashboardStats();
+      setStats(data.stats);
+      localStorage.setItem(STATS_CACHE_KEY, JSON.stringify(data.stats));
+    } catch (error) {
+      console.error("Failed to load dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-  fetchStats();
-
-  const interval = setInterval(() => {
     fetchStats();
-  }, 10000); // Refresh every 10 seconds
 
-  return () => clearInterval(interval);
-}, []);
+    const interval = setInterval(() => {
+      fetchStats();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading) {
     return (
@@ -279,10 +302,14 @@ const Dashboard = () => {
         <Box
           sx={{
             display: "grid",
+            // Stepped column count avoids squeezing all 5 cards into one
+            // cramped row on 900-1199px "medium" desktop/laptop widths.
+            // Only true wide desktops (lg, 1200px+) get the full 5-across row.
             gridTemplateColumns: {
               xs: "repeat(2, 1fr)",
               sm: "repeat(3, 1fr)",
-              md: "repeat(5, 1fr)",
+              md: "repeat(3, 1fr)",
+              lg: "repeat(5, 1fr)",
             },
             gap: 1.5,
             height: "100%",
@@ -293,11 +320,7 @@ const Dashboard = () => {
           <Paper
   elevation={0}
   sx={{
-    gridColumn: {
-      xs: "1 / -1",
-      sm: "1 / -1",
-      md: "1 / -1",
-    },
+    gridColumn: "1 / -1",
     p: 1.5,
     borderRadius: "20px",
     background: "#fff",
@@ -316,16 +339,8 @@ const Dashboard = () => {
       mb: 1,
     }}
   >
-   {/* <Typography
-  sx={{
-    color: "#64748B",
-    fontSize: ".85rem",
-    mb: 1,
-  }}
-> */}
   {stats?.attendance?.present ?? 0} / {stats?.attendance?.total ?? 0} Students Present
 </Typography>
-  {/* </Typography> */}
 
   <Box
     sx={{
@@ -374,10 +389,9 @@ const Dashboard = () => {
                 borderRadius: "22px",
                 background: card.gradient,
                 color: "#fff",
-                height: 210, // Reduced height for smaller upper cards
+                minHeight: 210,
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: "space-between",
                 position: "relative",
                 overflow: "hidden",
                 boxShadow: `0 12px 24px ${card.glow}`,
@@ -397,10 +411,14 @@ const Dashboard = () => {
                 },
               }}
             >
+              {/* CardContent now fills the Card via flex (flex: 1, height: 100%)
+                  instead of carrying its own separate fixed height that was
+                  taller than the Card itself (240 vs 210), which caused
+                  overflow/clipping regardless of screen size. */}
               <CardContent
                 sx={{
                   p: 2,
-                  height: 240,
+                  flex: 1,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",

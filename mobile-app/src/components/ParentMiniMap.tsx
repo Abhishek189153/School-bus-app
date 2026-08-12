@@ -9,6 +9,8 @@ import {
   Text,
 } from "react-native";
 
+import { scaleH } from "../utils/responsive";
+
 import WebView
 from "react-native-webview";
 
@@ -256,7 +258,7 @@ getRoute();
 
   <View
   style={{
-    height: 290,
+    height: scaleH(290),
     borderRadius: 20,
     overflow: "hidden",
     backgroundColor: "#fff",

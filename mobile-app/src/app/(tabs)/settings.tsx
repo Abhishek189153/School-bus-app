@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   Switch,
+  ScrollView,
 } from "react-native";
 
 
@@ -183,6 +184,11 @@ async (value: boolean) => {
     },
   ]}
 >
+
+  <ScrollView
+    showsVerticalScrollIndicator={false}
+    contentContainerStyle={styles.scrollContent}
+  >
 
 <Text
   style={[
@@ -413,6 +419,8 @@ async (value: boolean) => {
         Version 1.0.0
       </Text>
 
+  </ScrollView>
+
     </View>
 
   );
@@ -427,9 +435,21 @@ const styles = StyleSheet.create({
 
     backgroundColor: "#F5F8FF",
 
+  },
+
+  // Padding moved here from `container`. contentContainerStyle sizes
+  // itself to the actual content height, so when content is short it
+  // still fills the screen (flexGrow: 1), and when content is tall
+  // it scrolls instead of being clipped off the bottom.
+  scrollContent: {
+
+    flexGrow: 1,
+
     padding: 16,
 
     paddingTop: 30,
+
+    paddingBottom: 100,
 
   },
 

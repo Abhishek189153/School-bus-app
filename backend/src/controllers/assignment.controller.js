@@ -197,108 +197,142 @@ async (req, res) => {
     }
 };
 
-exports.assignRouteToBus =
-async (req, res) => {
+exports.assignRouteToBus = async (req, res) => {
+  try {
+    const {
+      busId,
+      routeId,
+    } = req.body;
 
-    try {
+    // ==========================================
+    // FIND BUS
+    // ==========================================
 
-        const {
-            busId,
-            routeId,
-        } = req.body;
+    const bus = await Bus.findById(busId);
 
-        const bus =
-            await Bus.findById(
-                busId
-            );
+    if (!bus) {
+      return res.status(404).json({
+        success: false,
+        message: "Bus not found",
+      });
+    }
 
-        const route =
-            await Route.findById(
-                routeId
-            );
+    // ==========================================
+    // FIND ROUTE
+    // ==========================================
 
-        if (!bus || !route) {
+    const route = await Route.findById(routeId);
 
-            return res.status(404).json({
-                success: false,
-                message:
-                    "Bus or Route not found",
-            });
+    if (!route) {
+      return res.status(404).json({
+        success: false,
+        message: "Route not found",
+      });
+    }
 
-        }
+    // ==========================================
+    // CHECK BUS SCHOOL
+    // ==========================================
 
-        if (
-            bus.schoolId.toString() !==
-            req.user.schoolId.toString()
-        ) {
+    if (
+      bus.schoolId.toString() !==
+      req.user.schoolId.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Bus belongs to another school",
+      });
+    }
 
-            return res.status(403).json({
-                success: false,
-                message:
-                    "Bus belongs to another school",
-            });
+    // ==========================================
+    // CHECK ROUTE SCHOOL
+    // ==========================================
 
-        }
+    if (
+      route.schoolId.toString() !==
+      req.user.schoolId.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Route belongs to another school",
+      });
+    }
 
-        if (
-            route.schoolId.toString() !==
-            req.user.schoolId.toString()
-        ) {
+    // ==========================================
+    // CHECK 1
+    // ROUTE ALREADY EXISTS AS PRIMARY ROUTE
+    // ==========================================
 
-            return res.status(403).json({
-                success: false,
-                message:
-                    "Route belongs to another school",
-            });
+    const primaryRouteBus = await Bus.findOne({
+      schoolId: req.user.schoolId,
+      routeId: routeId,
+    });
 
-        }
+    if (primaryRouteBus) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This route is already assigned to another bus. Create a separate route for the other bus.",
+      });
+    }
 
-        const existingRoute =
-        await BusRoute.findOne({
-            busId,
-            routeId,
-        });
+    // ==========================================
+    // CHECK 2
+    // ROUTE ALREADY EXISTS IN BUSROUTE
+    // ==========================================
 
-        if (existingRoute) {
+    const existingRoute = await BusRoute.findOne({
+      routeId: routeId,
+    });
 
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Route already assigned to this bus",
-            });
+    if (existingRoute) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This route is already assigned to another bus. Create a separate route for the other bus.",
+      });
+    }
 
-        }
+    // ==========================================
+    // ASSIGN ROUTE
+    // ==========================================
 
-        // First Route → Primary Route
-        if (!bus.routeId) {
+    // First route → Primary Route
+    if (!bus.routeId) {
+      bus.routeId = routeId;
 
-            bus.routeId = routeId;
+      await bus.save();
+    }
 
-            await bus.save();
+    // Additional route → BusRoute
+    else {
+      await BusRoute.create({
+        busId: busId,
+        routeId: routeId,
+      });
+    }
 
-        } else {
+    // ==========================================
+    // SUCCESS
+    // ==========================================
 
-            await BusRoute.create({
-                busId,
-                routeId,
-            });
+    return res.status(200).json({
+      success: true,
+      message: "Route assigned successfully",
+    });
 
-        }
+  } catch (error) {
 
-        res.status(200).json({
-            success: true,
-            message:
-                "Route assigned successfully",
-        });
+    console.error(
+      "assignRouteToBus ERROR:",
+      error
+    );
 
-            } catch (error) {
-
-                res.status(500).json({
-                    success: false,
-                    message: error.message,
-                });
-
-            }
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 

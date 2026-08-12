@@ -15,11 +15,19 @@ import DirectionsBusOutlinedIcon from "@mui/icons-material/DirectionsBusOutlined
 import StudentAttendance from "../components/StudentAttendance";
 import DriverAttendance from "../components/DriverAttendance";
 
+// Remember the last-viewed tab across visits — small thing, but a
+// user checking driver attendance repeatedly shouldn't have to
+// re-click past "Student Attendance" (the default) every time.
+const TAB_STORAGE_KEY = "attendanceHistoryLastTab";
+
 export default function AttendanceHistory() {
-  const [tab, setTab] = useState("student");
+  const [tab, setTab] = useState(() => {
+    return localStorage.getItem(TAB_STORAGE_KEY) || "student";
+  });
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
+    localStorage.setItem(TAB_STORAGE_KEY, newValue);
   };
 
   return (
@@ -105,9 +113,23 @@ export default function AttendanceHistory() {
         </Box>
       </Paper>
 
-      {/* Tab Panel Render Area */}
+      {/* Tab Panel Render Area — BOTH panels stay mounted at all times,
+          toggled with display:none/block instead of a ternary that
+          swaps which component renders. The previous ternary approach
+          fully unmounted the inactive tab, which meant every tab
+          switch: (1) lost any date/bus/route filter or search text
+          the user had set, (2) reset pagination back to page 1, and
+          (3) re-triggered a full data fetch from scratch — even if
+          they'd just been on that tab 5 seconds earlier. Keeping both
+          mounted preserves state and avoids the redundant refetch,
+          making tab switches instant after the first load of each. */}
       <Box sx={{ mt: 2 }}>
-        {tab === "student" ? <StudentAttendance /> : <DriverAttendance />}
+        <Box sx={{ display: tab === "student" ? "block" : "none" }}>
+          <StudentAttendance />
+        </Box>
+        <Box sx={{ display: tab === "driver" ? "block" : "none" }}>
+          <DriverAttendance />
+        </Box>
       </Box>
     </Box>
   );

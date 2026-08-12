@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -16,11 +16,20 @@ import {
   InputAdornment,
   TablePagination,
   Grid,
+  LinearProgress,
+  Skeleton,
+  Alert,
+  IconButton,
+  Stack,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 // Direct file path imports to prevent Vite bundling errors
 import SearchIcon from "@mui/icons-material/Search";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -29,12 +38,29 @@ import { getAttendanceHistory } from "../services/attendance.service";
 import { getBuses } from "../services/bus.service";
 import { getRoutes } from "../services/route.service";
 
+// Small reusable debounce hook so we don't hammer the API on every keystroke.
+function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export default function StudentAttendance() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [busId, setBusId] = useState("");
   const [search, setSearch] = useState("");
   const [routeId, setRouteId] = useState("");
   const [tripType, setTripType] = useState("");
+
+  // Debounce only the free-text search so dropdown/date changes stay instant
+  // while typing doesn't fire a request on every character.
+  const debouncedSearch = useDebouncedValue(search, 400);
 
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -50,16 +76,45 @@ export default function StudentAttendance() {
     absent: 0,
   });
 
-  const loadAttendance = async () => {
+  // Loading / error state so slow connections show clear feedback instead of
+  // a blank or stale table.
+  const [initialLoading, setInitialLoading] = useState(true); // first ever load -> skeleton rows
+  const [refreshing, setRefreshing] = useState(false); // subsequent loads -> thin top bar
+  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Keep a ref to the in-flight request's AbortController so that if the
+  // user changes filters again before the previous call finishes, we cancel
+  // the stale one instead of letting it race and overwrite fresher data.
+  const abortRef = useRef(null);
+  const hasLoadedOnce = useRef(false);
+
+  const loadAttendance = useCallback(async () => {
+    // Cancel any in-flight request before starting a new one.
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setError("");
+    if (!hasLoadedOnce.current) {
+      setInitialLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
     try {
-      // Pass search term to backend if backend API handles search filters
       const data = await getAttendanceHistory(
         date,
         busId,
         routeId,
-        search,
-        tripType
+        debouncedSearch,
+        tripType,
+        { signal: controller.signal }
       );
+
+      if (controller.signal.aborted) return;
 
       if (data && data.success) {
         setAttendance(data.attendance || []);
@@ -68,34 +123,52 @@ export default function StudentAttendance() {
           present: data.present || 0,
           absent: data.absent || 0,
         });
+      } else {
+        setAttendance([]);
+        setError(data?.message || "Could not load attendance records.");
       }
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      if (err?.name === "AbortError" || controller.signal.aborted) return;
+      console.log(err);
+      setError(
+        "Something went wrong while loading attendance. Check your connection and try again."
+      );
+    } finally {
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setRefreshing(false);
+        hasLoadedOnce.current = true;
+      }
     }
-  };
+  }, [date, busId, routeId, debouncedSearch, tripType]);
 
-  const loadFilters = async () => {
+  const loadFilters = useCallback(async () => {
+    setFiltersLoading(true);
     try {
-      const busData = await getBuses();
-      const routeData = await getRoutes();
-
+      const [busData, routeData] = await Promise.all([getBuses(), getRoutes()]);
       setBuses(busData.buses || []);
       setRoutes(routeData.routes || []);
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setFiltersLoading(false);
     }
-  };
+  }, []);
 
   // Initial load for buses & routes dropdown options
   useEffect(() => {
     loadFilters();
-  }, []);
+  }, [loadFilters]);
 
-  // Auto-search / Refetch data whenever search term or filter dropdowns change
+  // Refetch whenever filters or the debounced search term change.
   useEffect(() => {
     loadAttendance();
-    setPage(0); // Reset pagination to first page on search change
-  }, [date, busId, routeId, tripType, search]);
+    setPage(0); // Reset pagination to first page on filter/search change
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, busId, routeId, tripType, debouncedSearch]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -106,7 +179,15 @@ export default function StudentAttendance() {
     setPage(0);
   };
 
-  // Client-side auto-search fallback across ALL columns
+  const handleClearFilters = () => {
+    setBusId("");
+    setRouteId("");
+    setTripType("");
+    setSearch("");
+  };
+
+  // Client-side fallback filter across all visible columns — covers the
+  // gap between "search term typed" and "debounced value sent to backend".
   const filteredAttendance = attendance.filter((item) => {
     if (!search.trim()) return true;
 
@@ -133,6 +214,8 @@ export default function StudentAttendance() {
   });
 
   const exportToExcel = () => {
+    if (filteredAttendance.length === 0) return;
+
     const excelData = filteredAttendance.map((item) => ({
       Student: item.studentId?.name || "N/A",
       AdmissionNumber: item.studentId?.admissionNumber || "N/A",
@@ -171,9 +254,12 @@ export default function StudentAttendance() {
     page * rowsPerPage + rowsPerPage
   );
 
+  const isBusy = initialLoading || refreshing;
+  const skeletonRows = Array.from({ length: rowsPerPage > 10 ? 10 : rowsPerPage });
+
   return (
-    <Box sx={{ p: 0.5 }}>
-      {/* Clean & Separated Summary Cards */}
+    <Box sx={{ p: { xs: 0.5, sm: 1 } }}>
+      {/* Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={4}>
           <Paper
@@ -194,9 +280,13 @@ export default function StudentAttendance() {
             >
               TOTAL ATTENDANCE
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
-              {summary.total}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {summary.total}
+              </Typography>
+            )}
           </Paper>
         </Grid>
 
@@ -219,9 +309,13 @@ export default function StudentAttendance() {
             >
               PRESENT
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
-              {summary.present}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
+                {summary.present}
+              </Typography>
+            )}
           </Paper>
         </Grid>
 
@@ -244,14 +338,18 @@ export default function StudentAttendance() {
             >
               ABSENT
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#dc2626" }}>
-              {summary.absent}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#dc2626" }}>
+                {summary.absent}
+              </Typography>
+            )}
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Filter Control Toolbar with Auto-Search */}
+      {/* Filter Toolbar — stacks vertically on mobile, wraps on tablet/desktop */}
       <Paper
         elevation={0}
         sx={{
@@ -262,15 +360,12 @@ export default function StudentAttendance() {
           backgroundColor: "#ffffff",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1.5,
-            alignItems: "center",
-          }}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          flexWrap="wrap"
+          gap={1.5}
+          alignItems={{ xs: "stretch", sm: "center" }}
         >
-          {/* Date Picker */}
           <TextField
             label="Date"
             type="date"
@@ -284,15 +379,16 @@ export default function StudentAttendance() {
             }}
           />
 
-          {/* Bus Dropdown */}
           <TextField
             select
             label="Select Bus"
             size="small"
             value={busId}
             onChange={(e) => setBusId(e.target.value)}
+            disabled={filtersLoading}
             sx={{
-              minWidth: 140,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 140 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           >
@@ -304,15 +400,16 @@ export default function StudentAttendance() {
             ))}
           </TextField>
 
-          {/* Route Dropdown */}
           <TextField
             select
             label="Select Route"
             size="small"
             value={routeId}
             onChange={(e) => setRouteId(e.target.value)}
+            disabled={filtersLoading}
             sx={{
-              minWidth: 150,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 150 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           >
@@ -324,7 +421,6 @@ export default function StudentAttendance() {
             ))}
           </TextField>
 
-          {/* Trip Type Dropdown */}
           <TextField
             select
             label="Trip Type"
@@ -332,7 +428,8 @@ export default function StudentAttendance() {
             value={tripType}
             onChange={(e) => setTripType(e.target.value)}
             sx={{
-              minWidth: 130,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 130 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           >
@@ -341,7 +438,6 @@ export default function StudentAttendance() {
             <MenuItem value="DROP">Drop</MenuItem>
           </TextField>
 
-          {/* Universal Auto-Search Field */}
           <TextField
             size="small"
             placeholder="Search by student, bus, route, status..."
@@ -353,34 +449,73 @@ export default function StudentAttendance() {
                   <SearchIcon fontSize="small" sx={{ color: "#94a3b8" }} />
                 </InputAdornment>
               ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearch("")}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
             }}
             sx={{
               flexGrow: 1,
-              minWidth: 240,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 240 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           />
 
-          {/* Excel Export Button */}
-          <Button
-            variant="contained"
-            startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
-            onClick={exportToExcel}
-            sx={{
-              borderRadius: "8px",
-              textTransform: "none",
-              fontWeight: 600,
-              backgroundColor: "#16a34a",
-              px: 2,
-              py: 0.8,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#15803d" },
-            }}
-          >
-            Export Excel
-          </Button>
-        </Box>
+          <Stack direction="row" gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+            <Button
+              variant="outlined"
+              onClick={handleClearFilters}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              Reset
+            </Button>
+
+            <Button
+              variant="contained"
+              fullWidth={isMobile}
+              startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
+              onClick={exportToExcel}
+              disabled={filteredAttendance.length === 0}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: "#16a34a",
+                px: 2,
+                py: 0.8,
+                boxShadow: "none",
+                flexShrink: 0,
+                "&:hover": { backgroundColor: "#15803d" },
+              }}
+            >
+              Export Excel
+            </Button>
+          </Stack>
+        </Stack>
       </Paper>
+
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2, borderRadius: "10px" }}
+          action={
+            <IconButton size="small" onClick={loadAttendance}>
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          {error}
+        </Alert>
+      )}
 
       {/* Table Section */}
       <Paper
@@ -390,9 +525,15 @@ export default function StudentAttendance() {
           border: "1px solid #e2e8f0",
           backgroundColor: "#ffffff",
           overflow: "hidden",
+          position: "relative",
         }}
       >
-        <TableContainer>
+        {/* Thin progress bar for background refetches so the table doesn't flash/blank out */}
+        <Box sx={{ height: 3 }}>
+          {refreshing && <LinearProgress sx={{ height: 3 }} />}
+        </Box>
+
+        <TableContainer sx={{ maxWidth: "100%", overflowX: "auto" }}>
           <Table sx={{ minWidth: 750 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
@@ -424,7 +565,17 @@ export default function StudentAttendance() {
             </TableHead>
 
             <TableBody>
-              {paginatedAttendance.length > 0 ? (
+              {initialLoading ? (
+                skeletonRows.map((_, i) => (
+                  <TableRow key={`skeleton-${i}`}>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton variant="text" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : paginatedAttendance.length > 0 ? (
                 paginatedAttendance.map((item, index) => {
                   const isPresent = item.status === "PRESENT";
 
@@ -500,7 +651,9 @@ export default function StudentAttendance() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
-                    <Typography variant="body2">No matching attendance records found.</Typography>
+                    <Typography variant="body2">
+                      {error ? "Couldn't load records." : "No matching attendance records found."}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               )}
@@ -521,6 +674,10 @@ export default function StudentAttendance() {
             ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
               fontSize: "0.85rem",
               color: "#64748b",
+            },
+            ".MuiTablePagination-toolbar": {
+              flexWrap: "wrap",
+              justifyContent: { xs: "center", sm: "flex-end" },
             },
           }}
         />

@@ -16,6 +16,7 @@ import {
   Tooltip,
   InputAdornment,
   TablePagination,
+  CircularProgress,
 } from "@mui/material";
 
 // Direct file path imports to prevent Vite bundling/resolution errors
@@ -23,13 +24,35 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 
 import { getBuses, deleteBus } from "../services/bus.service";
 import AddBusModal from "../components/AddBusModal";
 import EditBusModal from "../components/EditBusModal";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known buses instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const BUSES_CACHE_KEY = "busesPageCache";
+
 const Buses = () => {
-  const [buses, setBuses] = useState([]);
+  const [buses, setBuses] = useState(() => {
+    try {
+      const cached = localStorage.getItem(BUSES_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(BUSES_CACHE_KEY) === null;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -42,9 +65,13 @@ const Buses = () => {
   const fetchBuses = async () => {
     try {
       const data = await getBuses();
-      setBuses(data.buses || []);
+      const nextBuses = data.buses || [];
+      setBuses(nextBuses);
+      localStorage.setItem(BUSES_CACHE_KEY, JSON.stringify(nextBuses));
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,6 +122,27 @@ const Buses = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <DirectionsBusIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Buses...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -13,6 +12,10 @@ import {
   Snackbar,
   Alert,
   Tooltip,
+  TextField,
+  InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 
 // Direct file path imports to prevent Vite bundling/resolution errors
@@ -21,6 +24,7 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import AltRouteOutlinedIcon from "@mui/icons-material/AltRouteOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
+import SearchIcon from "@mui/icons-material/Search";
 
 import { getBusOverview } from "../services/busOverview.service";
 import {
@@ -28,9 +32,31 @@ import {
   unassignRouteFromBus,
 } from "../services/assignment.service";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known fleet data instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const BUS_OVERVIEW_CACHE_KEY = "busOverviewPageCache";
+
 const BusOverview = () => {
-  const [buses, setBuses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [buses, setBuses] = useState(() => {
+    try {
+      const cached = localStorage.getItem(BUS_OVERVIEW_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(BUS_OVERVIEW_CACHE_KEY) === null;
+  });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -41,7 +67,9 @@ const BusOverview = () => {
   const fetchBusOverview = async () => {
     try {
       const data = await getBusOverview();
-      setBuses(data.buses || []);
+      const nextBuses = data.buses || [];
+      setBuses(nextBuses);
+      localStorage.setItem(BUS_OVERVIEW_CACHE_KEY, JSON.stringify(nextBuses));
     } catch (error) {
       console.log(error);
     } finally {
@@ -99,33 +127,81 @@ const BusOverview = () => {
     return (
       <Box
         sx={{
+          height: "80vh",
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          minHeight: "70vh",
+          gap: 2,
         }}
       >
-        <CircularProgress size={40} sx={{ color: "#2563eb" }} />
+        <DirectionsBusOutlinedIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Fleet Overview...
+        </Typography>
       </Box>
     );
   }
 
-  // Aggregate Fleet Metrics
-  const totalBuses = buses.length;
-  let activeBusesCount = 0;
-  let totalFleetStudents = 0;
-
-  buses.forEach((bus) => {
+  // Helper: derive per-bus computed fields once, reused for stats,
+  // filtering, and sorting so the "active" definition can't drift
+  // between different parts of the page.
+  const withComputedFields = buses.map((bus) => {
     const totalStudents =
       bus.routeStudentCounts?.reduce((sum, route) => sum + route.count, 0) || 0;
-    totalFleetStudents += totalStudents;
+
+    const routeCount =
+      (bus.routeId ? 1 : 0) + (bus.additionalRoutes?.length || 0);
 
     const isActive =
-      bus.driverId &&
-      (bus.routeId || bus.additionalRoutes?.length > 0) &&
-      totalStudents > 0;
+      Boolean(bus.driverId) && routeCount > 0 && totalStudents > 0;
 
-    if (isActive) activeBusesCount++;
+    return { ...bus, totalStudents, routeCount, isActive };
+  });
+
+  // Aggregate Fleet Metrics
+  const totalBuses = withComputedFields.length;
+  const activeBusesCount = withComputedFields.filter((b) => b.isActive).length;
+  const totalFleetStudents = withComputedFields.reduce(
+    (sum, b) => sum + b.totalStudents,
+    0
+  );
+  const utilizationPct =
+    totalBuses > 0 ? Math.round((activeBusesCount / totalBuses) * 100) : 0;
+  const unassignedDriverCount = withComputedFields.filter(
+    (b) => !b.driverId
+  ).length;
+
+  // Search + status filter
+  const filteredBuses = withComputedFields.filter((bus) => {
+    const matchesSearch =
+      (
+        (bus.busNumber || "") +
+        " " +
+        (bus.vehicleNumber || "") +
+        " " +
+        (bus.driverId?.name || "")
+      )
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && bus.isActive) ||
+      (statusFilter === "inactive" && !bus.isActive);
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Realistic default ordering: attention-needed buses (inactive) surface
+  // first so an admin scanning the fleet sees problems immediately,
+  // rather than hunting through a flat, unordered list.
+  const sortedBuses = [...filteredBuses].sort((a, b) => {
+    if (a.isActive === b.isActive) {
+      return (a.busNumber || "").localeCompare(b.busNumber || "");
+    }
+    return a.isActive ? 1 : -1;
   });
 
   return (
@@ -148,6 +224,7 @@ const BusOverview = () => {
             alignItems: "center",
             flexWrap: "wrap",
             gap: 2,
+            mb: 2.5,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -175,7 +252,7 @@ const BusOverview = () => {
               sx={{ fontWeight: 600, borderRadius: "8px", borderColor: "#cbd5e1" }}
             />
             <Chip
-              label={`Active Fleet: ${activeBusesCount}`}
+              label={`Active Fleet: ${activeBusesCount} (${utilizationPct}%)`}
               sx={{
                 fontWeight: 600,
                 borderRadius: "8px",
@@ -193,27 +270,99 @@ const BusOverview = () => {
                 color: "#92400e",
               }}
             />
+            {unassignedDriverCount > 0 && (
+              <Tooltip title="Buses with no driver assigned — these can't run">
+                <Chip
+                  label={`Needs Driver: ${unassignedDriverCount}`}
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: "8px",
+                    backgroundColor: "#fee2e2",
+                    color: "#991b1b",
+                  }}
+                />
+              </Tooltip>
+            )}
           </Box>
+        </Box>
+
+        {/* Search + Status Filter */}
+        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+          <TextField
+            placeholder="Search bus, vehicle no., or driver..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: "#94a3b8" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: { xs: "100%", sm: 320 },
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#ffffff",
+                fontSize: "0.875rem",
+                "& fieldset": { borderColor: "#cbd5e1" },
+                "&:hover fieldset": { borderColor: "#94a3b8" },
+                "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+              },
+            }}
+          />
+
+          <ToggleButtonGroup
+            value={statusFilter}
+            exclusive
+            onChange={(_, value) => value && setStatusFilter(value)}
+            size="small"
+            sx={{
+              "& .MuiToggleButton-root": {
+                textTransform: "none",
+                fontWeight: 600,
+                px: 2,
+                borderRadius: "8px !important",
+                mr: 1,
+                border: "1px solid #cbd5e1 !important",
+              },
+              "& .Mui-selected": {
+                backgroundColor: "#2563eb !important",
+                color: "#fff !important",
+              },
+            }}
+          >
+            <ToggleButton value="all">All ({totalBuses})</ToggleButton>
+            <ToggleButton value="active">Active ({activeBusesCount})</ToggleButton>
+            <ToggleButton value="inactive">
+              Inactive ({totalBuses - activeBusesCount})
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
       </Paper>
 
-      {/* Grid of Bus Overview Cards */}
-      <Grid container spacing={3}>
-        {buses.map((bus) => {
-          const totalStudents =
-            bus.routeStudentCounts?.reduce(
-              (sum, route) => sum + route.count,
-              0
-            ) || 0;
+      {/* Grid of Bus Overview Cards — CSS Grid via Box instead of MUI
+          <Grid item>, whose old xs/md/lg prop API doesn't reliably
+          size columns on newer MUI versions (this was letting 5 cards
+          cram into one row instead of respecting lg={4}'s 3-per-row
+          intent). auto-fill/minmax also means it adapts smoothly to
+          ANY desktop width, not just the specific breakpoints we
+          guess at. */}
+      {sortedBuses.length > 0 ? (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gap: 3,
+          }}
+        >
+          {sortedBuses.map((bus) => {
+            const { totalStudents, isActive } = bus;
 
-          const isActive =
-            bus.driverId &&
-            (bus.routeId || bus.additionalRoutes?.length > 0) &&
-            totalStudents > 0;
-
-          return (
-            <Grid item xs={12} md={6} lg={4} key={bus._id}>
+            return (
               <Card
+                key={bus._id}
                 elevation={0}
                 sx={{
                   borderRadius: "16px",
@@ -310,6 +459,14 @@ const BusOverview = () => {
                         >
                           {bus.driverId?.name || "Not Assigned"}
                         </Typography>
+                        {bus.driverId?.phone && (
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#94a3b8" }}
+                          >
+                            {bus.driverId.phone}
+                          </Typography>
+                        )}
                       </Box>
                     </Box>
 
@@ -340,21 +497,32 @@ const BusOverview = () => {
                     <Box
                       sx={{
                         display: "flex",
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        gap: 1,
                         mb: 1,
                       }}
                     >
-                      <AltRouteOutlinedIcon
-                        fontSize="small"
-                        sx={{ color: "#64748b" }}
-                      />
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "#94a3b8", fontWeight: 600 }}
-                      >
-                        ASSIGNED ROUTES
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <AltRouteOutlinedIcon
+                          fontSize="small"
+                          sx={{ color: "#64748b" }}
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "#94a3b8", fontWeight: 600 }}
+                        >
+                          ASSIGNED ROUTES
+                        </Typography>
+                      </Box>
+
+                      {totalStudents > 0 && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "#2563eb", fontWeight: 700 }}
+                        >
+                          {totalStudents} total
+                        </Typography>
+                      )}
                     </Box>
 
                     {!bus.routeId &&
@@ -362,7 +530,7 @@ const BusOverview = () => {
                         bus.additionalRoutes.length === 0) && (
                         <Typography
                           variant="body2"
-                          sx={{ color: "#94a3b8", italic: true }}
+                          sx={{ color: "#94a3b8", fontStyle: "italic" }}
                         >
                           No routes assigned
                         </Typography>
@@ -477,10 +645,26 @@ const BusOverview = () => {
                   </Box>
                 </CardContent>
               </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
+            );
+          })}
+        </Box>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 5,
+            textAlign: "center",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            backgroundColor: "#ffffff",
+            color: "#94a3b8",
+          }}
+        >
+          <Typography variant="body2">
+            No buses match your search or filter.
+          </Typography>
+        </Paper>
+      )}
 
       {/* Snackbar Alert Notification */}
       <Snackbar

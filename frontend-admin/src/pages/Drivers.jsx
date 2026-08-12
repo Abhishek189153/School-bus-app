@@ -18,6 +18,7 @@ import {
   Tooltip,
   InputAdornment,
   TablePagination,
+  CircularProgress,
 } from "@mui/material";
 
 // Direct file path imports to prevent Vite bundling errors
@@ -25,13 +26,35 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import PersonIcon from "@mui/icons-material/Person";
 
 import { getDrivers, deleteDriver } from "../services/driver.service";
 import AddDriverModal from "../components/AddDriverModal";
 import EditDriverModal from "../components/EditDriverModal";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known drivers instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const DRIVERS_CACHE_KEY = "driversPageCache";
+
 const Drivers = () => {
-  const [drivers, setDrivers] = useState([]);
+  const [drivers, setDrivers] = useState(() => {
+    try {
+      const cached = localStorage.getItem(DRIVERS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(DRIVERS_CACHE_KEY) === null;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [snackbar, setSnackbar] = useState({
@@ -51,9 +74,13 @@ const Drivers = () => {
   const fetchDrivers = async () => {
     try {
       const data = await getDrivers();
-      setDrivers(data.drivers || []);
+      const nextDrivers = data.drivers || [];
+      setDrivers(nextDrivers);
+      localStorage.setItem(DRIVERS_CACHE_KEY, JSON.stringify(nextDrivers));
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +144,27 @@ const Drivers = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <PersonIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Drivers...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>

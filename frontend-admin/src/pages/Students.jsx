@@ -16,6 +16,7 @@ import {
   Tooltip,
   InputAdornment,
   TablePagination,
+  CircularProgress,
 } from "@mui/material";
 
 // Direct file path imports prevent Vite bundling errors
@@ -23,13 +24,35 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import SchoolIcon from "@mui/icons-material/School";
 
 import { getStudents, deleteStudent } from "../services/student.service";
 import AddStudentModal from "../components/AddStudentModal";
 import EditStudentModal from "../components/EditStudentModal";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known students instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const STUDENTS_CACHE_KEY = "studentsPageCache";
+
 const Students = () => {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState(() => {
+    try {
+      const cached = localStorage.getItem(STUDENTS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(STUDENTS_CACHE_KEY) === null;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -42,9 +65,13 @@ const Students = () => {
   const fetchStudents = async () => {
     try {
       const data = await getStudents();
-      setStudents(data.students || []);
+      const nextStudents = data.students || [];
+      setStudents(nextStudents);
+      localStorage.setItem(STUDENTS_CACHE_KEY, JSON.stringify(nextStudents));
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,6 +134,27 @@ const Students = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <SchoolIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Students...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -16,11 +16,20 @@ import {
   InputAdornment,
   TablePagination,
   Grid,
+  LinearProgress,
+  Skeleton,
+  Alert,
+  IconButton,
+  Stack,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 // Direct file path imports to prevent Vite bundling/resolution errors
 import SearchIcon from "@mui/icons-material/Search";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -28,10 +37,24 @@ import { saveAs } from "file-saver";
 import { getBuses } from "../services/bus.service";
 import { getDriverAttendanceHistory } from "../services/driverAttendance.service";
 
+// Small reusable debounce hook so we don't hammer the API on every keystroke.
+function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export default function DriverAttendance() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [busId, setBusId] = useState("");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 400);
 
   const [buses, setBuses] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -46,9 +69,35 @@ export default function DriverAttendance() {
     absent: 0,
   });
 
-  const loadData = async () => {
+  // Loading / error state so slow connections give clear feedback.
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busesLoading, setBusesLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const abortRef = useRef(null);
+  const hasLoadedOnce = useRef(false);
+
+  const loadData = useCallback(async () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setError("");
+    if (!hasLoadedOnce.current) {
+      setInitialLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
     try {
-      const data = await getDriverAttendanceHistory(date, busId, search);
+      const data = await getDriverAttendanceHistory(date, busId, debouncedSearch, {
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
 
       if (data && data.success) {
         setDrivers(data.drivers || []);
@@ -57,31 +106,51 @@ export default function DriverAttendance() {
           present: data.present || 0,
           absent: data.absent || 0,
         });
+      } else {
+        setDrivers([]);
+        setError(data?.message || "Could not load driver attendance.");
       }
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      if (err?.name === "AbortError" || controller.signal.aborted) return;
+      console.log(err);
+      setError(
+        "Something went wrong while loading driver attendance. Check your connection and try again."
+      );
+    } finally {
+      if (!controller.signal.aborted) {
+        setInitialLoading(false);
+        setRefreshing(false);
+        hasLoadedOnce.current = true;
+      }
     }
-  };
+  }, [date, busId, debouncedSearch]);
 
-  const loadBuses = async () => {
+  const loadBuses = useCallback(async () => {
+    setBusesLoading(true);
     try {
       const data = await getBuses();
       setBuses(data.buses || []);
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setBusesLoading(false);
     }
-  };
+  }, []);
 
   // Initial load for buses list
   useEffect(() => {
     loadBuses();
-  }, []);
+  }, [loadBuses]);
 
-  // Auto-refetch when date, busId, or search term changes
+  // Refetch when date, busId, or the debounced search term changes.
   useEffect(() => {
     loadData();
-    setPage(0); // Reset page on filter/search change
-  }, [date, busId, search]);
+    setPage(0);
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, busId, debouncedSearch]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -92,7 +161,12 @@ export default function DriverAttendance() {
     setPage(0);
   };
 
-  // Live client-side auto-search fallback across all fields
+  const handleClearFilters = () => {
+    setBusId("");
+    setSearch("");
+  };
+
+  // Live client-side fallback filter across all fields
   const filteredDrivers = drivers.filter((driver) => {
     if (!search.trim()) return true;
 
@@ -111,6 +185,8 @@ export default function DriverAttendance() {
   });
 
   const exportToExcel = () => {
+    if (filteredDrivers.length === 0) return;
+
     const excelData = filteredDrivers.map((driver) => ({
       Driver: driver.name || "N/A",
       Phone: driver.phone || "N/A",
@@ -149,9 +225,11 @@ export default function DriverAttendance() {
     page * rowsPerPage + rowsPerPage
   );
 
+  const skeletonRows = Array.from({ length: rowsPerPage > 10 ? 10 : rowsPerPage });
+
   return (
-    <Box sx={{ p: 0.5 }}>
-      {/* Clean & Separated Summary Metric Cards */}
+    <Box sx={{ p: { xs: 0.5, sm: 1 } }}>
+      {/* Summary Metric Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={4}>
           <Paper
@@ -172,9 +250,13 @@ export default function DriverAttendance() {
             >
               TOTAL DRIVERS
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
-              {summary.total}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {summary.total}
+              </Typography>
+            )}
           </Paper>
         </Grid>
 
@@ -197,9 +279,13 @@ export default function DriverAttendance() {
             >
               PRESENT
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
-              {summary.present}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
+                {summary.present}
+              </Typography>
+            )}
           </Paper>
         </Grid>
 
@@ -222,14 +308,18 @@ export default function DriverAttendance() {
             >
               ABSENT
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#dc2626" }}>
-              {summary.absent}
-            </Typography>
+            {initialLoading ? (
+              <Skeleton variant="text" width={60} height={36} />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#dc2626" }}>
+                {summary.absent}
+              </Typography>
+            )}
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Filter Control Toolbar */}
+      {/* Filter Toolbar — stacks vertically on mobile */}
       <Paper
         elevation={0}
         sx={{
@@ -240,15 +330,12 @@ export default function DriverAttendance() {
           backgroundColor: "#ffffff",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1.5,
-            alignItems: "center",
-          }}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          flexWrap="wrap"
+          gap={1.5}
+          alignItems={{ xs: "stretch", sm: "center" }}
         >
-          {/* Date Picker */}
           <TextField
             label="Date"
             type="date"
@@ -262,15 +349,16 @@ export default function DriverAttendance() {
             }}
           />
 
-          {/* Bus Selection Filter */}
           <TextField
             select
             label="Select Bus"
             size="small"
             value={busId}
             onChange={(e) => setBusId(e.target.value)}
+            disabled={busesLoading}
             sx={{
-              minWidth: 150,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 150 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           >
@@ -282,7 +370,6 @@ export default function DriverAttendance() {
             ))}
           </TextField>
 
-          {/* Universal Auto-Search Field */}
           <TextField
             size="small"
             placeholder="Search driver name, phone or bus..."
@@ -294,34 +381,73 @@ export default function DriverAttendance() {
                   <SearchIcon fontSize="small" sx={{ color: "#94a3b8" }} />
                 </InputAdornment>
               ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearch("")}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
             }}
             sx={{
               flexGrow: 1,
-              minWidth: 240,
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 240 },
               "& .MuiOutlinedInput-root": { borderRadius: "8px" },
             }}
           />
 
-          {/* Export to Excel */}
-          <Button
-            variant="contained"
-            startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
-            onClick={exportToExcel}
-            sx={{
-              borderRadius: "8px",
-              textTransform: "none",
-              fontWeight: 600,
-              backgroundColor: "#16a34a",
-              px: 2,
-              py: 0.8,
-              boxShadow: "none",
-              "&:hover": { backgroundColor: "#15803d" },
-            }}
-          >
-            Export Excel
-          </Button>
-        </Box>
+          <Stack direction="row" gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+            <Button
+              variant="outlined"
+              onClick={handleClearFilters}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              Reset
+            </Button>
+
+            <Button
+              variant="contained"
+              fullWidth={isMobile}
+              startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
+              onClick={exportToExcel}
+              disabled={filteredDrivers.length === 0}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: "#16a34a",
+                px: 2,
+                py: 0.8,
+                boxShadow: "none",
+                flexShrink: 0,
+                "&:hover": { backgroundColor: "#15803d" },
+              }}
+            >
+              Export Excel
+            </Button>
+          </Stack>
+        </Stack>
       </Paper>
+
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2, borderRadius: "10px" }}
+          action={
+            <IconButton size="small" onClick={loadData}>
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          {error}
+        </Alert>
+      )}
 
       {/* Styled Table Paper Wrapper */}
       <Paper
@@ -331,99 +457,56 @@ export default function DriverAttendance() {
           border: "1px solid #e2e8f0",
           backgroundColor: "#ffffff",
           overflow: "hidden",
+          position: "relative",
         }}
       >
-        <TableContainer>
+        <Box sx={{ height: 3 }}>
+          {refreshing && <LinearProgress sx={{ height: 3 }} />}
+        </Box>
+
+        <TableContainer sx={{ maxWidth: "100%", overflowX: "auto" }}>
           <Table sx={{ minWidth: 750 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   #
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Driver
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Phone
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Bus
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Duty On
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Duty Off
                 </TableCell>
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Trips
                 </TableCell>
-                <TableCell
-                  align="right"
-                  sx={{
-                    fontWeight: 700,
-                    color: "#475569",
-                    fontSize: "0.78rem",
-                    textTransform: "uppercase",
-                    pr: 3,
-                  }}
-                >
+                <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase", pr: 3 }}>
                   Status
                 </TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {paginatedDrivers.length > 0 ? (
+              {initialLoading ? (
+                skeletonRows.map((_, i) => (
+                  <TableRow key={`skeleton-${i}`}>
+                    {Array.from({ length: 8 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton variant="text" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : paginatedDrivers.length > 0 ? (
                 paginatedDrivers.map((driver, index) => {
                   const isPresent = driver.status === "PRESENT";
 
@@ -435,14 +518,7 @@ export default function DriverAttendance() {
                         borderBottom: "1px solid #f1f5f9",
                       }}
                     >
-                      {/* Serial Number */}
-                      <TableCell
-                        sx={{
-                          color: "#94a3b8",
-                          fontWeight: 600,
-                          fontSize: "0.85rem",
-                        }}
-                      >
+                      <TableCell sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "0.85rem" }}>
                         {page * rowsPerPage + index + 1}
                       </TableCell>
 
@@ -510,13 +586,9 @@ export default function DriverAttendance() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    align="center"
-                    sx={{ py: 6, color: "#64748b" }}
-                  >
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">
-                      No matching driver attendance records found.
+                      {error ? "Couldn't load records." : "No matching driver attendance records found."}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -525,7 +597,6 @@ export default function DriverAttendance() {
           </Table>
         </TableContainer>
 
-        {/* Material UI Pagination Bar */}
         <TablePagination
           rowsPerPageOptions={[10, 25, 50]}
           component="div"
@@ -539,6 +610,10 @@ export default function DriverAttendance() {
             ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
               fontSize: "0.85rem",
               color: "#64748b",
+            },
+            ".MuiTablePagination-toolbar": {
+              flexWrap: "wrap",
+              justifyContent: { xs: "center", sm: "flex-end" },
             },
           }}
         />

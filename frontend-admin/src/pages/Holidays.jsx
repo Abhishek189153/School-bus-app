@@ -19,11 +19,16 @@ import {
   Tooltip,
   InputAdornment,
   TablePagination,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import CelebrationIcon from "@mui/icons-material/Celebration";
 import AddHolidayModal from "../components/AddHolidayModal";
 
 import {
@@ -31,11 +36,41 @@ import {
   deleteHoliday,
 } from "../services/holiday.service";
 
+// Stale-while-revalidate cache — same pattern used across the other
+// admin pages. Shows last-known holidays instantly on repeat visits
+// while a fresh fetch happens quietly in the background, instead of
+// blocking the whole page behind a spinner every single time.
+const HOLIDAYS_CACHE_KEY = "holidaysPageCache";
+
+// Normalize to midnight so "today" comparisons aren't thrown off by
+// time-of-day components in stored dates.
+const startOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
 const Holidays = () => {
 
-  const [holidays, setHolidays] = useState([]);
+  const [holidays, setHolidays] = useState(() => {
+    try {
+      const cached = localStorage.getItem(HOLIDAYS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only block the page with a spinner if there's truly nothing cached
+  // to show yet (first-ever visit). Otherwise render immediately with
+  // stale data and refresh it silently.
+  const [loading, setLoading] = useState(() => {
+    return localStorage.getItem(HOLIDAYS_CACHE_KEY) === null;
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [timeFilter, setTimeFilter] = useState("all"); // all | upcoming | past
 
   const [page, setPage] = useState(0);
 
@@ -54,12 +89,17 @@ const Holidays = () => {
     try {
 
       const data = await getHolidays();
-
-      setHolidays(data.holidays || []);
+      const nextHolidays = data.holidays || [];
+      setHolidays(nextHolidays);
+      localStorage.setItem(HOLIDAYS_CACHE_KEY, JSON.stringify(nextHolidays));
 
     } catch (error) {
 
       console.log(error);
+
+    } finally {
+
+      setLoading(false);
 
     }
 
@@ -119,26 +159,103 @@ const Holidays = () => {
 
   };
 
-  const filteredHolidays =
-    holidays.filter(
-      (holiday) =>
-        holiday.title
-          ?.toLowerCase()
-          .includes(
-            searchTerm.toLowerCase()
-          ) ||
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <EventAvailableIcon sx={{ fontSize: 70, color: "#2563eb" }} />
+        <CircularProgress size={50} sx={{ color: "#2563eb" }} />
+        <Typography sx={{ color: "#64748B", fontWeight: 600 }}>
+          Loading Holidays...
+        </Typography>
+      </Box>
+    );
+  }
 
-        holiday.date.includes(
-          searchTerm
-        )
+  const today = startOfDay(new Date());
+
+  // Precompute display fields once so status/sorting/search all agree
+  // with each other, instead of recalculating "is this past?" in
+  // three different places with slightly different logic.
+  const withComputedFields = holidays.map((holiday) => {
+    const holidayDate = startOfDay(holiday.date);
+    const diffDays = Math.round(
+      (holidayDate - today) / (1000 * 60 * 60 * 24)
     );
 
-  const paginatedHolidays =
-    filteredHolidays.slice(
-      page * rowsPerPage,
-      page * rowsPerPage +
-        rowsPerPage
-    );
+    let status = "upcoming";
+    if (diffDays < 0) status = "past";
+    else if (diffDays === 0) status = "today";
+
+    const formattedDate = new Date(holiday.date).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    const weekday = new Date(holiday.date).toLocaleDateString("en-IN", {
+      weekday: "long",
+    });
+
+    return { ...holiday, diffDays, status, formattedDate, weekday };
+  });
+
+  // Search matches title, raw date, formatted date, or weekday — the
+  // original only matched the raw ISO date string, so searching
+  // "Jul" or "Monday" silently returned nothing even though it was
+  // visibly on screen.
+  const filteredHolidays = withComputedFields.filter((holiday) => {
+    const haystack = (
+      (holiday.title || "") +
+      " " +
+      (holiday.date || "") +
+      " " +
+      holiday.formattedDate +
+      " " +
+      holiday.weekday
+    ).toLowerCase();
+
+    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+
+    const matchesTime =
+      timeFilter === "all" ||
+      (timeFilter === "upcoming" && holiday.status !== "past") ||
+      (timeFilter === "past" && holiday.status === "past");
+
+    return matchesSearch && matchesTime;
+  });
+
+  // Chronological order is the only order that actually makes sense
+  // for a holiday calendar — the original list was in raw insertion
+  // order, which has no relationship to when holidays actually fall.
+  const sortedHolidays = [...filteredHolidays].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
+  const paginatedHolidays = sortedHolidays.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  const upcomingCount = withComputedFields.filter(
+    (h) => h.status !== "past"
+  ).length;
+  const pastCount = withComputedFields.length - upcomingCount;
+
+  // The single nearest upcoming (or today's) holiday — surfaced as a
+  // banner so an admin sees "what's next" at a glance without having
+  // to scan the whole table.
+  const nextHoliday = withComputedFields
+    .filter((h) => h.status !== "past")
+    .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
 
   return (
 
@@ -175,6 +292,7 @@ const Holidays = () => {
               "center",
             flexWrap: "wrap",
             gap: 2,
+            mb: 2.5,
           }}
         >
 
@@ -199,7 +317,7 @@ const Holidays = () => {
             </Typography>
 
             <Chip
-              label={`${filteredHolidays.length} Total`}
+              label={`${holidays.length} Total`}
               size="small"
               sx={{
                 fontWeight: 600,
@@ -226,13 +344,12 @@ const Holidays = () => {
           >
 
             <TextField
-              placeholder="Search holiday..."
+              placeholder="Search holiday, date, or day..."
               value={searchTerm}
-              onChange={(e) =>
-                setSearchTerm(
-                  e.target.value
-                )
-              }
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
               size="small"
               InputProps={{
                 startAdornment: (
@@ -284,7 +401,87 @@ const Holidays = () => {
 
         </Box>
 
+        {/* Upcoming / Past filter toggle */}
+        <ToggleButtonGroup
+          value={timeFilter}
+          exclusive
+          onChange={(_, value) => {
+            if (value) {
+              setTimeFilter(value);
+              setPage(0);
+            }
+          }}
+          size="small"
+          sx={{
+            "& .MuiToggleButton-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              px: 2,
+              borderRadius: "8px !important",
+              mr: 1,
+              border: "1px solid #cbd5e1 !important",
+            },
+            "& .Mui-selected": {
+              backgroundColor: "#2563eb !important",
+              color: "#fff !important",
+            },
+          }}
+        >
+          <ToggleButton value="all">All ({holidays.length})</ToggleButton>
+          <ToggleButton value="upcoming">Upcoming ({upcomingCount})</ToggleButton>
+          <ToggleButton value="past">Past ({pastCount})</ToggleButton>
+        </ToggleButtonGroup>
       </Paper>
+
+      {/* Next Holiday Banner — the "what's coming up" answer an admin
+          actually wants, instead of having to scan the whole table. */}
+      {nextHoliday && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: "16px",
+            border: "1px solid #bfdbfe",
+            backgroundColor: "#eff6ff",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Box
+            sx={{
+              p: 1.2,
+              borderRadius: "10px",
+              backgroundColor: "#dbeafe",
+              color: "#1d4ed8",
+              display: "flex",
+            }}
+          >
+            <CelebrationIcon />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 200 }}>
+            <Typography variant="caption" sx={{ color: "#1d4ed8", fontWeight: 700 }}>
+              {nextHoliday.status === "today" ? "TODAY" : "NEXT HOLIDAY"}
+            </Typography>
+            <Typography sx={{ fontWeight: 700, color: "#0f172a" }}>
+              {nextHoliday.title} — {nextHoliday.weekday}, {nextHoliday.formattedDate}
+            </Typography>
+          </Box>
+          {nextHoliday.status !== "today" && (
+            <Chip
+              label={`In ${nextHoliday.diffDays} day${nextHoliday.diffDays === 1 ? "" : "s"}`}
+              sx={{
+                fontWeight: 700,
+                backgroundColor: "#2563eb",
+                color: "#fff",
+                borderRadius: "8px",
+              }}
+            />
+          )}
+        </Paper>
+      )}
 
       {/* Table */}
 
@@ -295,6 +492,7 @@ const Holidays = () => {
             "16px",
           border:
             "1px solid #e2e8f0",
+          backgroundColor: "#ffffff",
           overflow:
             "hidden",
         }}
@@ -338,6 +536,14 @@ const Holidays = () => {
                 </TableCell>
 
                 <TableCell
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  Status
+                </TableCell>
+
+                <TableCell
                   align="right"
                   sx={{
                     fontWeight: 700,
@@ -364,6 +570,9 @@ const Holidays = () => {
                           backgroundColor:
                             "#f8fafc",
                         },
+                        // Past holidays are muted — they're historical
+                        // record, not something needing attention.
+                        opacity: holiday.status === "past" ? 0.6 : 1,
                       }}
                     >
 
@@ -382,18 +591,53 @@ const Holidays = () => {
                       </TableCell>
 
                       <TableCell>
+                        {holiday.formattedDate}
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          sx={{ color: "#94a3b8", ml: 1 }}
+                        >
+                          ({holiday.weekday})
+                        </Typography>
+                      </TableCell>
 
-                        {new Date(
-                          holiday.date
-                        ).toLocaleDateString(
-                          "en-IN",
-                          {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          }
+                      <TableCell>
+                        {holiday.status === "today" && (
+                          <Chip
+                            label="Today"
+                            size="small"
+                            sx={{
+                              fontWeight: 700,
+                              borderRadius: "6px",
+                              backgroundColor: "#dcfce7",
+                              color: "#166534",
+                            }}
+                          />
                         )}
-
+                        {holiday.status === "upcoming" && (
+                          <Chip
+                            label={`In ${holiday.diffDays}d`}
+                            size="small"
+                            sx={{
+                              fontWeight: 600,
+                              borderRadius: "6px",
+                              backgroundColor: "#eff6ff",
+                              color: "#2563eb",
+                            }}
+                          />
+                        )}
+                        {holiday.status === "past" && (
+                          <Chip
+                            label="Past"
+                            size="small"
+                            sx={{
+                              fontWeight: 600,
+                              borderRadius: "6px",
+                              backgroundColor: "#f1f5f9",
+                              color: "#64748b",
+                            }}
+                          />
+                        )}
                       </TableCell>
 
                       <TableCell
@@ -429,7 +673,7 @@ const Holidays = () => {
                 <TableRow>
 
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     align="center"
                     sx={{
                       py: 5,
@@ -439,7 +683,7 @@ const Holidays = () => {
                     <Typography
                       color="text.secondary"
                     >
-                      No Holidays Found
+                      No holidays match your search or filter.
                     </Typography>
 
                   </TableCell>
@@ -462,7 +706,7 @@ const Holidays = () => {
           ]}
           component="div"
           count={
-            filteredHolidays.length
+            sortedHolidays.length
           }
           rowsPerPage={
             rowsPerPage
@@ -487,6 +731,9 @@ const Holidays = () => {
 
             setPage(0);
 
+          }}
+          sx={{
+            borderTop: "1px solid #e2e8f0",
           }}
         />
 
@@ -519,8 +766,6 @@ const Holidays = () => {
         </Alert>
 
       </Snackbar>
-
-      {/* AddHolidayModal will be added next */}
 
     </Box>
 
