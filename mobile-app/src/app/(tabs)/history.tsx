@@ -1,5 +1,4 @@
-import React,
-{
+import React, {
   useEffect,
   useState,
   useCallback,
@@ -9,7 +8,8 @@ import {
   useFocusEffect,
 } from "expo-router";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from
+  "@react-native-async-storage/async-storage";
 
 import {
   View,
@@ -20,40 +20,50 @@ import {
 } from "react-native";
 
 import DateTimePicker
-from "@react-native-community/datetimepicker";
+  from "@react-native-community/datetimepicker";
 
 import {
   getHistory,
 } from "../../services/mobile.service";
 
+
 export default function History() {
 
+  // ==========================================
+  // STATE
+  // ==========================================
+
   const [
-  selectedDate,
-  setSelectedDate,
-] = useState(
-  new Date()
-);
+    selectedDate,
+    setSelectedDate,
+  ] = useState(
+    new Date()
+  );
 
-const [
-  isFiltered,
-  setIsFiltered,
-] = useState(false);
+  const [
+    isFiltered,
+    setIsFiltered,
+  ] = useState(false);
 
-const [
-  showPicker,
-  setShowPicker,
-] = useState(false);
+  const [
+    showPicker,
+    setShowPicker,
+  ] = useState(false);
 
   const [
     history,
     setHistory,
-  ] = useState([]);
+  ] = useState<any[]>([]);
 
   const [
-  darkMode,
-  setDarkMode,
-] = useState(false);
+    darkMode,
+    setDarkMode,
+  ] = useState(false);
+
+
+  // ==========================================
+  // INITIAL LOAD
+  // ==========================================
 
   useEffect(() => {
 
@@ -61,376 +71,593 @@ const [
 
   }, []);
 
+
+  // ==========================================
+  // LOAD THEME WHEN SCREEN FOCUSES
+  // ==========================================
+
   useFocusEffect(
-  useCallback(() => {
+    useCallback(() => {
 
-    loadTheme();
+      loadTheme();
 
-  }, [])
-);
+      // Refresh history whenever page opens
+      loadHistory();
 
-  const loadHistory =
-    async () => {
+    }, [])
+  );
+
+
+  // ==========================================
+  // LOAD HISTORY
+  // ==========================================
+
+  const loadHistory = async () => {
+
+    try {
 
       const data =
         await getHistory();
 
       if (
-        data.success
+        data?.success
       ) {
 
         setHistory(
-          data.history
+          data.history || []
         );
 
       }
 
-    };
+    } catch (error) {
 
-  const loadTheme = async () => {
-
-  const theme =
-    await AsyncStorage.getItem(
-      "darkMode"
-    );
-
-  setDarkMode(
-    theme === "true"
-  );
-
-};
-
-    const clearFilter =
-  async () => {
-
-    setIsFiltered(
-      false
-    );
-
-    setSelectedDate(
-      new Date()
-    );
-
-    const data =
-      await getHistory();
-
-    if (
-      data.success
-    ) {
-
-      setHistory(
-        data.history
+      console.log(
+        "HISTORY LOAD ERROR:",
+        error
       );
 
     }
 
   };
 
+
+  // ==========================================
+  // LOAD THEME
+  // ==========================================
+
+  const loadTheme = async () => {
+
+    try {
+
+      const theme =
+        await AsyncStorage.getItem(
+          "darkMode"
+        );
+
+      setDarkMode(
+        theme === "true"
+      );
+
+    } catch (error) {
+
+      console.log(
+        "THEME LOAD ERROR:",
+        error
+      );
+
+    }
+
+  };
+
+
+  // ==========================================
+  // CLEAR FILTER
+  // ==========================================
+
+  const clearFilter = async () => {
+
+    setIsFiltered(false);
+
+    setSelectedDate(
+      new Date()
+    );
+
+    await loadHistory();
+
+  };
+
+
+  // ==========================================
+  // DATE FORMAT
+  // ==========================================
+
+  const formatDate = (
+    date: Date
+  ) => {
+
+    return `${date.getFullYear()}-${
+      String(
+        date.getMonth() + 1
+      ).padStart(2, "0")
+    }-${
+      String(
+        date.getDate()
+      ).padStart(2, "0")
+    }`;
+
+  };
+
+
+  // ==========================================
+  // DATE PICKER
+  // ==========================================
+
+  const handleDateChange = async (
+    event: any,
+    date?: Date
+  ) => {
+
+    setShowPicker(false);
+
+    if (!date) {
+      return;
+    }
+
+    setSelectedDate(date);
+
+    setIsFiltered(true);
+
+    const formattedDate =
+      formatDate(date);
+
+    try {
+
+      const data =
+        await getHistory(
+          formattedDate
+        );
+
+      if (
+        data?.success
+      ) {
+
+        setHistory(
+          data.history || []
+        );
+
+      }
+
+    } catch (error) {
+
+      console.log(
+        "FILTER HISTORY ERROR:",
+        error
+      );
+
+    }
+
+  };
+
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
 
     <ScrollView
-  style={[
-  styles.container,
-  {
-    backgroundColor:
-      darkMode
-        ? "#001233"
-        : "#EEF4FF",
-  },
-]}
 
-  contentContainerStyle={{
-    paddingBottom: 120,
-  }}
+      style={[
+        styles.container,
 
-  showsVerticalScrollIndicator={
-    false
-  }
->
+        {
+          backgroundColor:
+            darkMode
+              ? "#001233"
+              : "#EEF4FF",
+        },
+
+      ]}
+
+      contentContainerStyle={{
+        paddingBottom: 120,
+      }}
+
+      showsVerticalScrollIndicator={false}
+
+    >
+
+      {/* ======================================
+          HEADING
+      ====================================== */}
 
       <Text
-        style={
-          styles.heading
-        }
+        style={[
+          styles.heading,
+
+          {
+            color:
+              darkMode
+                ? "#FFFFFF"
+                : "#0F4C81",
+          },
+
+        ]}
       >
         📅 History
       </Text>
 
-     <View
-  style={{
-    flexDirection: "row",
-    marginBottom: 20,
-    gap: 10,
-  }}
->
 
-  <TouchableOpacity
-
-    style={[
-  styles.filterCard,
-  {
-    flex: 4,
-
-    backgroundColor:
-      darkMode
-        ? "#1E293B"
-        : "#FFFFFF",
-  },
-]}
-
-    onPress={() =>
-      setShowPicker(
-        true
-      )
-    }
-
-  >
-
-    <Text
-      style={[
-  styles.filterText,
-  {
-    color:
-      darkMode
-        ? "#60A5FA"
-        : "#1565C0",
-  },
-]}
-    >
-      📆 Filter By Date
-    </Text>
-
-  </TouchableOpacity>
-
-  {
-  isFiltered && (
-  <TouchableOpacity
-
-    style={{
-      flex: 1,
-
-      backgroundColor:
-        "#EF4444",
-
-      borderRadius: 16,
-      height:50,
-
-      justifyContent:
-        "center",
-
-      alignItems:
-        "center",
-    }}
-
-    onPress={
-      clearFilter
-    }
-
-  >
-
-    <Text
-      style={{
-        color:
-          "#FFFFFF",
-
-        fontWeight:
-          "bold",
-      }}
-    >
-      Clear
-    </Text>
-
-  </TouchableOpacity>
-  )}
-
-</View>
-
-{
-  showPicker && (
-
-    <DateTimePicker
-
-      value={
-        selectedDate
-      }
-
-      mode="date"
-
-      onChange={
-        async (
-          event,
-          date
-        ) => {
-
-          setShowPicker(
-            false
-          );
-
-          if (!date)
-            return;
-
-          setSelectedDate(
-            date
-          );
-
-          setIsFiltered(
-            true
-          );
-
-         const formattedDate =
-`${date.getFullYear()}-${
-  String(
-    date.getMonth() + 1
-  ).padStart(2, "0")
-}-${
-  String(
-    date.getDate()
-  ).padStart(2, "0")
-}`;
-
-          const data =
-            await getHistory(
-              formattedDate
-            );
-
-          if (
-            data.success
-          ) {
-
-            setHistory(
-              data.history
-            );
-
-          }
-
-        }
-      }
-
-    />
-
-  )
-}
-
-     {
-  history.map(
-    (
-      trip: any,
-      index: number
-    ) => (
+      {/* ======================================
+          FILTER
+      ====================================== */}
 
       <View
-        key={index}
-        style={[
-          styles.card,
-          {
-            backgroundColor:
-              darkMode
-                ? "#1E293B"
-                : "#FFFFFF",
-          },
-        ]}      >
+        style={{
+          flexDirection: "row",
+          marginBottom: 20,
+          gap: 10,
+        }}
+      >
 
-        <Text
+        <TouchableOpacity
+
           style={[
-          styles.date,
-          {
-            color:
-              darkMode
-                ? "#60A5FA"
-                : "#0F4C81",
-          },
-        ]}
-        >
-          {
-            trip.tripType ===
-            "PICKUP"
-              ? "🚍 PICKUP"
-              : "🏫 DROP"
+            styles.filterCard,
+
+            {
+              flex: 4,
+
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+
+          ]}
+
+          onPress={() =>
+            setShowPicker(true)
           }
-        </Text>
 
-        <Text
-          style={{
-            marginBottom: 15,
-            color: "#64748B",
-          }}
         >
-          {trip.date}
-        </Text>
 
-        {
-          trip.students.map(
-            (
-              student: any,
-              idx: number
-            ) => (
+          <Text
+            style={[
+              styles.filterText,
 
-              <View
-                key={idx}
-                style={{
-                  marginBottom: 12,
-                }}
-              >
+              {
+                color:
+                  darkMode
+                    ? "#60A5FA"
+                    : "#1565C0",
+              },
 
-               <Text
-                style={{
-                  fontWeight: "bold",
+            ]}
+          >
+            📆 Filter By Date
+          </Text>
 
-                  color:
-                    darkMode
-                      ? "#FFFFFF"
-                      : "#000000",
-                }}
-              >
-                  {
-                    student.status ===
-                    "PRESENT"
-                      ? "✅"
-                      : "❌"
-                  }
-                  {" "}
-                  {student.name}
-                </Text>
+        </TouchableOpacity>
 
-                <Text
-                style={{
-                  color:
-                    darkMode
-                      ? "#CBD5E1"
-                      : "#000000",
-                }}
-              >
 
-                  {
-                    student.status ===
-                    "PRESENT"
+        {isFiltered && (
 
-                    ? `Boarded Bus from ${
-                        trip.tripType ===
-                        "PICKUP"
+          <TouchableOpacity
 
-                          ? student.pickupStop
+            style={styles.clearButton}
 
-                          : "School"
-                      }`
+            onPress={
+              clearFilter
+            }
 
-                    : "Not Boarded"
+          >
 
-                  }
+            <Text
+              style={styles.clearText}
+            >
+              Clear
+            </Text>
 
-                </Text>
+          </TouchableOpacity>
 
-              </View>
-
-            )
-          )
-        }
+        )}
 
       </View>
 
-    )
-  )
-}
+
+      {/* ======================================
+          DATE PICKER
+      ====================================== */}
+
+      {showPicker && (
+
+        <DateTimePicker
+
+          value={
+            selectedDate
+          }
+
+          mode="date"
+
+          onChange={
+            handleDateChange
+          }
+
+        />
+
+      )}
+
+
+      {/* ======================================
+          NO HISTORY
+      ====================================== */}
+
+      {history.length === 0 && (
+
+        <View
+          style={[
+            styles.emptyCard,
+
+            {
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+
+          ]}
+        >
+
+          <Text
+            style={[
+              styles.emptyText,
+
+              {
+                color:
+                  darkMode
+                    ? "#CBD5E1"
+                    : "#64748B",
+              },
+
+            ]}
+          >
+            No travel history found.
+          </Text>
+
+        </View>
+
+      )}
+
+
+      {/* ======================================
+          HISTORY
+      ====================================== */}
+
+      {history.map(
+        (
+          trip: any,
+          index: number
+        ) => (
+
+          <View
+            key={index}
+
+            style={[
+              styles.card,
+
+              {
+                backgroundColor:
+                  darkMode
+                    ? "#1E293B"
+                    : "#FFFFFF",
+              },
+
+            ]}
+          >
+
+            {/* ==================================
+                TRIP TYPE
+            ================================== */}
+
+            <Text
+              style={[
+                styles.date,
+
+                {
+                  color:
+                    trip.tripType ===
+                    "PICKUP"
+
+                      ? (
+                        darkMode
+                          ? "#60A5FA"
+                          : "#1565C0"
+                      )
+
+                      : (
+                        darkMode
+                          ? "#4ADE80"
+                          : "#15803D"
+                      ),
+                },
+
+              ]}
+            >
+
+              {
+                trip.tripType ===
+                "PICKUP"
+
+                  ? "🚍 PICKUP"
+
+                  : "🏫 DROP"
+
+              }
+
+            </Text>
+
+
+            {/* ==================================
+                DATE
+            ================================== */}
+
+            <Text
+              style={[
+                styles.tripDate,
+
+                {
+                  color:
+                    darkMode
+                      ? "#94A3B8"
+                      : "#64748B",
+                },
+
+              ]}
+            >
+              {trip.date}
+            </Text>
+
+
+            {/* ==================================
+                STUDENTS
+            ================================== */}
+
+            {trip.students?.map(
+              (
+                student: any,
+                idx: number
+              ) => {
+
+                const isPickup =
+                  trip.tripType ===
+                  "PICKUP";
+
+                const stop =
+    student.stop;
+
+      const formattedTime =
+          student.time
+              ? new Date(
+                  student.time
+                ).toLocaleTimeString(
+                  "en-IN",
+                  {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                  }
+                )
+              : "--";
+
+
+                return (
+
+                  <View
+                    key={idx}
+                    style={
+                      styles.studentRow
+                    }
+                  >
+
+                    {/* ==========================
+                        STUDENT NAME
+                    ========================== */}
+
+                    <Text
+                      style={[
+                        styles.studentName,
+
+                        {
+                          color:
+                            darkMode
+                              ? "#FFFFFF"
+                              : "#000000",
+                        },
+
+                      ]}
+                    >
+
+                      {
+                        student.status ===
+                        "PRESENT"
+
+                          ? "✅"
+
+                          : "❌"
+                      }
+
+                      {" "}
+
+                      {student.name}
+
+                    </Text>
+
+
+                    {/* ==========================
+                        STATUS / STOP
+                    ========================== */}
+
+                    <Text
+                      style={[
+                        styles.studentStatus,
+
+                        {
+                          color:
+                            darkMode
+                              ? "#CBD5E1"
+                              : "#475569",
+                        },
+
+                      ]}
+                    >
+
+                      {
+                        student.status ===
+                        "PRESENT"
+
+                          ? isPickup
+
+                            ? `Boarded bus from ${
+                                stop || "Pickup Stop"
+                              }`
+
+                            : `Reached home at ${
+                                stop || "Drop Stop"
+                              }`
+
+                          : "Not Boarded"
+
+                      }
+
+                       <Text
+    style={[
+      styles.studentTime,
+      {
+        color:
+          darkMode
+            ? "#94A3B8"
+            : "#64748B",
+      },
+    ]}
+  >
+    🕐 {formattedTime}
+  </Text>
+
+
+                    </Text>
+
+                  </View>
+
+                );
+
+              }
+            )}
+
+          </View>
+
+        )
+      )}
 
     </ScrollView>
 
@@ -438,89 +665,190 @@ const [
 
 }
 
+
+// ==================================================
+// STYLES
+// ==================================================
+
 const styles =
-StyleSheet.create({
+  StyleSheet.create({
 
-  container: {
+    container: {
 
-    flex: 1,
+      flex: 1,
 
-    backgroundColor:
-      "#EEF4FF",
+      padding: 16,
 
-    padding: 16,
+    },
 
-  },
 
-  heading: {
+    heading: {
 
-    fontSize: 26,
+      fontSize: 26,
 
-    fontWeight:
-      "bold",
+      fontWeight:
+        "bold",
 
-    color:
-      "#0F4C81",
+      marginBottom: 20,
 
-    marginBottom: 20,
+      marginTop: 25,
 
-    marginTop: 25,
+    },
 
-  },
 
-  card: {
+    filterCard: {
 
-    backgroundColor:
-      "#FFFFFF",
+      padding: 15,
 
-    borderRadius: 20,
+      borderRadius: 16,
 
-    padding: 18,
+      marginBottom: 20,
 
-    marginBottom: 15,
+      elevation: 3,
 
-    elevation: 3,
+      justifyContent:
+        "center",
 
-  },
+      alignItems:
+        "center",
 
-  date: {
+    },
 
-    fontWeight:
-      "bold",
 
-    marginBottom: 10,
+    filterText: {
 
-    color:
-      "#0F4C81",
+      textAlign:
+        "center",
 
-  },
+      fontWeight:
+        "bold",
 
-  filterCard: {
+    },
 
-  backgroundColor:
-    "#FFFFFF",
 
-  padding: 15,
+    clearButton: {
 
-  borderRadius: 16,
+      flex: 1,
 
-  marginBottom: 20,
+      backgroundColor:
+        "#EF4444",
 
-  elevation: 3,
+      borderRadius: 16,
 
+      height: 50,
+
+      marginBottom: 20,
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+    },
+
+
+    clearText: {
+
+      color:
+        "#FFFFFF",
+
+      fontWeight:
+        "bold",
+
+    },
+
+
+    card: {
+
+      borderRadius: 20,
+
+      padding: 18,
+
+      marginBottom: 15,
+
+      elevation: 3,
+
+    },
+
+
+    date: {
+
+      fontWeight:
+        "bold",
+
+      fontSize: 17,
+
+      marginBottom: 8,
+
+    },
+
+
+    tripDate: {
+
+      marginBottom: 15,
+
+      fontSize: 14,
+
+    },
+
+
+    studentRow: {
+
+      marginBottom: 14,
+
+      paddingBottom: 10,
+
+      borderBottomWidth: 1,
+
+      borderBottomColor:
+        "#334155",
+
+    },
+
+
+    studentName: {
+
+      fontWeight:
+        "bold",
+
+      fontSize: 16,
+
+      marginBottom: 5,
+
+    },
+
+
+    studentStatus: {
+
+      fontSize: 14,
+
+    },
+
+
+    emptyCard: {
+
+      borderRadius: 20,
+
+      padding: 30,
+
+      alignItems:
+        "center",
+
+      elevation: 3,
+
+    },
+
+
+    emptyText: {
+
+      fontSize: 16,
+
+    },
+
+    studentTime: {
+  fontSize: 13,
+  marginTop: 4,
 },
 
-filterText: {
-
-  textAlign:
-    "center",
-
-  fontWeight:
-    "bold",
-
-  color:
-    "#1565C0",
-
-},
-
-});
+  });

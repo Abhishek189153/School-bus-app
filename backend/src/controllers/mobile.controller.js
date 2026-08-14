@@ -3346,6 +3346,9 @@ exports.getHistory = async (
                         status:
                             record.status,
 
+                          time:
+                          record.attendanceDate,
+
                     });
 
             }
