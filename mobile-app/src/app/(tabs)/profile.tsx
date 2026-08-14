@@ -491,111 +491,633 @@ export default function Profile() {
       )
     }
 
-    {/* Transport */}
-
-    <Text
-        style={[
-          styles.heading,
-          {
-            fontSize: 20,
-            marginBottom: 15,
-            color:
-              darkMode
-                ? "#FFFFFF"
-                : "#000000",
-          },
-        ]}
-      >
-      Transport Details
-      </Text>
-
-    <View
-      style={[
-        styles.transportCard,
-        {
-          backgroundColor:
-            darkMode
-              ? "#1E293B"
-              : "#FFFFFF",
-        },
-      ]}
-    >
-
-      
-
-      <Text
-  style={[
-    styles.transportText,
-    {
-      color:
-        darkMode
-          ? "#FFFFFF"
-          : "#000000",
-    },
-  ]}
->
-  <Text style={{ fontWeight: "bold" }}>
-    Bus Number:
-  </Text>
-  {" "}
-  {profile.transport.busNumber}
-</Text>
+   {/* Transport */}
 
 <Text
   style={[
-    styles.transportText,
+    styles.heading,
     {
-      color:
-        darkMode
-          ? "#FFFFFF"
-          : "#000000",
+      fontSize: 20,
+      marginBottom: 15,
+      color: darkMode
+        ? "#FFFFFF"
+        : "#000000",
     },
   ]}
 >
-  <Text style={{ fontWeight: "bold" }}>
-    Vehicle Number:
-  </Text>
-  {" "}
-  {profile.transport.vehicleNumber}
+  Transport Details
 </Text>
 
-<Text
-  style={[
-    styles.transportText,
-    {
-      color:
-        darkMode
-          ? "#FFFFFF"
-          : "#000000",
-    },
-  ]}
->
-  <Text style={{ fontWeight: "bold" }}>
-    Route:
-  </Text>
-  {" "}
-  {profile.transport.routeName}
-</Text>
+{
+  (() => {
 
-<Text
-  style={[
-    styles.transportText,
-    {
-      color:
-        darkMode
-          ? "#FFFFFF"
-          : "#000000",
-    },
-  ]}
->
-  <Text style={{ fontWeight: "bold" }}>
-    Pickup Stop:
-  </Text>
-  {" "}
-  {profile.transport.pickupStop}
-</Text>
+    const pickup =
+      profile.transport?.pickup;
 
-    </View>
+    const drop =
+      profile.transport?.drop;
+
+    const sameBus =
+      pickup?.busId &&
+      drop?.busId &&
+      String(pickup.busId) ===
+        String(drop.busId);
+
+
+    // ==========================================
+    // SAME BUS FOR PICKUP + DROP
+    // ==========================================
+
+    if (sameBus) {
+
+      return (
+
+        <View
+          style={[
+            styles.transportCard,
+            {
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+          ]}
+        >
+
+          <Text
+            style={[
+              styles.transportTitle,
+              {
+                color:
+                  darkMode
+                    ? "#60A5FA"
+                    : "#1565C0",
+              },
+            ]}
+          >
+            🚌 Transport
+          </Text>
+
+
+          {/* BUS */}
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Bus Number:
+            </Text>{" "}
+            {pickup?.busNumber || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Vehicle Number:
+            </Text>{" "}
+            {pickup?.vehicleNumber || "--"}
+          </Text>
+
+
+          {/* DRIVER */}
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver:
+            </Text>{" "}
+            {pickup?.driverName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver Contact:
+            </Text>{" "}
+            {pickup?.driverPhone || "--"}
+          </Text>
+
+
+          {/* PICKUP */}
+
+          <Text
+            style={[
+              styles.transportSubTitle,
+              {
+                color:
+                  darkMode
+                    ? "#60A5FA"
+                    : "#1565C0",
+              },
+            ]}
+          >
+            Pickup
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Route:
+            </Text>{" "}
+            {pickup?.routeName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Stop:
+            </Text>{" "}
+            {pickup?.pickupStop || "--"}
+          </Text>
+
+
+          {/* DROP */}
+
+          <Text
+            style={[
+              styles.transportSubTitle,
+              {
+                color:
+                  darkMode
+                    ? "#4ADE80"
+                    : "#15803D",
+              },
+            ]}
+          >
+            Drop
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Route:
+            </Text>{" "}
+            {drop?.routeName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Stop:
+            </Text>{" "}
+            {drop?.dropStop || "--"}
+          </Text>
+
+        </View>
+
+      );
+
+    }
+
+
+    // ==========================================
+    // DIFFERENT BUS
+    // ==========================================
+
+    return (
+
+      <>
+
+        {/* ================= PICKUP ================= */}
+
+        <View
+          style={[
+            styles.transportCard,
+            {
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+          ]}
+        >
+
+          <Text
+            style={[
+              styles.transportTitle,
+              {
+                color:
+                  darkMode
+                    ? "#60A5FA"
+                    : "#1565C0",
+              },
+            ]}
+          >
+            🚌 Pickup Transport
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Bus Number:
+            </Text>{" "}
+            {pickup?.busNumber || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Vehicle Number:
+            </Text>{" "}
+            {pickup?.vehicleNumber || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Route:
+            </Text>{" "}
+            {pickup?.routeName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Pickup Stop:
+            </Text>{" "}
+            {pickup?.pickupStop || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver:
+            </Text>{" "}
+            {pickup?.driverName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver Contact:
+            </Text>{" "}
+            {pickup?.driverPhone || "--"}
+          </Text>
+
+        </View>
+
+
+        {/* ================= DROP ================= */}
+
+        <View
+          style={[
+            styles.transportCard,
+            {
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+          ]}
+        >
+
+          <Text
+            style={[
+              styles.transportTitle,
+              {
+                color:
+                  darkMode
+                    ? "#4ADE80"
+                    : "#15803D",
+              },
+            ]}
+          >
+            🚌 Drop Transport
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Bus Number:
+            </Text>{" "}
+            {drop?.busNumber || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Vehicle Number:
+            </Text>{" "}
+            {drop?.vehicleNumber || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Route:
+            </Text>{" "}
+            {drop?.routeName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Drop Stop:
+            </Text>{" "}
+            {drop?.dropStop || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver:
+            </Text>{" "}
+            {drop?.driverName || "--"}
+          </Text>
+
+
+          <Text
+            style={[
+              styles.transportText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "bold",
+              }}
+            >
+              Driver Contact:
+            </Text>{" "}
+            {drop?.driverPhone || "--"}
+          </Text>
+
+        </View>
+
+      </>
+
+    );
+
+  })()
+}
 
   </ScrollView>
 
@@ -831,6 +1353,19 @@ transportText: {
 
   color: "#374151",
 
+  marginBottom: 10,
+},
+
+transportTitle: {
+  fontSize: 18,
+  fontWeight: "700",
+  marginBottom: 15,
+},
+
+transportSubTitle: {
+  fontSize: 17,
+  fontWeight: "700",
+  marginTop: 10,
   marginBottom: 10,
 },
 

@@ -2980,6 +2980,10 @@ exports.getProfile = async (
 
                 pickup: {
 
+                    busId:
+                      pickupBus
+                          ?._id,
+
                     busNumber:
                         pickupBus
                             ?.busNumber,
@@ -3015,6 +3019,11 @@ exports.getProfile = async (
                 // ----------------------------------
 
                 drop: {
+
+
+                    busId:
+                      dropBus
+                          ?._id,
 
                     busNumber:
                         dropBus
