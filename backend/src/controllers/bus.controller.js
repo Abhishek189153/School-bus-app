@@ -246,8 +246,11 @@ exports.deleteBus = async (req, res) => {
 
 
 exports.getBusOverview = async (req, res) => {
-
     try {
+
+        // ==========================================
+        // GET ALL BUSES OF THIS SCHOOL
+        // ==========================================
 
         const buses =
             await Bus.find({
@@ -260,8 +263,9 @@ exports.getBusOverview = async (req, res) => {
             )
             .populate(
                 "routeId",
-                "routeName"
+                "routeName tripType"
             );
+
 
         const result =
             await Promise.all(
@@ -269,16 +273,27 @@ exports.getBusOverview = async (req, res) => {
                 buses.map(
                     async (bus) => {
 
+                        // ==========================================
+                        // GET ADDITIONAL ROUTES
+                        // ==========================================
+
                         const additionalRoutes =
                             await BusRoute.find({
                                 busId:
                                     bus._id,
-                            }).populate(
+                            })
+                            .populate(
                                 "routeId",
-                                "routeName"
+                                "routeName tripType"
                             );
 
+
+                        // ==========================================
+                        // COMBINE PRIMARY + ADDITIONAL ROUTES
+                        // ==========================================
+
                         const allRoutes = [];
+
 
                         // Primary Route
                         if (bus.routeId) {
@@ -288,6 +303,7 @@ exports.getBusOverview = async (req, res) => {
                             );
 
                         }
+
 
                         // Additional Routes
                         additionalRoutes.forEach(
@@ -306,56 +322,140 @@ exports.getBusOverview = async (req, res) => {
                             }
                         );
 
+
+                        // ==========================================
+                        // REMOVE DUPLICATE ROUTES
+                        // ==========================================
+
+                        const uniqueRoutes =
+                            Array.from(
+
+                                new Map(
+
+                                    allRoutes.map(
+                                        (route) => [
+                                            route._id.toString(),
+                                            route,
+                                        ]
+                                    )
+
+                                ).values()
+
+                            );
+
+
+                        // ==========================================
+                        // COUNT STUDENTS FOR EACH ROUTE
+                        // ==========================================
+
                         const routeStudentCounts =
                             await Promise.all(
 
-                                allRoutes.map(
-                                    async (route) => ({
+                                uniqueRoutes.map(
+                                    async (route) => {
 
-                                        routeId:
-                                            route._id.toString(),
-
-                                        count:
+                                        const count =
                                             await Student.countDocuments({
-                                                busId:
-                                                    bus._id,
 
-                                                routeId:
-                                                    route._id,
-                                            }),
+                                                schoolId:
+                                                    req.user.schoolId,
 
-                                    })
+                                                $or: [
+
+                                                    // ==================================
+                                                    // PICKUP
+                                                    // ==================================
+
+                                                    {
+                                                        pickupBusId:
+                                                            bus._id,
+
+                                                        pickupRouteId:
+                                                            route._id,
+                                                    },
+
+
+                                                    // ==================================
+                                                    // DROP
+                                                    // ==================================
+
+                                                    {
+                                                        dropBusId:
+                                                            bus._id,
+
+                                                        dropRouteId:
+                                                            route._id,
+                                                    },
+
+                                                ],
+
+                                            });
+
+
+                                        return {
+
+                                            routeId:
+                                                route._id.toString(),
+
+                                            count,
+
+                                        };
+
+                                    }
                                 )
 
                             );
 
+
+                        // ==========================================
+                        // RETURN BUS DATA
+                        // ==========================================
+
                         return {
+
                             ...bus.toObject(),
 
                             additionalRoutes,
 
                             routeStudentCounts,
+
                         };
 
                     }
                 )
+
             );
 
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
         res.status(200).json({
+
             success: true,
-            buses: result,
+
+            buses:
+                result,
+
         });
+
 
     } catch (error) {
 
-        console.log(error);
+        console.log(
+            "GET BUS OVERVIEW ERROR:",
+            error
+        );
 
         res.status(500).json({
+
             success: false,
+
             message:
                 error.message,
+
         });
 
     }
-
 };
