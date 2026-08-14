@@ -1,7 +1,7 @@
 import React, {
   useEffect,
   useState,
-  useRef
+  useRef,
 } from "react";
 
 import {
@@ -12,9 +12,9 @@ import {
   Linking,
 } from "react-native";
 
-import  WebView  from "react-native-webview";
+import WebView from "react-native-webview";
 
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -22,141 +22,103 @@ import {
   getMyBusLocation,
 } from "../services/mobile.service";
 
+
 export default function BusLocation() {
 
   console.log(
-  "BUS LOCATION SCREEN RENDERED"
-);
+    "BUS LOCATION SCREEN RENDERED"
+  );
 
-  const [location, setLocation] =
-    useState<any>(null);
 
-  const [stops, setStops] =
-  useState([]);
+  // =====================================================
+  // STATE
+  // =====================================================
 
-  const [pickupStop, setPickupStop] =
-  useState<any>(null);
+  const [
+    location,
+    setLocation,
+  ] = useState<any>(null);
+
+
+  const [
+    stops,
+    setStops,
+  ] = useState<any[]>([]);
+
+
+  const [
+    studentStop,
+    setStudentStop,
+  ] = useState<any>(null);
+
+
+  const [
+    tripType,
+    setTripType,
+  ] = useState<string | null>(null);
+
 
   const [
     darkMode,
     setDarkMode,
   ] = useState(false);
 
-  const [distance, setDistance] =
-  useState("");
 
-  const [eta, setEta] =
-  useState("");
+  const [
+    distance,
+    setDistance,
+  ] = useState("");
+
+
+  const [
+    eta,
+    setEta,
+  ] = useState("");
+
+
+  const [
+    mapLoaded,
+    setMapLoaded,
+  ] = useState(false);
+
 
   const webViewRef =
-  useRef<WebView>(null);
+    useRef<WebView>(null);
 
-  const loadTheme = async () => {
 
-  const theme =
-    await AsyncStorage.getItem(
-      "darkMode"
-    );
+  // =====================================================
+  // LOAD THEME
+  // =====================================================
 
-  setDarkMode(
-    theme === "true"
-  );
+  const loadTheme =
+    async () => {
 
-};
+      try {
 
-useEffect(() => {
+        const theme =
+          await AsyncStorage.getItem(
+            "darkMode"
+          );
 
-  loadTheme();
+        setDarkMode(
+          theme === "true"
+        );
 
-}, []);
+      } catch (error) {
 
-  useEffect(() => {
+        console.log(
+          "THEME ERROR:",
+          error
+        );
 
-    loadLocation();
+      }
 
-    const interval =
-      setInterval(
-        loadLocation,
-        5000
-      );
+    };
 
-    return () =>
-      clearInterval(
-        interval
-      );
 
-  }, []);
-
-  useEffect(() => {
-
-  if (
-    !location ||
-    !webViewRef.current
-  ) return;
-
- webViewRef.current.injectJavaScript(
-`
-if(window.busMarker){
-
-  busMarker.setLatLng([
-    ${location.latitude},
-    ${location.longitude}
-  ]);
-
-}
-
-if(window.routeLine){
-
-  map.removeLayer(
-    window.routeLine
-  );
-
-}
-
-(async () => {
-
-const response =
-  await fetch(
-    "https://router.project-osrm.org/route/v1/driving/" +
-    "${location.longitude}," +
-    "${location.latitude};" +
-    "${pickupStop?.longitude}," +
-    "${pickupStop?.latitude}" +
-    "?overview=full&geometries=geojson"
-  );
-
-const data =
-  await response.json();
-
-const coordinates =
-  data.routes[0]
-    .geometry
-    .coordinates
-    .map(
-      point => [
-        point[1],
-        point[0]
-      ]
-    );
-
-window.routeLine =
-  L.polyline(
-    coordinates,
-    {
-      color: "#1976D2",
-      weight: 5,
-    }
-  ).addTo(map);
-
-})();
-
-true;
-
-true;
-`
-);
-
-}, [location, pickupStop]);
+  // =====================================================
+  // LOAD LOCATION
+  // =====================================================
 
   const loadLocation =
     async () => {
@@ -166,46 +128,337 @@ true;
         const data =
           await getMyBusLocation();
 
+
+        console.log(
+          "BUS LOCATION API:",
+          data
+        );
+
+
         if (
-  data.success &&
-  data.location
-) {
+          data?.success &&
+          data?.location
+        ) {
 
-  console.log(
-    "API RESPONSE:",
-    data
-  );
+          setLocation(
+            data.location
+          );
 
-  console.log(
-    "PICKUP STOP:",
-    data.pickupStop
-  );
 
-  setLocation(
-    data.location
-  );
+          setStudentStop(
+            data.studentStop || null
+          );
 
-  setPickupStop(
-    data.pickupStop
-  );
 
-  setStops(
-  data.stops || []
-);
+          setTripType(
+            data.tripType || null
+          );
 
-}
+
+          setStops(
+            data.stops || []
+          );
+
+
+          console.log(
+            "TRIP TYPE:",
+            data.tripType
+          );
+
+
+          console.log(
+            "STUDENT STOP:",
+            data.studentStop
+          );
+
+
+          console.log(
+            "ROUTE STOPS:",
+            data.stops
+          );
+
+        }
 
       } catch (error) {
 
-        console.log(error);
+        console.log(
+          "LOAD BUS LOCATION ERROR:",
+          error
+        );
 
       }
 
     };
 
-    const mapHtml = `
+
+  // =====================================================
+  // INITIAL LOAD
+  // =====================================================
+
+  useEffect(() => {
+
+    loadTheme();
+
+    loadLocation();
+
+  }, []);
+
+
+  // =====================================================
+  // REFRESH BUS LOCATION EVERY 5 SECONDS
+  // =====================================================
+
+  useEffect(() => {
+
+    const interval =
+      setInterval(
+        () => {
+
+          loadLocation();
+
+        },
+        5000
+      );
+
+
+    return () => {
+
+      clearInterval(
+        interval
+      );
+
+    };
+
+  }, []);
+
+
+  // =====================================================
+  // UPDATE EXISTING MAP
+  // =====================================================
+
+  useEffect(() => {
+
+    if (
+      !location ||
+      !webViewRef.current ||
+      !mapLoaded
+    ) {
+
+      return;
+
+    }
+
+
+    const latitude =
+      Number(
+        location.latitude
+      );
+
+
+    const longitude =
+      Number(
+        location.longitude
+      );
+
+
+    if (
+      Number.isNaN(latitude) ||
+      Number.isNaN(longitude)
+    ) {
+
+      return;
+
+    }
+
+
+    const studentLatitude =
+      Number(
+        studentStop?.latitude
+      );
+
+
+    const studentLongitude =
+      Number(
+        studentStop?.longitude
+      );
+
+
+    const studentStopName =
+      studentStop?.stopName || "";
+
+
+    const javascript = `
+
+      (function() {
+
+        // ============================================
+        // UPDATE BUS MARKER
+        // ============================================
+
+        if (
+          window.busMarker
+        ) {
+
+          window.busMarker.setLatLng([
+            ${latitude},
+            ${longitude}
+          ]);
+
+        }
+
+
+        // ============================================
+        // UPDATE STUDENT STOP
+        // ============================================
+
+        if (
+          window.studentStopMarker &&
+          ${!Number.isNaN(studentLatitude)} &&
+          ${!Number.isNaN(studentLongitude)}
+        ) {
+
+          window.studentStopMarker.setLatLng([
+            ${studentLatitude},
+            ${studentLongitude}
+          ]);
+
+        }
+
+
+        // ============================================
+        // REMOVE OLD ROUTE
+        // ============================================
+
+        if (
+          window.routeLine
+        ) {
+
+          map.removeLayer(
+            window.routeLine
+          );
+
+          window.routeLine = null;
+
+        }
+
+
+        // ============================================
+        // DRAW ROAD ROUTE
+        // ============================================
+
+        if (
+          ${!Number.isNaN(studentLatitude)} &&
+          ${!Number.isNaN(studentLongitude)}
+        ) {
+
+          fetch(
+            "https://router.project-osrm.org/route/v1/driving/" +
+            "${longitude},${latitude};" +
+            "${studentLongitude},${studentLatitude}" +
+            "?overview=full&geometries=geojson"
+          )
+          .then(
+            response =>
+              response.json()
+          )
+          .then(
+            data => {
+
+              if (
+                !data.routes ||
+                !data.routes.length
+              ) {
+
+                return;
+
+              }
+
+
+              const route =
+                data.routes[0];
+
+
+              const coordinates =
+                route.geometry.coordinates.map(
+                  point => [
+                    point[1],
+                    point[0]
+                  ]
+                );
+
+
+              window.routeLine =
+                L.polyline(
+                  coordinates,
+                  {
+                    color: "#1976D2",
+                    weight: 5,
+                  }
+                ).addTo(map);
+
+
+              window.ReactNativeWebView.postMessage(
+                JSON.stringify({
+
+                  distance:
+                    (
+                      route.distance /
+                      1000
+                    ).toFixed(2),
+
+                  eta:
+                    Math.ceil(
+                      route.duration /
+                      60
+                    ),
+
+                })
+              );
+
+            }
+          )
+          .catch(
+            error => {
+
+              console.log(
+                "OSRM ERROR:",
+                error
+              );
+
+            }
+          );
+
+        }
+
+      })();
+
+      true;
+
+    `;
+
+
+    webViewRef.current.injectJavaScript(
+      javascript
+    );
+
+
+  }, [
+    location,
+    studentStop,
+    mapLoaded,
+  ]);
+
+
+  // =====================================================
+  // MAP HTML
+  // =====================================================
+
+  const mapHtml = `
+
 <!DOCTYPE html>
+
 <html>
+
 <head>
 
 <meta
@@ -213,10 +466,12 @@ true;
   content="width=device-width, initial-scale=1.0"
 />
 
+
 <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet/dist/leaflet.css"
 />
+
 
 <style>
 
@@ -225,7 +480,11 @@ body,
 #map {
 
   height: 100%;
+
+  width: 100%;
+
   margin: 0;
+
   padding: 0;
 
 }
@@ -234,236 +493,463 @@ body,
 
 </head>
 
+
 <body>
 
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script
+  src="https://unpkg.com/leaflet/dist/leaflet.js">
+</script>
+
 
 <script>
 
-const map =
-  L.map("map").setView(
-    [
-      ${location?.latitude || 30.3165},
-      ${location?.longitude || 78.0322}
-    ],
-    15
+  // ==================================================
+  // INITIAL LOCATION
+  // ==================================================
+
+  const initialLatitude =
+    ${location?.latitude || 30.3165};
+
+
+  const initialLongitude =
+    ${location?.longitude || 78.0322};
+
+
+  const map =
+    L.map(
+      "map"
+    ).setView(
+      [
+        initialLatitude,
+        initialLongitude
+      ],
+      15
+    );
+
+
+  // ==================================================
+  // MAP TILES
+  // ==================================================
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {
+
+      attribution:
+        "&copy; OpenStreetMap contributors",
+
+      maxZoom: 20,
+
+    }
+  ).addTo(
+    map
   );
 
-L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  {
-    attribution:
-      "&copy; OpenStreetMap contributors",
-    maxZoom: 20,
-  }
-).addTo(map);
 
-const busIcon =
-  L.divIcon({
+  // ==================================================
+  // BUS ICON
+  // ==================================================
 
-    html:
-      '<div style="font-size:40px;">🚌</div>',
+  const busIcon =
+    L.divIcon({
 
-    className: '',
+      html:
+        '<div style="font-size:40px;">🚌</div>',
 
-    iconSize: [40, 40],
+      className: "",
 
-    iconAnchor: [20, 20],
+      iconSize: [
+        40,
+        40
+      ],
 
-  });
+      iconAnchor: [
+        20,
+        20
+      ],
 
-window.busMarker =
-  L.marker(
-    [
-      ${location?.latitude || 30.3165},
-      ${location?.longitude || 78.0322}
-    ],
-    {
-      icon: busIcon,
-    }
-  )
-  .addTo(map)
-  .bindPopup("🚌 School Bus");
-
-${
-  pickupStop
-    ? `
+    });
 
 
-const pickupIcon =
-  L.divIcon({
+  // ==================================================
+  // STUDENT STOP ICON
+  // ==================================================
 
-    html:
-      '<div style="font-size:30px;">🚩</div>',
+  const studentStopIcon =
+    L.divIcon({
 
-    className: '',
+      html:
+        '<div style="font-size:30px;">🚩</div>',
 
-    iconSize: [30,30],
+      className: "",
 
-  });
+      iconSize: [
+        30,
+        30
+      ],
 
-const stopIcon =
-  L.divIcon({
+      iconAnchor: [
+        15,
+        15
+      ],
+
+    });
 
 
-    html:
-      '<div style="font-size:22px;">📍</div>',
+  // ==================================================
+  // NORMAL STOP ICON
+  // ==================================================
 
-    className: '',
+  const stopIcon =
+    L.divIcon({
 
-    iconSize: [22,22],
+      html:
+        '<div style="font-size:22px;">📍</div>',
 
-  });
+      className: "",
 
-window.pickupMarker =
-  L.marker(
-    [
-      ${pickupStop.latitude},
-      ${pickupStop.longitude}
-    ],
-    {
-      icon: pickupIcon,
-    }
-  )
-  .addTo(map)
-  .bindPopup(
-    "📍 ${pickupStop.stopName}"
-  );
+      iconSize: [
+        22,
+        22
+      ],
 
-window.routeStops =
-  ${JSON.stringify(stops)};
+      iconAnchor: [
+        11,
+        11
+      ],
 
-routeStops.forEach(
-  stop => {
+    });
 
-    if(
-      stop.stopName ===
-      "${pickupStop.stopName}"
-    ){
-      return;
-    }
 
+  // ==================================================
+  // BUS MARKER
+  // ==================================================
+
+  window.busMarker =
     L.marker(
       [
-        stop.latitude,
-        stop.longitude
+        initialLatitude,
+        initialLongitude
       ],
       {
-        icon: stopIcon,
+        icon:
+          busIcon,
       }
     )
-    .addTo(map)
+    .addTo(
+      map
+    )
     .bindPopup(
-      "📍 " +
-      stop.stopName
+      "🚌 School Bus"
     );
+
+
+  // ==================================================
+  // STUDENT STOP
+  // ==================================================
+
+  const studentStop =
+    ${JSON.stringify(
+      studentStop || null
+    )};
+
+
+  if (
+    studentStop &&
+    studentStop.latitude != null &&
+    studentStop.longitude != null
+  ) {
+
+    window.studentStopMarker =
+      L.marker(
+        [
+          studentStop.latitude,
+          studentStop.longitude
+        ],
+        {
+          icon:
+            studentStopIcon,
+        }
+      )
+      .addTo(
+        map
+      )
+      .bindPopup(
+        "📍 " +
+        studentStop.stopName
+      );
 
   }
-);
 
-`
-    : ""
-}
-${
-  pickupStop
-    ? `
-async function drawRoadRoute() {
 
-  const response =
-    await fetch(
-      "https://router.project-osrm.org/route/v1/driving/" +
-      "${location?.longitude}," +
-      "${location?.latitude};" +
-      "${pickupStop?.longitude}," +
-      "${pickupStop?.latitude}" +
-      "?overview=full&geometries=geojson"
-    );
+  // ==================================================
+  // ALL ROUTE STOPS
+  // ==================================================
 
-  const data =
-    await response.json();
+  const routeStops =
+    ${JSON.stringify(
+      stops || []
+    )};
 
-  const route =
-    data.routes[0];
 
-  const coordinates =
-    route.geometry.coordinates.map(
-      point => [
-        point[1],
-        point[0]
-      ]
-    );
+  routeStops.forEach(
+    stop => {
 
-  window.routeLine =
-    L.polyline(
-      coordinates,
-      {
-        color: "#1976D2",
-        weight: 5,
+      if (
+        !stop ||
+        stop.latitude == null ||
+        stop.longitude == null
+      ) {
+
+        return;
+
       }
-    ).addTo(map);
 
-  window.ReactNativeWebView.postMessage(
-    JSON.stringify({
-      distance:
-        (
-          route.distance /
-          1000
-        ).toFixed(2),
 
-      eta:
-        Math.ceil(
-          route.duration /
-          60
-        ),
-    })
+      // Don't duplicate student's stop
+
+      if (
+        studentStop &&
+        stop._id &&
+        studentStop._id &&
+        stop._id === studentStop._id
+      ) {
+
+        return;
+
+      }
+
+
+      // Fallback duplicate check
+
+      if (
+        studentStop &&
+        stop.stopName ===
+          studentStop.stopName &&
+        Number(stop.latitude) ===
+          Number(studentStop.latitude) &&
+        Number(stop.longitude) ===
+          Number(studentStop.longitude)
+      ) {
+
+        return;
+
+      }
+
+
+      L.marker(
+        [
+          stop.latitude,
+          stop.longitude
+        ],
+        {
+          icon:
+            stopIcon,
+        }
+      )
+      .addTo(
+        map
+      )
+      .bindPopup(
+        "📍 " +
+        stop.stopName
+      );
+
+    }
   );
 
-}
 
-drawRoadRoute();
-`
-    : ""
-}
+  // ==================================================
+  // DRAW INITIAL ROAD ROUTE
+  // ==================================================
 
-window.map = map;
+  async function drawRoadRoute() {
 
+    if (
+      !studentStop ||
+      studentStop.latitude == null ||
+      studentStop.longitude == null
+    ) {
+
+      return;
+
+    }
+
+
+    try {
+
+      const response =
+        await fetch(
+
+          "https://router.project-osrm.org/route/v1/driving/" +
+
+          initialLongitude +
+          "," +
+          initialLatitude +
+          ";" +
+
+          studentStop.longitude +
+          "," +
+          studentStop.latitude +
+
+          "?overview=full&geometries=geojson"
+
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        !data.routes ||
+        !data.routes.length
+      ) {
+
+        return;
+
+      }
+
+
+      const route =
+        data.routes[0];
+
+
+      const coordinates =
+        route.geometry.coordinates.map(
+          point => [
+            point[1],
+            point[0]
+          ]
+        );
+
+
+      window.routeLine =
+        L.polyline(
+          coordinates,
+          {
+
+            color:
+              "#1976D2",
+
+            weight:
+              5,
+
+          }
+        ).addTo(
+          map
+        );
+
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+
+          distance:
+            (
+              route.distance /
+              1000
+            ).toFixed(2),
+
+          eta:
+            Math.ceil(
+              route.duration /
+              60
+            ),
+
+        })
+      );
+
+
+    } catch (
+      error
+    ) {
+
+      console.log(
+        "OSRM ERROR:",
+        error
+      );
+
+    }
+
+  }
+
+
+  drawRoadRoute();
+
+
+  // ==================================================
+  // EXPOSE MAP
+  // ==================================================
+
+  window.map =
+    map;
 
 
 </script>
 
 </body>
+
 </html>
+
 `;
 
-  const openMap = () => {
 
-    if (!location) return;
+  // =====================================================
+  // OPEN GOOGLE MAP
+  // =====================================================
 
-    Linking.openURL(
-      `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
-    );
+  const openMap =
+    () => {
 
-    // If you want direct navigation,
-    // replace the above with:
-    //
-    // Linking.openURL(
-    //   `google.navigation:q=${location.latitude},${location.longitude}`
-    // );
-  };
+      if (
+        !location
+      ) {
+
+        return;
+
+      }
+
+
+      Linking.openURL(
+        `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
+      );
+
+    };
+
+
+  // =====================================================
+  // LOG
+  // =====================================================
 
   console.log(
-  "CURRENT PICKUP STOP:",
-  pickupStop
-);
+    "CURRENT TRIP TYPE:",
+    tripType
+  );
 
-  if (!location) {
+
+  console.log(
+    "CURRENT STUDENT STOP:",
+    studentStop
+  );
+
+
+  // =====================================================
+  // LOADING
+  // =====================================================
+
+  if (
+    !location
+  ) {
 
     return (
 
       <View
-        style={styles.loader}
+        style={
+          styles.loader
+        }
       >
 
         <TouchableOpacity
@@ -472,17 +958,44 @@ window.map = map;
               "/parent-dashboard"
             )
           }
-          style={styles.backBtn}
+          style={[
+            styles.backBtn,
+            {
+              backgroundColor:
+                darkMode
+                  ? "#1E293B"
+                  : "#FFFFFF",
+            },
+          ]}
         >
+
           <Text
-            style={styles.backText}
+            style={[
+              styles.backText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
           >
             ← Back
           </Text>
+
         </TouchableOpacity>
 
+
         <Text
-          style={styles.loadingText}
+          style={[
+            styles.loadingText,
+            {
+              color:
+                darkMode
+                  ? "#FFFFFF"
+                  : "#64748B",
+            },
+          ]}
         >
           Fetching Bus Location...
         </Text>
@@ -493,300 +1006,461 @@ window.map = map;
 
   }
 
- return (
 
-  <View
-    style={{
-      flex: 1,
-    }}
-  >
+  // =====================================================
+  // MAIN SCREEN
+  // =====================================================
 
-    <TouchableOpacity
-      onPress={() =>
-        router.replace(
-          "/parent-dashboard"
-        )
-      }
+  return (
+
+    <View
       style={{
-        position: "absolute",
-        top: 22,
-        left: 50,
-        zIndex: 999,
-
-        backgroundColor:
-  darkMode
-    ? "#1E293B"
-    : "#FFFFFF",
-
-        padding: 10,
-
-        borderRadius: 8,
+        flex: 1,
       }}
     >
 
-      <Text
-  style={{
-    color:
-      darkMode
-        ? "#FFFFFF"
-        : "#000000",
-  }}
->
-  ← Back
-</Text>
 
-    </TouchableOpacity>
+      {/* ================================================
+          BACK BUTTON
+      ================================================ */}
 
-   <View
-  style={{
-    flex: 1,
-  }}
->
+      <TouchableOpacity
+        onPress={() =>
+          router.replace(
+            "/parent-dashboard"
+          )
+        }
+        style={[
+          styles.topBackBtn,
+          {
+            backgroundColor:
+              darkMode
+                ? "#1E293B"
+                : "#FFFFFF",
+          },
+        ]}
+      >
 
-  <WebView
-  ref={webViewRef}
+        <Text
+          style={{
+            color:
+              darkMode
+                ? "#FFFFFF"
+                : "#000000",
 
-  onMessage={(event) => {
+            fontSize: 16,
 
-    const data =
-      JSON.parse(
-        event.nativeEvent.data
-      );
+            fontWeight:
+              "600",
+          }}
+        >
+          ← Back
+        </Text>
 
-    setDistance(
-      data.distance
-    );
+      </TouchableOpacity>
 
-    setEta(
-      data.eta
-    );
 
-  }}
+      {/* ================================================
+          MAP
+      ================================================ */}
 
-  originWhitelist={["*"]}
-  source={{
-    html: mapHtml,
-  }}
-  style={{
-    flex: 1,
-  }}
-/>
+      <WebView
 
-  <View
-    style={{
-      position: "absolute",
-      bottom: 20,
-      left: 20,
-      right: 20,
-      backgroundColor:
-      darkMode
-        ? "#1E293B"
-        : "#FFFFFF",
-      padding: 12,
-      borderRadius: 10,
-    }}
-  >
+        ref={
+          webViewRef
+        }
 
-    {/* <Text>
-      Latitude:
-      {" "}
-      {location.latitude}
-    </Text>
+        originWhitelist={[
+          "*"
+        ]}
 
-    <Text>
-      Longitude:
-      {" "}
-      {location.longitude}
-    </Text> */}
+        source={{
+          html:
+            mapHtml,
+        }}
 
-    {pickupStop && (
+        onLoad={() => {
 
-  <>
+          console.log(
+            "MAP WEBVIEW LOADED"
+          );
 
-   <Text style={{ marginTop: 10,  color:
-      darkMode
-        ? "#FFFFFF"
-        : "#000000", }}>
-  <Text style={{ fontWeight: "bold" }}>
-    Pickup Stop:
-  </Text>
-  {" "}
-  {pickupStop.stopName}
-</Text>
+          setMapLoaded(
+            true
+          );
 
-<Text style={{ marginTop: 10,  color:
-      darkMode
-        ? "#FFFFFF"
-        : "#000000", }}>
-  <Text style={{ fontWeight: "bold" }}>
-    Distance:
-  </Text>
-  {" "}
-  {distance} km
-</Text>
+        }}
 
-<Text style={{ marginTop: 10 ,  color:
-      darkMode
-        ? "#FFFFFF"
-        : "#000000"}}>
-  <Text style={{ fontWeight: "bold" }}>
-    ETA:
-  </Text>
-  {" "}
-  {eta} min
-</Text>
-  </>
+        onMessage={(
+          event
+        ) => {
 
-)}
+          try {
 
-  </View>
+            const data =
+              JSON.parse(
+                event
+                  .nativeEvent
+                  .data
+              );
 
-</View>
 
-  </View>
+            if (
+              data.distance != null
+            ) {
 
-);
+              setDistance(
+                data.distance
+              );
+
+            }
+
+
+            if (
+              data.eta != null
+            ) {
+
+              setEta(
+                data.eta
+              );
+
+            }
+
+          } catch (
+            error
+          ) {
+
+            console.log(
+              "MAP MESSAGE ERROR:",
+              error
+            );
+
+          }
+
+        }}
+
+        javaScriptEnabled={
+          true
+        }
+
+        domStorageEnabled={
+          true
+        }
+
+        style={{
+          flex: 1,
+        }}
+
+      />
+
+
+      {/* ================================================
+          INFORMATION CARD
+      ================================================ */}
+
+      <View
+        style={[
+          styles.infoCard,
+          {
+            backgroundColor:
+              darkMode
+                ? "#1E293B"
+                : "#FFFFFF",
+          },
+        ]}
+      >
+
+        {/* ----------------------------------------------
+            TRIP TYPE
+        ---------------------------------------------- */}
+
+        <Text
+          style={[
+            styles.tripTypeText,
+            {
+              color:
+                darkMode
+                  ? "#60A5FA"
+                  : "#1976D2",
+            },
+          ]}
+        >
+
+          {tripType === "DROP"
+            ? "🏫 DROP TRIP"
+            : "🚌 PICKUP TRIP"}
+
+        </Text>
+
+
+        {/* ----------------------------------------------
+            STUDENT STOP
+        ---------------------------------------------- */}
+
+        {studentStop && (
+
+          <Text
+            style={[
+              styles.infoText,
+              {
+                color:
+                  darkMode
+                    ? "#FFFFFF"
+                    : "#000000",
+              },
+            ]}
+          >
+
+            <Text
+              style={
+                styles.bold
+              }
+            >
+              {tripType === "DROP"
+                ? "Drop Stop:"
+                : "Pickup Stop:"}
+            </Text>
+
+            {" "}
+
+            {studentStop.stopName}
+
+          </Text>
+
+        )}
+
+
+        {/* ----------------------------------------------
+            DISTANCE
+        ---------------------------------------------- */}
+
+        <Text
+          style={[
+            styles.infoText,
+            {
+              color:
+                darkMode
+                  ? "#FFFFFF"
+                  : "#000000",
+            },
+          ]}
+        >
+
+          <Text
+            style={
+              styles.bold
+            }
+          >
+            Distance:
+          </Text>
+
+          {" "}
+
+          {distance
+            ? `${distance} km`
+            : "-- km"}
+
+        </Text>
+
+
+        {/* ----------------------------------------------
+            ETA
+        ---------------------------------------------- */}
+
+        <Text
+          style={[
+            styles.infoText,
+            {
+              color:
+                darkMode
+                  ? "#FFFFFF"
+                  : "#000000",
+            },
+          ]}
+        >
+
+          <Text
+            style={
+              styles.bold
+            }
+          >
+            ETA:
+          </Text>
+
+          {" "}
+
+          {eta
+            ? `${eta} min`
+            : "-- min"}
+
+        </Text>
+
+      </View>
+
+    </View>
+
+  );
 
 }
+
+
+// =======================================================
+// STYLES
+// =======================================================
 
 const styles =
   StyleSheet.create({
 
-    container: {
-      flex: 1,
-      backgroundColor:
-        "#F5F7FB",
-      paddingHorizontal: 20,
-      paddingTop: 90,
-    },
-
     loader: {
+
       flex: 1,
+
       justifyContent:
         "center",
+
       alignItems:
         "center",
+
       backgroundColor:
         "#F5F7FB",
+
     },
+
 
     loadingText: {
+
       fontSize: 16,
-      color: "#64748B",
+
+      marginTop: 20,
+
     },
 
-    title: {
-      fontSize: 28,
-      fontWeight: "bold",
-      textAlign: "center",
-      color: "#1E293B",
+
+    topBackBtn: {
+
+      position:
+        "absolute",
+
+      top:
+        22,
+
+      left:
+        50,
+
+      zIndex:
+        999,
+
+      paddingHorizontal:
+        14,
+
+      paddingVertical:
+        10,
+
+      borderRadius:
+        10,
+
+      elevation:
+        5,
+
     },
 
-    subtitle: {
-      textAlign: "center",
-      color: "#64748B",
-      marginTop: 10,
-      marginBottom: 40,
-      fontSize: 15,
-      lineHeight: 22,
-    },
-
-    card: {
-      backgroundColor:
-        "#FFFFFF",
-
-      borderRadius: 24,
-
-      padding: 30,
-
-      alignItems: "center",
-
-      shadowColor: "#000",
-
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-
-      shadowOpacity: 0.1,
-
-      shadowRadius: 10,
-
-      elevation: 6,
-    },
-
-    busIcon: {
-      fontSize: 70,
-      marginBottom: 20,
-    },
-
-    cardTitle: {
-      fontSize: 22,
-      fontWeight: "700",
-      color: "#1E293B",
-      marginBottom: 12,
-    },
-
-    cardSubtitle: {
-      textAlign: "center",
-      color: "#64748B",
-      lineHeight: 24,
-      fontSize: 15,
-      marginBottom: 30,
-    },
-
-    trackButton: {
-      backgroundColor:
-        "#1976D2",
-
-      paddingHorizontal: 35,
-
-      paddingVertical: 14,
-
-      borderRadius: 14,
-
-      elevation: 4,
-    },
-
-    trackText: {
-      color: "#FFFFFF",
-      fontSize: 16,
-      fontWeight: "700",
-    },
 
     backBtn: {
-      position: "absolute",
-      top: 40,
-      left: 20,
-      zIndex: 100,
 
-      backgroundColor:
-        "#FFFFFF",
+      position:
+        "absolute",
 
-      paddingHorizontal: 14,
+      top:
+        40,
 
-      paddingVertical: 8,
+      left:
+        20,
 
-      borderRadius: 10,
+      zIndex:
+        100,
 
-      shadowColor: "#000",
+      paddingHorizontal:
+        14,
 
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
+      paddingVertical:
+        8,
 
-      shadowOpacity: 0.1,
+      borderRadius:
+        10,
 
-      shadowRadius: 4,
+      elevation:
+        3,
 
-      elevation: 3,
     },
 
+
     backText: {
-      color: "#1976D2",
-      fontSize: 16,
-      fontWeight: "600",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "600",
+
+    },
+
+
+    infoCard: {
+
+      position:
+        "absolute",
+
+      bottom:
+        20,
+
+      left:
+        20,
+
+      right:
+        20,
+
+      padding:
+        14,
+
+      borderRadius:
+        12,
+
+      elevation:
+        5,
+
+    },
+
+
+    tripTypeText: {
+
+      fontSize:
+        17,
+
+      fontWeight:
+        "bold",
+
+      marginBottom:
+        8,
+
+    },
+
+
+    infoText: {
+
+      fontSize:
+        15,
+
+      marginTop:
+        8,
+
+    },
+
+
+    bold: {
+
+      fontWeight:
+        "bold",
+
     },
 
   });

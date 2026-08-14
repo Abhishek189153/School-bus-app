@@ -2604,32 +2604,6 @@ exports.getMyBusLocation = async (
     try {
 
         // ==========================================
-        // GET TRIP TYPE
-        // ==========================================
-
-        const tripType =
-            req.query.tripType || "PICKUP";
-
-
-        if (
-            !["PICKUP", "DROP"].includes(
-                tripType
-            )
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Invalid trip type. Use PICKUP or DROP",
-
-            });
-
-        }
-
-
-        // ==========================================
         // FIND STUDENT
         // ==========================================
 
@@ -2657,7 +2631,72 @@ exports.getMyBusLocation = async (
 
 
         // ==========================================
-        // SELECT TRANSPORT BASED ON TRIP TYPE
+        // FIND ACTIVE TRIP
+        // ==========================================
+
+        const activeTrips =
+            await Trip.find({
+
+                status:
+                    "STARTED",
+
+                busId: {
+                    $in: [
+                        student.pickupBusId,
+                        student.dropBusId,
+                    ].filter(Boolean),
+                },
+
+            })
+            .sort({
+                createdAt: -1,
+            });
+
+
+        // ==========================================
+        // NO ACTIVE TRIP
+        // ==========================================
+
+        if (
+            !activeTrips.length
+        ) {
+
+            return res.status(200).json({
+
+                success: true,
+
+                tripType:
+                    null,
+
+                location:
+                    null,
+
+                studentStop:
+                    null,
+
+                stops:
+                    [],
+
+            });
+
+        }
+
+
+        // ==========================================
+        // USE CURRENT ACTIVE TRIP
+        // ==========================================
+
+        const trip =
+            activeTrips[0];
+
+
+        const tripType =
+            trip.tripType;
+
+
+        // ==========================================
+        // SELECT STUDENT TRANSPORT
+        // BASED ON ACTIVE TRIP
         // ==========================================
 
         let busId;
@@ -2694,7 +2733,7 @@ exports.getMyBusLocation = async (
 
 
         // ==========================================
-        // CHECK TRANSPORT ASSIGNMENT
+        // SAFETY CHECK
         // ==========================================
 
         if (
@@ -2721,7 +2760,8 @@ exports.getMyBusLocation = async (
         const location =
             await BusLocation.findOne({
 
-                busId,
+                busId:
+                    busId,
 
             });
 
@@ -2735,6 +2775,10 @@ exports.getMyBusLocation = async (
                 routeId
             );
 
+
+        // ==========================================
+        // FIND STUDENT STOP
+        // ==========================================
 
         let studentStop =
             null;
@@ -2760,15 +2804,24 @@ exports.getMyBusLocation = async (
 
             success: true,
 
-            tripType,
+            tripType:
 
-            busId,
+                tripType,
 
-            routeId,
+            tripId:
+                trip._id,
 
-            location,
+            busId:
+                busId,
 
-            studentStop,
+            routeId:
+                routeId,
+
+            location:
+                location,
+
+            studentStop:
+                studentStop,
 
             stops:
                 route?.stops || [],

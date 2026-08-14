@@ -598,39 +598,39 @@ export default function History() {
                         STATUS / STOP
                     ========================== */}
 
-                    <Text
-                      style={[
-                        styles.studentStatus,
+                   <View style={styles.statusTimeRow}>
 
-                        {
-                          color:
-                            darkMode
-                              ? "#CBD5E1"
-                              : "#475569",
-                        },
+  <Text
+    style={[
+      styles.studentStatus,
+      {
+        color:
+          darkMode
+            ? "#CBD5E1"
+            : "#475569",
+      },
+    ]}
+    numberOfLines={1}
+  >
+    {
+      student.status === "PRESENT"
 
-                      ]}
-                    >
+        ? isPickup
 
-                      {
-                        student.status ===
-                        "PRESENT"
+          ? `Boarded bus from ${
+              stop || "Pickup Stop"
+            }`
 
-                          ? isPickup
+          : `Reached home at ${
+              stop || "Drop Stop"
+            }`
 
-                            ? `Boarded bus from ${
-                                stop || "Pickup Stop"
-                              }`
+        : "Not Boarded"
+    }
+  </Text>
 
-                            : `Reached home at ${
-                                stop || "Drop Stop"
-                              }`
 
-                          : "Not Boarded"
-
-                      }
-
-                       <Text
+  <Text
     style={[
       styles.studentTime,
       {
@@ -644,8 +644,7 @@ export default function History() {
     🕐 {formattedTime}
   </Text>
 
-
-                    </Text>
+</View>
 
                   </View>
 
@@ -819,11 +818,23 @@ const styles =
     },
 
 
-    studentStatus: {
+   statusTimeRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginTop: 2,
+},
 
-      fontSize: 14,
+studentStatus: {
+  fontSize: 14,
+  flex: 1,
+  marginRight: 10,
+},
 
-    },
+studentTime: {
+  fontSize: 13,
+  fontWeight: "600",
+},
 
 
     emptyCard: {
@@ -845,10 +856,5 @@ const styles =
       fontSize: 16,
 
     },
-
-    studentTime: {
-  fontSize: 13,
-  marginTop: 4,
-},
 
   });
