@@ -456,36 +456,69 @@ async (req, res) => {
     }
 };
 
-exports.getBusesByRoute =
-async (req, res) => {
-
+exports.getBusesByRoute = async (req, res) => {
   try {
+    const { routeId } = req.params;
+    const schoolId = req.user.schoolId;
 
-    const assignments =
-      await BusRoute.find({
-        routeId:
-          req.params.routeId,
-      })
-      .populate("busId");
+    // ==========================================
+    // 1. FIND BUSES WHERE THIS IS THE PRIMARY ROUTE
+    // ==========================================
+    const primaryBuses = await Bus.find({
+      routeId,
+      schoolId,
+    });
 
-    const buses =
-      assignments.map(
-        item => item.busId
+    // ==========================================
+    // 2. FIND BUSES WHERE THIS IS AN ADDITIONAL ROUTE
+    // ==========================================
+    const assignments = await BusRoute.find({
+      routeId,
+    }).populate("busId");
+
+    const additionalBuses = assignments
+      .map((assignment) => assignment.busId)
+      .filter(Boolean)
+      .filter(
+        (bus) =>
+          bus.schoolId?.toString() ===
+          schoolId.toString()
       );
+
+    // ==========================================
+    // 3. COMBINE BOTH
+    // ==========================================
+    const allBuses = [
+      ...primaryBuses,
+      ...additionalBuses,
+    ];
+
+    // ==========================================
+    // 4. REMOVE DUPLICATE BUSES
+    // ==========================================
+    const uniqueBuses = Array.from(
+      new Map(
+        allBuses.map((bus) => [
+          bus._id.toString(),
+          bus,
+        ])
+      ).values()
+    );
 
     res.status(200).json({
       success: true,
-      buses,
+      buses: uniqueBuses,
     });
 
   } catch (error) {
+    console.error(
+      "GET BUSES BY ROUTE ERROR:",
+      error
+    );
 
     res.status(500).json({
       success: false,
-      message:
-        error.message,
+      message: error.message,
     });
-
   }
-
 };
