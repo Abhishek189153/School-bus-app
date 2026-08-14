@@ -17,6 +17,11 @@ import {
   InputAdornment,
   TablePagination,
   CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Popover,
 } from "@mui/material";
 
 // Direct file path imports prevent Vite bundling errors
@@ -25,6 +30,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import SchoolIcon from "@mui/icons-material/School";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import CloseIcon from "@mui/icons-material/Close";
 
 import { getStudents, deleteStudent } from "../services/student.service";
 import AddStudentModal from "../components/AddStudentModal";
@@ -54,9 +61,28 @@ const Students = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [busFilter, setBusFilter] = useState("all");
+  const [routeFilter, setRouteFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Transport details popover
+  const [transportAnchor, setTransportAnchor] = useState(null);
+  const [transportStudent, setTransportStudent] = useState(null);
+  const [transportType, setTransportType] = useState(null);
+
+  const handleTransportClick = (event, student, type) => {
+    setTransportAnchor(event.currentTarget);
+    setTransportStudent(student);
+    setTransportType(type);
+  };
+
+  const handleTransportClose = () => {
+    setTransportAnchor(null);
+    setTransportStudent(null);
+    setTransportType(null);
+  };
 
   // Pagination states
   const [page, setPage] = useState(0);
@@ -110,30 +136,87 @@ const Students = () => {
     setPage(0);
   };
 
-  const filteredStudents = students.filter((student) =>
-    (
-      (student.admissionNumber || "") +
-      " " +
-      (student.name || "") +
-      " " +
-      (student.parentId?.name || "") +
-      " " +
-      (student.className || "") +
-      " " +
-      (student.routeId?.routeName || "") +
-      " " +
-      (student.busId?.busNumber || "") +
-      " " +
-      (student.pickupStop || "")
-    )
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const handleBusFilterChange = (e) => {
+    setBusFilter(e.target.value);
+    setPage(0);
+  };
+
+  const handleRouteFilterChange = (e) => {
+    setRouteFilter(e.target.value);
+    setPage(0);
+  };
+
+  // Unique option lists derived from the full student set (not the
+  // filtered one) so the dropdown options stay stable as filters change.
+  const busOptions = [
+    ...new Set(
+      students
+        .flatMap((s) => [
+          s.pickupBusId?.busNumber,
+          s.dropBusId?.busNumber,
+        ])
+        .filter(Boolean)
+    ),
+  ].sort();
+
+  const routeOptions = [
+    ...new Set(
+      students
+        .flatMap((s) => [
+          s.pickupRouteId?.routeName,
+          s.dropRouteId?.routeName,
+        ])
+        .filter(Boolean)
+    ),
+  ].sort();
+
+  const filteredStudents = students.filter((student) => {
+    const searchText = [
+      student.admissionNumber,
+      student.name,
+      student.parentId?.name,
+      student.className,
+      student.pickupRouteId?.routeName,
+      student.pickupBusId?.busNumber,
+      student.pickupStop,
+      student.dropRouteId?.routeName,
+      student.dropBusId?.busNumber,
+      student.dropStop,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      searchText.includes(searchTerm.toLowerCase());
+
+    const matchesBus =
+      busFilter === "all" ||
+      student.pickupBusId?.busNumber === busFilter ||
+      student.dropBusId?.busNumber === busFilter;
+
+    const matchesRoute =
+      routeFilter === "all" ||
+      student.pickupRouteId?.routeName === routeFilter ||
+      student.dropRouteId?.routeName === routeFilter;
+
+    return matchesSearch && matchesBus && matchesRoute;
+  });
 
   const paginatedStudents = filteredStudents.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setBusFilter("all");
+    setRouteFilter("all");
+    setPage(0);
+  };
+
+  const hasActiveFilters =
+    searchTerm !== "" || busFilter !== "all" || routeFilter !== "all";
 
   if (loading) {
     return (
@@ -155,6 +238,21 @@ const Students = () => {
       </Box>
     );
   }
+
+  const selectSx = {
+    minWidth: 128,
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "8px",
+      backgroundColor: "#ffffff",
+      fontSize: "0.8125rem",
+      "& fieldset": { borderColor: "#e2e8f0" },
+      "&:hover fieldset": { borderColor: "#94a3b8" },
+      "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+    },
+    "& .MuiInputLabel-root": {
+      fontSize: "0.8125rem",
+    },
+  };
 
   return (
     <Box sx={{ p: 3, backgroundColor: "#f8fafc", minHeight: "100vh" }}>
@@ -195,8 +293,73 @@ const Students = () => {
             />
           </Box>
 
-          {/* Search Bar & Action Button */}
+          {/* Filters, Search Bar & Action Button */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            {/* Filter Group */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                p: "4px",
+                borderRadius: "12px",
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <FilterListIcon sx={{ color: "#94a3b8", fontSize: 20, ml: 0.75 }} />
+
+              <FormControl size="small" sx={selectSx}>
+                <InputLabel>Route</InputLabel>
+                <Select
+                  value={routeFilter}
+                  label="Route"
+                  onChange={handleRouteFilterChange}
+                >
+                  <MenuItem value="all">All Routes</MenuItem>
+                  {routeOptions.map((route) => (
+                    <MenuItem key={route} value={route}>
+                      {route}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={selectSx}>
+                <InputLabel>Bus</InputLabel>
+                <Select
+                  value={busFilter}
+                  label="Bus"
+                  onChange={handleBusFilterChange}
+                >
+                  <MenuItem value="all">All Buses</MenuItem>
+                  {busOptions.map((bus) => (
+                    <MenuItem key={bus} value={bus}>
+                      {bus}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {hasActiveFilters && (
+                <Tooltip title="Clear filters">
+                  <IconButton
+                    onClick={handleClearFilters}
+                    size="small"
+                    sx={{
+                      color: "#94a3b8",
+                      "&:hover": { color: "#ef4444", backgroundColor: "#fef2f2" },
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+
+            {/* Divider between filters and search */}
+            <Box sx={{ width: "1px", height: 32, backgroundColor: "#e2e8f0" }} />
+
             <TextField
               placeholder="Search student, class, bus..."
               value={searchTerm}
@@ -210,7 +373,7 @@ const Students = () => {
                 ),
               }}
               sx={{
-                width: { xs: "100%", sm: 320 },
+                width: { xs: "100%", sm: 260 },
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "10px",
                   backgroundColor: "#ffffff",
@@ -254,7 +417,7 @@ const Students = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 700 }}>
+          <Table sx={{ minWidth: 900 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -270,13 +433,10 @@ const Students = () => {
                   Parent
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Route
+                  Pickup Route
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Bus
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Pickup Stop
+                  Drop Route
                 </TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px", pr: 3 }}>
                   Actions
@@ -320,20 +480,25 @@ const Students = () => {
                       {student.parentId?.name || "-"}
                     </TableCell>
 
-                    <TableCell sx={{ color: "#475569" }}>
-                      {student.routeId?.routeName || "-"}
-                    </TableCell>
-
+                    {/* Pickup Route */}
                     <TableCell>
-                      {student.busId?.busNumber ? (
+                      {student.pickupRouteId?.routeName ? (
                         <Chip
-                          label={student.busId.busNumber}
+                          label={student.pickupRouteId.routeName}
                           size="small"
+                          clickable
+                          onClick={(event) =>
+                            handleTransportClick(event, student, "PICKUP")
+                          }
                           sx={{
                             fontWeight: 600,
-                            borderRadius: "6px",
-                            backgroundColor: "#fef3c7",
-                            color: "#92400e",
+                            borderRadius: "7px",
+                            backgroundColor: "#eff6ff",
+                            color: "#1d4ed8",
+                            border: "1px solid #bfdbfe",
+                            "&:hover": {
+                              backgroundColor: "#dbeafe",
+                            },
                           }}
                         />
                       ) : (
@@ -341,8 +506,30 @@ const Students = () => {
                       )}
                     </TableCell>
 
-                    <TableCell sx={{ color: "#475569" }}>
-                      {student.pickupStop || "-"}
+                    {/* Drop Route */}
+                    <TableCell>
+                      {student.dropRouteId?.routeName ? (
+                        <Chip
+                          label={student.dropRouteId.routeName}
+                          size="small"
+                          clickable
+                          onClick={(event) =>
+                            handleTransportClick(event, student, "DROP")
+                          }
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "7px",
+                            backgroundColor: "#f0fdf4",
+                            color: "#15803d",
+                            border: "1px solid #bbf7d0",
+                            "&:hover": {
+                              backgroundColor: "#dcfce7",
+                            },
+                          }}
+                        />
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
 
                     <TableCell align="right" sx={{ pr: 2 }}>
@@ -377,7 +564,7 @@ const Students = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">No matching student records found.</Typography>
                   </TableCell>
                 </TableRow>
@@ -404,6 +591,84 @@ const Students = () => {
           }}
         />
       </Paper>
+
+      {/* Transport Details Popover */}
+      <Popover
+        open={Boolean(transportAnchor)}
+        anchorEl={transportAnchor}
+        onClose={handleTransportClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              p: 2,
+              width: 280,
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 10px 30px rgba(15, 23, 42, 0.12)",
+            },
+          },
+        }}
+      >
+        {transportStudent && transportType && (
+          <Box>
+            <Typography
+              sx={{
+                fontWeight: 700,
+                color: transportType === "PICKUP" ? "#1d4ed8" : "#15803d",
+                mb: 1.5,
+              }}
+            >
+              {transportType === "PICKUP"
+                ? "🚌 Pickup Transport"
+                : "🏠 Drop Transport"}
+            </Typography>
+
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Box>
+                <Typography variant="caption" sx={{ color: "#64748b", display: "block" }}>
+                  Route
+                </Typography>
+                <Typography sx={{ fontWeight: 600, color: "#0f172a" }}>
+                  {transportType === "PICKUP"
+                    ? transportStudent.pickupRouteId?.routeName || "-"
+                    : transportStudent.dropRouteId?.routeName || "-"}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ color: "#64748b", display: "block" }}>
+                  Bus
+                </Typography>
+                <Typography sx={{ fontWeight: 600, color: "#0f172a" }}>
+                  {transportType === "PICKUP"
+                    ? transportStudent.pickupBusId?.busNumber || "-"
+                    : transportStudent.dropBusId?.busNumber || "-"}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ color: "#64748b", display: "block" }}>
+                  {transportType === "PICKUP" ? "Pickup Stop" : "Drop Stop"}
+                </Typography>
+                <Typography sx={{ fontWeight: 600, color: "#0f172a" }}>
+                  {transportType === "PICKUP"
+                    ? transportStudent.pickupStop || "-"
+                    : transportStudent.dropStop || "-"}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </Popover>
 
       {/* Modals */}
       <AddStudentModal

@@ -67,14 +67,21 @@ const AddStudentModal = ({
    */
 
   const initialFormData = {
-    admissionNumber: "",
-    name: "",
-    className: "",
-    parentId: "",
-    busId: "",
-    routeId: "",
-    pickupStop: "",
-  };
+  admissionNumber: "",
+  name: "",
+  className: "",
+  parentId: "",
+
+  // Pickup
+  pickupRouteId: "",
+  pickupBusId: "",
+  pickupStop: "",
+
+  // Drop
+  dropRouteId: "",
+  dropBusId: "",
+  dropStop: "",
+};
 
 
   /*
@@ -83,22 +90,52 @@ const AddStudentModal = ({
    * =========================================================
    */
 
-  const [parents, setParents] = useState(dataCache.parents || []);
-  const [routes, setRoutes] = useState(dataCache.routes || []);
+  const [parents, setParents] =
+  useState(dataCache.parents || []);
 
-  const [routeBuses, setRouteBuses] = useState([]);
-  const [routeStops, setRouteStops] = useState([]);
+const [routes, setRoutes] =
+  useState(dataCache.routes || []);
 
-  const [formData, setFormData] =
-    useState(initialFormData);
 
-  // "loading" now only gates the Parent / Route fields,
-  // never the whole dialog
-  const [loading, setLoading] = useState(false);
-  const [loadingBuses, setLoadingBuses] = useState(false);
-  const [saving, setSaving] = useState(false);
+// ==========================================
+// PICKUP TRANSPORT STATE
+// ==========================================
 
-  const [errors, setErrors] = useState({});
+const [pickupBuses, setPickupBuses] =
+  useState([]);
+
+const [pickupStops, setPickupStops] =
+  useState([]);
+
+
+// ==========================================
+// DROP TRANSPORT STATE
+// ==========================================
+
+const [dropBuses, setDropBuses] =
+  useState([]);
+
+const [dropStops, setDropStops] =
+  useState([]);
+
+
+const [formData, setFormData] =
+  useState(initialFormData);
+
+const [loading, setLoading] =
+  useState(false);
+
+const [loadingPickupBuses, setLoadingPickupBuses] =
+  useState(false);
+
+const [loadingDropBuses, setLoadingDropBuses] =
+  useState(false);
+
+const [saving, setSaving] =
+  useState(false);
+
+const [errors, setErrors] =
+  useState({});
 
 
   /*
@@ -189,14 +226,21 @@ const AddStudentModal = ({
    */
 
   useEffect(() => {
-    if (!open) {
-      setFormData(initialFormData);
-      setRouteBuses([]);
-      setRouteStops([]);
-      setErrors({});
-      setLoadingBuses(false);
-    }
-  }, [open]);
+  if (!open) {
+    setFormData(initialFormData);
+
+    setPickupBuses([]);
+    setPickupStops([]);
+
+    setDropBuses([]);
+    setDropStops([]);
+
+    setErrors({});
+
+    setLoadingPickupBuses(false);
+    setLoadingDropBuses(false);
+  }
+}, [open]);
 
 
   /*
@@ -204,6 +248,22 @@ const AddStudentModal = ({
    * NORMAL TEXT FIELD CHANGE
    * =========================================================
    */
+
+  // ==========================================
+// FILTER ROUTES BY TRIP TYPE
+// ==========================================
+
+const pickupRoutes =
+  routes.filter(
+    (route) =>
+      route.tripType === "PICKUP"
+  );
+
+const dropRoutes =
+  routes.filter(
+    (route) =>
+      route.tripType === "DROP"
+  );
 
   const handleChange = (event) => {
     const {
@@ -243,113 +303,313 @@ const AddStudentModal = ({
 
 
   /*
-   * =========================================================
-   * ROUTE
-   * =========================================================
-   */
+ * =========================================================
+ * PICKUP ROUTE
+ * =========================================================
+ */
 
-  const handleRouteChange = async (_, value) => {
-    const routeId = value?._id || "";
+const handlePickupRouteChange = async (_, value) => {
 
-    setFormData((previous) => ({
-      ...previous,
-      routeId,
-      busId: "",
-      pickupStop: "",
-    }));
+  const pickupRouteId =
+    value?._id || "";
 
-    setRouteBuses([]);
-    setRouteStops([]);
+  setFormData((previous) => ({
+    ...previous,
 
-    setErrors((previous) => ({
-      ...previous,
-      routeId: "",
-      busId: "",
-      pickupStop: "",
-    }));
+    pickupRouteId,
 
-    if (!value) {
-      return;
-    }
+    pickupBusId: "",
+    pickupStop: "",
+  }));
 
-    if (
-      Array.isArray(value.stops) &&
-      value.stops.length > 2
-    ) {
-      const filteredStops =
-        value.stops.slice(
-          1,
-          value.stops.length - 1
+
+  // Clear old pickup data
+  setPickupBuses([]);
+  setPickupStops([]);
+
+
+  setErrors((previous) => ({
+    ...previous,
+
+    pickupRouteId: "",
+    pickupBusId: "",
+    pickupStop: "",
+  }));
+
+
+  if (!value) {
+    return;
+  }
+
+
+  // ==========================================
+  // LOAD PICKUP STOPS
+  // ==========================================
+
+  if (
+    Array.isArray(value.stops) &&
+    value.stops.length > 2
+  ) {
+
+    const filteredStops =
+      value.stops.slice(
+        1,
+        value.stops.length - 1
+      );
+
+    setPickupStops(filteredStops);
+
+  } else {
+
+    setPickupStops(
+      value.stops || []
+    );
+
+  }
+
+
+  // ==========================================
+  // LOAD BUSES ASSIGNED TO PICKUP ROUTE
+  // ==========================================
+
+  if (pickupRouteId) {
+
+    try {
+
+      setLoadingPickupBuses(true);
+
+      const data =
+        await getBusesByRoute(
+          pickupRouteId
         );
 
-      setRouteStops(filteredStops);
+      setPickupBuses(
+        data?.buses || []
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Error loading pickup buses for route:",
+        error
+      );
+
+      setPickupBuses([]);
+
+    } finally {
+
+      setLoadingPickupBuses(false);
+
     }
 
-    if (routeId) {
-      try {
-        setLoadingBuses(true);
+  }
 
-        const data =
-          await getBusesByRoute(routeId);
+};
 
-        setRouteBuses(
-          data?.buses || []
+
+/*
+ * =========================================================
+ * PICKUP BUS
+ * =========================================================
+ */
+
+const handlePickupBusChange = (_, value) => {
+
+  setFormData((previous) => ({
+    ...previous,
+
+    pickupBusId:
+      value?._id || "",
+  }));
+
+
+  setErrors((previous) => ({
+    ...previous,
+
+    pickupBusId: "",
+  }));
+
+};
+
+
+/*
+ * =========================================================
+ * PICKUP STOP
+ * =========================================================
+ */
+
+const handlePickupStopChange = (_, value) => {
+
+  setFormData((previous) => ({
+    ...previous,
+
+    pickupStop:
+      value?.stopName || "",
+  }));
+
+
+  setErrors((previous) => ({
+    ...previous,
+
+    pickupStop: "",
+  }));
+
+};
+
+
+/*
+ * =========================================================
+ * DROP ROUTE
+ * =========================================================
+ */
+
+const handleDropRouteChange = async (_, value) => {
+
+  const dropRouteId =
+    value?._id || "";
+
+  setFormData((previous) => ({
+    ...previous,
+
+    dropRouteId,
+
+    dropBusId: "",
+    dropStop: "",
+  }));
+
+
+  // Clear old drop data
+  setDropBuses([]);
+  setDropStops([]);
+
+
+  setErrors((previous) => ({
+    ...previous,
+
+    dropRouteId: "",
+    dropBusId: "",
+    dropStop: "",
+  }));
+
+
+  if (!value) {
+    return;
+  }
+
+
+  // ==========================================
+  // LOAD DROP STOPS
+  // ==========================================
+
+  if (
+    Array.isArray(value.stops) &&
+    value.stops.length > 2
+  ) {
+
+    const filteredStops =
+      value.stops.slice(
+        1,
+        value.stops.length - 1
+      );
+
+    setDropStops(filteredStops);
+
+  } else {
+
+    setDropStops(
+      value.stops || []
+    );
+
+  }
+
+
+  // ==========================================
+  // LOAD BUSES ASSIGNED TO DROP ROUTE
+  // ==========================================
+
+  if (dropRouteId) {
+
+    try {
+
+      setLoadingDropBuses(true);
+
+      const data =
+        await getBusesByRoute(
+          dropRouteId
         );
 
-      } catch (error) {
-        console.error(
-          "Error loading buses for route:",
-          error
-        );
+      setDropBuses(
+        data?.buses || []
+      );
 
-        setRouteBuses([]);
+    } catch (error) {
 
-      } finally {
-        setLoadingBuses(false);
-      }
+      console.error(
+        "Error loading drop buses for route:",
+        error
+      );
+
+      setDropBuses([]);
+
+    } finally {
+
+      setLoadingDropBuses(false);
+
     }
-  };
+
+  }
+
+};
 
 
-  /*
-   * =========================================================
-   * BUS
-   * =========================================================
-   */
+/*
+ * =========================================================
+ * DROP BUS
+ * =========================================================
+ */
 
-  const handleBusChange = (_, value) => {
-    setFormData((previous) => ({
-      ...previous,
-      busId: value?._id || "",
-    }));
+const handleDropBusChange = (_, value) => {
 
-    setErrors((previous) => ({
-      ...previous,
-      busId: "",
-    }));
-  };
+  setFormData((previous) => ({
+    ...previous,
+
+    dropBusId:
+      value?._id || "",
+  }));
 
 
-  /*
-   * =========================================================
-   * PICKUP STOP
-   * =========================================================
-   */
+  setErrors((previous) => ({
+    ...previous,
 
-  const handlePickupStopChange = (_, value) => {
-    setFormData((previous) => ({
-      ...previous,
-      pickupStop:
-        value?.stopName || "",
-    }));
+    dropBusId: "",
+  }));
 
-    setErrors((previous) => ({
-      ...previous,
-      pickupStop: "",
-    }));
-  };
+};
 
 
+/*
+ * =========================================================
+ * DROP STOP
+ * =========================================================
+ */
+
+const handleDropStopChange = (_, value) => {
+
+  setFormData((previous) => ({
+    ...previous,
+
+    dropStop:
+      value?.stopName || "",
+  }));
+
+
+  setErrors((previous) => ({
+    ...previous,
+
+    dropStop: "",
+  }));
+
+};
   /*
    * =========================================================
    * VALIDATION
@@ -376,17 +636,35 @@ const AddStudentModal = ({
       newErrors.parentId = "Please select a parent";
     }
 
-    if (!formData.routeId) {
-      newErrors.routeId = "Please select a route";
-    }
+    if (!formData.pickupRouteId) {
+  newErrors.pickupRouteId =
+    "Please select a pickup route";
+}
 
-    if (!formData.busId) {
-      newErrors.busId = "Please select a bus";
-    }
+if (!formData.pickupBusId) {
+  newErrors.pickupBusId =
+    "Please select a pickup bus";
+}
 
-    if (!formData.pickupStop) {
-      newErrors.pickupStop = "Please select a pickup stop";
-    }
+if (!formData.pickupStop) {
+  newErrors.pickupStop =
+    "Please select a pickup stop";
+}
+
+if (!formData.dropRouteId) {
+  newErrors.dropRouteId =
+    "Please select a drop route";
+}
+
+if (!formData.dropBusId) {
+  newErrors.dropBusId =
+    "Please select a drop bus";
+}
+
+if (!formData.dropStop) {
+  newErrors.dropStop =
+    "Please select a drop stop";
+}
 
     setErrors(newErrors);
 
@@ -420,10 +698,15 @@ const AddStudentModal = ({
         await refreshStudents();
       }
 
-      setFormData(initialFormData);
-      setRouteBuses([]);
-      setRouteStops([]);
-      setErrors({});
+     setFormData(initialFormData);
+
+setPickupBuses([]);
+setPickupStops([]);
+
+setDropBuses([]);
+setDropStops([]);
+
+setErrors({});
 
       handleClose();
 
@@ -445,26 +728,40 @@ const AddStudentModal = ({
    * =========================================================
    */
 
-  const selectedParent =
-    parents.find(
-      (parent) => parent._id === formData.parentId
-    ) || null;
+ const selectedParent =
+  parents.find(
+    (parent) => parent._id === formData.parentId
+  ) || null;
 
-  const selectedRoute =
-    routes.find(
-      (route) => route._id === formData.routeId
-    ) || null;
+const selectedPickupRoute =
+  pickupRoutes.find(
+    (route) => route._id === formData.pickupRouteId
+  ) || null;
 
-  const selectedBus =
-    routeBuses.find(
-      (bus) => bus._id === formData.busId
-    ) || null;
+const selectedPickupBus =
+  pickupBuses.find(
+    (bus) => bus._id === formData.pickupBusId
+  ) || null;
 
-  const selectedStop =
-    routeStops.find(
-      (stop) => stop.stopName === formData.pickupStop
-    ) || null;
+const selectedPickupStop =
+  pickupStops.find(
+    (stop) => stop.stopName === formData.pickupStop
+  ) || null;
 
+const selectedDropRoute =
+  dropRoutes.find(
+    (route) => route._id === formData.dropRouteId
+  ) || null;
+
+const selectedDropBus =
+  dropBuses.find(
+    (bus) => bus._id === formData.dropBusId
+  ) || null;
+
+const selectedDropStop =
+  dropStops.find(
+    (stop) => stop.stopName === formData.dropStop
+  ) || null;
 
   /*
    * =========================================================
@@ -846,191 +1143,541 @@ const AddStudentModal = ({
           </Paper>
 
 
-          {/* TRANSPORT ASSIGNMENT */}
-          <Paper
-            elevation={0}
+         {/* TRANSPORT ASSIGNMENT */}
+<Paper
+  elevation={0}
+  sx={{
+    p: { xs: 1.8, sm: 2.5 },
+    borderRadius: "14px",
+    border: "1px solid #e5e9f0",
+    backgroundColor: "#ffffff",
+  }}
+>
+  <SectionHeader
+    icon={<DirectionsBusOutlined fontSize="small" />}
+    title="Transport Assignment"
+    subtitle="Assign separate pickup and drop transport"
+  />
+
+  {/* ============================= */}
+  {/* PICKUP */}
+  {/* ============================= */}
+
+  <Box
+    sx={{
+      mb: 3,
+      p: 2,
+      borderRadius: "12px",
+      backgroundColor: "#f8fbff",
+      border: "1px solid #dceaff",
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#1976d2",
+        mb: 1.5,
+      }}
+    >
+      Pickup Transport
+    </Typography>
+
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "1fr 1fr",
+        },
+        gap: 2,
+      }}
+    >
+
+      {/* PICKUP ROUTE */}
+      <Autocomplete
+        fullWidth
+        options={pickupRoutes}
+        value={selectedPickupRoute}
+        onChange={handlePickupRouteChange}
+        isOptionEqualToValue={(option, value) =>
+          option._id === value._id
+        }
+        getOptionLabel={(option) => {
+          if (!option?.routeName) return "";
+
+          const stops =
+            option?.stops
+              ?.map((stop) => stop.stopName)
+              ?.join(" → ") || "";
+
+          return stops
+            ? `${option.routeName} (${stops})`
+            : option.routeName;
+        }}
+        noOptionsText="No pickup routes found"
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            <RouteOutlined
+              sx={{
+                color: "#7b8794",
+                fontSize: 20,
+              }}
+            />,
+            "Select pickup route",
+            errors.pickupRouteId,
+            errors.pickupRouteId
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id}
             sx={{
-              p: { xs: 1.8, sm: 2.5 },
-              borderRadius: "14px",
-              border: "1px solid #e5e9f0",
-              backgroundColor: "#ffffff",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start !important",
+              py: "10px !important",
             }}
           >
-            <SectionHeader
-              icon={<DirectionsBusOutlined fontSize="small" />}
-              title="Transport Assignment"
-              subtitle="Select route, bus and pickup stop"
-            />
-
-            <Box
+            <Typography
               sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                gap: 2,
+                fontSize: "14px",
+                fontWeight: 600,
               }}
             >
-              {/* ROUTE — skeleton only while routes are loading */}
-              {loading && routes.length === 0 ? (
-                <Skeleton variant="rounded" sx={skeletonSx} />
-              ) : (
-                <Autocomplete
-                  fullWidth
-                  options={routes}
-                  value={selectedRoute}
-                  onChange={handleRouteChange}
-                  isOptionEqualToValue={(option, value) => option._id === value._id}
-                  getOptionLabel={(option) => {
-                    if (!option?.routeName) return "";
-                    const stops =
-                      option?.stops?.map((stop) => stop.stopName)?.join(" → ") || "";
-                    return stops ? `${option.routeName} (${stops})` : option.routeName;
-                  }}
-                  noOptionsText="No routes found"
-                  renderInput={(params) =>
-                    autocompleteInputProps(
-                      params,
-                      <RouteOutlined sx={{ color: "#7b8794", fontSize: 20 }} />,
-                      "Select route",
-                      errors.routeId,
-                      errors.routeId
-                    )
-                  }
-                  renderOption={(props, option) => (
-                    <Box
-                      component="li"
-                      {...props}
-                      key={option._id}
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-start !important",
-                        py: "10px !important",
-                      }}
-                    >
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-                        {option.routeName}
-                      </Typography>
-                      {option.stops?.length > 0 && (
-                        <Typography
-                          sx={{ fontSize: "11px", color: "#7b8794", mt: 0.3, lineHeight: 1.4 }}
-                        >
-                          {option.stops.map((stop) => stop.stopName).join(" → ")}
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                />
-              )}
+              {option.routeName}
+            </Typography>
 
-              {/* BUS */}
-              <Autocomplete
-                fullWidth
-                options={routeBuses}
-                value={selectedBus}
-                onChange={handleBusChange}
-                disabled={!formData.routeId || loadingBuses}
-                isOptionEqualToValue={(option, value) => option._id === value._id}
-                getOptionLabel={(option) =>
-                  option?.busNumber
-                    ? `${option.busNumber}${option.vehicleNumber ? ` (${option.vehicleNumber})` : ""}`
-                    : ""
-                }
-                noOptionsText={
-                  formData.routeId ? "No buses assigned to this route" : "Select a route first"
-                }
-                renderInput={(params) =>
-                  autocompleteInputProps(
-                    params,
-                    loadingBuses ? (
-                      <CircularProgress size={18} />
-                    ) : (
-                      <DirectionsBusOutlined
-                        sx={{ color: formData.routeId ? "#7b8794" : "#b5bdc9", fontSize: 20 }}
-                      />
-                    ),
-                    formData.routeId ? "Select bus" : "Select route first",
-                    errors.busId,
-                    errors.busId
-                  )
-                }
-                renderOption={(props, option) => (
-                  <Box component="li" {...props} key={option._id}>
-                    <Box>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>
-                        {option.busNumber}
-                      </Typography>
-                      {option.vehicleNumber && (
-                        <Typography sx={{ fontSize: "11px", color: "#7b8794", mt: 0.2 }}>
-                          Vehicle: {option.vehicleNumber}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                )}
-              />
-
-              {/* PICKUP STOP */}
-              <Autocomplete
-                fullWidth
-                options={routeStops}
-                value={selectedStop}
-                onChange={handlePickupStopChange}
-                disabled={!formData.routeId}
-                isOptionEqualToValue={(option, value) => option.stopName === value.stopName}
-                getOptionLabel={(option) => option?.stopName || ""}
-                noOptionsText={
-                  formData.routeId ? "No pickup stops available" : "Select a route first"
-                }
-                renderInput={(params) =>
-                  autocompleteInputProps(
-                    params,
-                    <LocationOnOutlined
-                      sx={{ color: formData.routeId ? "#7b8794" : "#b5bdc9", fontSize: 20 }}
-                    />,
-                    formData.routeId ? "Select pickup stop" : "Select route first",
-                    errors.pickupStop,
-                    errors.pickupStop
-                  )
-                }
-                renderOption={(props, option) => (
-                  <Box
-                    component="li"
-                    {...props}
-                    key={option._id || option.stopName}
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    <LocationOnOutlined sx={{ color: "#1976d2", fontSize: 18 }} />
-                    <Typography sx={{ fontSize: "14px" }}>{option.stopName}</Typography>
-                  </Box>
-                )}
-              />
-            </Box>
-
-            {formData.routeId && (
-              <Box
+            {option.stops?.length > 0 && (
+              <Typography
                 sx={{
-                  mt: 2,
-                  p: 1.5,
-                  borderRadius: "10px",
-                  backgroundColor: "#f5f9ff",
-                  border: "1px solid #dceaff",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 1,
+                  fontSize: "11px",
+                  color: "#7b8794",
+                  mt: 0.3,
+                  lineHeight: 1.4,
                 }}
               >
-                <InfoOutlined sx={{ color: "#1976d2", fontSize: 18, mt: "1px" }} />
-                <Box>
-                  <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#344054" }}>
-                    Transport selection
-                  </Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#667085", lineHeight: 1.5, mt: 0.2 }}>
-                    Bus and pickup stop are automatically filtered according to the selected route.
-                  </Typography>
-                </Box>
-              </Box>
+                {option.stops
+                  .map((stop) => stop.stopName)
+                  .join(" → ")}
+              </Typography>
             )}
-          </Paper>
+          </Box>
+        )}
+      />
+
+      {/* PICKUP BUS */}
+      <Autocomplete
+        fullWidth
+        options={pickupBuses}
+        value={selectedPickupBus}
+        onChange={handlePickupBusChange}
+        disabled={
+          !formData.pickupRouteId ||
+          loadingPickupBuses
+        }
+        isOptionEqualToValue={(option, value) =>
+          option._id === value._id
+        }
+        getOptionLabel={(option) =>
+          option?.busNumber
+            ? `${option.busNumber}${
+                option.vehicleNumber
+                  ? ` (${option.vehicleNumber})`
+                  : ""
+              }`
+            : ""
+        }
+        noOptionsText={
+          formData.pickupRouteId
+            ? "No buses assigned to this route"
+            : "Select pickup route first"
+        }
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            loadingPickupBuses ? (
+              <CircularProgress size={18} />
+            ) : (
+              <DirectionsBusOutlined
+                sx={{
+                  color: formData.pickupRouteId
+                    ? "#7b8794"
+                    : "#b5bdc9",
+                  fontSize: 20,
+                }}
+              />
+            ),
+            formData.pickupRouteId
+              ? "Select pickup bus"
+              : "Select pickup route first",
+            errors.pickupBusId,
+            errors.pickupBusId
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id}
+          >
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                }}
+              >
+                {option.busNumber}
+              </Typography>
+
+              {option.vehicleNumber && (
+                <Typography
+                  sx={{
+                    fontSize: "11px",
+                    color: "#7b8794",
+                    mt: 0.2,
+                  }}
+                >
+                  Vehicle: {option.vehicleNumber}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+      />
+
+      {/* PICKUP STOP */}
+      <Autocomplete
+        fullWidth
+        options={pickupStops}
+        value={selectedPickupStop}
+        onChange={handlePickupStopChange}
+        disabled={!formData.pickupRouteId}
+        isOptionEqualToValue={(option, value) =>
+          option.stopName === value.stopName
+        }
+        getOptionLabel={(option) =>
+          option?.stopName || ""
+        }
+        noOptionsText={
+          formData.pickupRouteId
+            ? "No pickup stops available"
+            : "Select pickup route first"
+        }
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            <LocationOnOutlined
+              sx={{
+                color: formData.pickupRouteId
+                  ? "#7b8794"
+                  : "#b5bdc9",
+                fontSize: 20,
+              }}
+            />,
+            formData.pickupRouteId
+              ? "Select pickup stop"
+              : "Select pickup route first",
+            errors.pickupStop,
+            errors.pickupStop
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id || option.stopName}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <LocationOnOutlined
+              sx={{
+                color: "#1976d2",
+                fontSize: 18,
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: "14px",
+              }}
+            >
+              {option.stopName}
+            </Typography>
+          </Box>
+        )}
+      />
+
+    </Box>
+  </Box>
+
+
+  {/* ============================= */}
+  {/* DROP */}
+  {/* ============================= */}
+
+  <Box
+    sx={{
+      p: 2,
+      borderRadius: "12px",
+      backgroundColor: "#fffaf5",
+      border: "1px solid #ffe2c2",
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#ed6c02",
+        mb: 1.5,
+      }}
+    >
+      Drop Transport
+    </Typography>
+
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "1fr 1fr",
+        },
+        gap: 2,
+      }}
+    >
+
+      {/* DROP ROUTE */}
+      <Autocomplete
+        fullWidth
+        options={dropRoutes}
+        value={selectedDropRoute}
+        onChange={handleDropRouteChange}
+        isOptionEqualToValue={(option, value) =>
+          option._id === value._id
+        }
+        getOptionLabel={(option) => {
+          if (!option?.routeName) return "";
+
+          const stops =
+            option?.stops
+              ?.map((stop) => stop.stopName)
+              ?.join(" → ") || "";
+
+          return stops
+            ? `${option.routeName} (${stops})`
+            : option.routeName;
+        }}
+        noOptionsText="No drop routes found"
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            <RouteOutlined
+              sx={{
+                color: "#7b8794",
+                fontSize: 20,
+              }}
+            />,
+            "Select drop route",
+            errors.dropRouteId,
+            errors.dropRouteId
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start !important",
+              py: "10px !important",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
+              {option.routeName}
+            </Typography>
+
+            {option.stops?.length > 0 && (
+              <Typography
+                sx={{
+                  fontSize: "11px",
+                  color: "#7b8794",
+                  mt: 0.3,
+                  lineHeight: 1.4,
+                }}
+              >
+                {option.stops
+                  .map((stop) => stop.stopName)
+                  .join(" → ")}
+              </Typography>
+            )}
+          </Box>
+        )}
+      />
+
+      {/* DROP BUS */}
+      <Autocomplete
+        fullWidth
+        options={dropBuses}
+        value={selectedDropBus}
+        onChange={handleDropBusChange}
+        disabled={
+          !formData.dropRouteId ||
+          loadingDropBuses
+        }
+        isOptionEqualToValue={(option, value) =>
+          option._id === value._id
+        }
+        getOptionLabel={(option) =>
+          option?.busNumber
+            ? `${option.busNumber}${
+                option.vehicleNumber
+                  ? ` (${option.vehicleNumber})`
+                  : ""
+              }`
+            : ""
+        }
+        noOptionsText={
+          formData.dropRouteId
+            ? "No buses assigned to this route"
+            : "Select drop route first"
+        }
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            loadingDropBuses ? (
+              <CircularProgress size={18} />
+            ) : (
+              <DirectionsBusOutlined
+                sx={{
+                  color: formData.dropRouteId
+                    ? "#7b8794"
+                    : "#b5bdc9",
+                  fontSize: 20,
+                }}
+              />
+            ),
+            formData.dropRouteId
+              ? "Select drop bus"
+              : "Select drop route first",
+            errors.dropBusId,
+            errors.dropBusId
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id}
+          >
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                }}
+              >
+                {option.busNumber}
+              </Typography>
+
+              {option.vehicleNumber && (
+                <Typography
+                  sx={{
+                    fontSize: "11px",
+                    color: "#7b8794",
+                    mt: 0.2,
+                  }}
+                >
+                  Vehicle: {option.vehicleNumber}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+      />
+
+      {/* DROP STOP */}
+      <Autocomplete
+        fullWidth
+        options={dropStops}
+        value={selectedDropStop}
+        onChange={handleDropStopChange}
+        disabled={!formData.dropRouteId}
+        isOptionEqualToValue={(option, value) =>
+          option.stopName === value.stopName
+        }
+        getOptionLabel={(option) =>
+          option?.stopName || ""
+        }
+        noOptionsText={
+          formData.dropRouteId
+            ? "No drop stops available"
+            : "Select drop route first"
+        }
+        renderInput={(params) =>
+          autocompleteInputProps(
+            params,
+            <LocationOnOutlined
+              sx={{
+                color: formData.dropRouteId
+                  ? "#7b8794"
+                  : "#b5bdc9",
+                fontSize: 20,
+              }}
+            />,
+            formData.dropRouteId
+              ? "Select drop stop"
+              : "Select drop route first",
+            errors.dropStop,
+            errors.dropStop
+          )
+        }
+        renderOption={(props, option) => (
+          <Box
+            component="li"
+            {...props}
+            key={option._id || option.stopName}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <LocationOnOutlined
+              sx={{
+                color: "#ed6c02",
+                fontSize: 18,
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: "14px",
+              }}
+            >
+              {option.stopName}
+            </Typography>
+          </Box>
+        )}
+      />
+
+    </Box>
+  </Box>
+
+</Paper>
 
         </Box>
       </DialogContent>

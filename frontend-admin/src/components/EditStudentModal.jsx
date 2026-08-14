@@ -33,24 +33,78 @@ const EditStudentModal = ({
 }) => {
   const [parents, setParents] = useState([]);
   const [routes, setRoutes] = useState([]);
-  const [routeBuses, setRouteBuses] = useState([]);
-  const [routeStops, setRouteStops] = useState([]);
+
+  // Separate buses/stops for Pickup and Drop
+  const [pickupBuses, setPickupBuses] = useState([]);
+  const [dropBuses, setDropBuses] = useState([]);
+
+  const [pickupStops, setPickupStops] = useState([]);
+  const [dropStops, setDropStops] = useState([]);
 
   const [loading, setLoading] = useState(false);
-  const [loadingBuses, setLoadingBuses] = useState(false);
+  const [loadingPickupBuses, setLoadingPickupBuses] = useState(false);
+  const [loadingDropBuses, setLoadingDropBuses] = useState(false);
 
   const [formData, setFormData] = useState({
     admissionNumber: "",
     name: "",
     className: "",
     parentId: "",
-    routeId: "",
-    busId: "",
+
+    // Pickup
+    pickupRouteId: "",
+    pickupBusId: "",
     pickupStop: "",
+
+    // Drop
+    dropRouteId: "",
+    dropBusId: "",
+    dropStop: "",
   });
 
   // --------------------------------------------------
-  // Load parents and routes
+  // Helpers
+  // --------------------------------------------------
+
+  const getId = (value) => {
+    if (!value) return "";
+
+    return typeof value === "object"
+      ? value?._id || ""
+      : value;
+  };
+
+  const getRouteStops = (route) => {
+    if (!route) return [];
+
+    const stops = route.stops || [];
+
+    return stops.length > 2
+      ? stops.slice(1, stops.length - 1)
+      : stops;
+  };
+
+  const getStopLabel = (stop) => {
+    return stop?.stopName || "";
+  };
+
+  const getRouteLabel = (route) => {
+    if (!route) return "";
+
+    const stops = route.stops || [];
+
+    const stopNames = stops
+      .map((stop) => stop?.stopName)
+      .filter(Boolean)
+      .join(" → ");
+
+    return stopNames
+      ? `${route.routeName} (${stopNames})`
+      : route.routeName || "";
+  };
+
+  // --------------------------------------------------
+  // Load parents/routes + existing student data
   // --------------------------------------------------
 
   useEffect(() => {
@@ -71,71 +125,105 @@ const EditStudentModal = ({
         setParents(parentList);
         setRoutes(routeList);
 
-        const parentId =
-          typeof student.parentId === "object"
-            ? student.parentId?._id
-            : student.parentId || "";
+        const parentId = getId(student.parentId);
 
-        const routeId =
-          typeof student.routeId === "object"
-            ? student.routeId?._id
-            : student.routeId || "";
+        const pickupRouteId = getId(student.pickupRouteId);
+        const pickupBusId = getId(student.pickupBusId);
 
-        const busId =
-          typeof student.busId === "object"
-            ? student.busId?._id
-            : student.busId || "";
+        const dropRouteId = getId(student.dropRouteId);
+        const dropBusId = getId(student.dropBusId);
 
         setFormData({
           admissionNumber: student.admissionNumber || "",
           name: student.name || "",
           className: student.className || "",
           parentId,
-          routeId,
-          busId,
+
+          pickupRouteId,
+          pickupBusId,
           pickupStop: student.pickupStop || "",
+
+          dropRouteId,
+          dropBusId,
+          dropStop: student.dropStop || "",
         });
 
-        // ----------------------------------------------
-        // Find selected route
-        // ----------------------------------------------
+        // -----------------------------
+        // Load Pickup route data
+        // -----------------------------
 
-        const selectedRoute = routeList.find(
-          (route) => route._id === routeId
+        const pickupRoute = routeList.find(
+          (route) => route._id === pickupRouteId
         );
 
-        if (selectedRoute) {
-          const stops = selectedRoute.stops || [];
+        if (pickupRoute) {
+          setPickupStops(getRouteStops(pickupRoute));
+        } else {
+          setPickupStops([]);
+        }
 
-          // Remove first and last stop if they are route endpoints
-          const filteredStops =
-            stops.length > 2
-              ? stops.slice(1, stops.length - 1)
-              : stops;
+        if (pickupRouteId) {
+          try {
+            setLoadingPickupBuses(true);
 
-          setRouteStops(filteredStops);
+            const busData =
+              await getBusesByRoute(pickupRouteId);
 
-          // Load buses belonging to selected route
-          if (routeId) {
-            try {
-              setLoadingBuses(true);
+            setPickupBuses(busData?.buses || []);
+          } catch (error) {
+            console.error(
+              "Failed to load pickup route buses:",
+              error
+            );
 
-              const busData = await getBusesByRoute(routeId);
-
-              setRouteBuses(busData?.buses || []);
-            } catch (error) {
-              console.error("Failed to load route buses:", error);
-              setRouteBuses([]);
-            } finally {
-              setLoadingBuses(false);
-            }
+            setPickupBuses([]);
+          } finally {
+            setLoadingPickupBuses(false);
           }
         } else {
-          setRouteStops([]);
-          setRouteBuses([]);
+          setPickupBuses([]);
+        }
+
+        // -----------------------------
+        // Load Drop route data
+        // -----------------------------
+
+        const dropRoute = routeList.find(
+          (route) => route._id === dropRouteId
+        );
+
+        if (dropRoute) {
+          setDropStops(getRouteStops(dropRoute));
+        } else {
+          setDropStops([]);
+        }
+
+        if (dropRouteId) {
+          try {
+            setLoadingDropBuses(true);
+
+            const busData =
+              await getBusesByRoute(dropRouteId);
+
+            setDropBuses(busData?.buses || []);
+          } catch (error) {
+            console.error(
+              "Failed to load drop route buses:",
+              error
+            );
+
+            setDropBuses([]);
+          } finally {
+            setLoadingDropBuses(false);
+          }
+        } else {
+          setDropBuses([]);
         }
       } catch (error) {
-        console.error("Failed to load student edit data:", error);
+        console.error(
+          "Failed to load student edit data:",
+          error
+        );
       } finally {
         setLoading(false);
       }
@@ -150,10 +238,14 @@ const EditStudentModal = ({
 
   useEffect(() => {
     if (!open) {
-      setRouteBuses([]);
-      setRouteStops([]);
+      setPickupBuses([]);
+      setDropBuses([]);
+      setPickupStops([]);
+      setDropStops([]);
+
       setLoading(false);
-      setLoadingBuses(false);
+      setLoadingPickupBuses(false);
+      setLoadingDropBuses(false);
     }
   }, [open]);
 
@@ -171,51 +263,100 @@ const EditStudentModal = ({
   };
 
   // --------------------------------------------------
-  // Route change
-  // Route -> Buses + Pickup Stops
+  // Pickup Route change
+  // Route -> Pickup Bus + Pickup Stops
   // --------------------------------------------------
 
-  const handleRouteChange = async (event) => {
-    const routeId = event.target.value;
+  const handlePickupRouteChange = async (event) => {
+    const pickupRouteId = event.target.value;
 
     setFormData((previous) => ({
       ...previous,
-      routeId,
-      busId: "",
+      pickupRouteId,
+      pickupBusId: "",
       pickupStop: "",
     }));
 
-    setRouteBuses([]);
-    setRouteStops([]);
+    setPickupBuses([]);
+    setPickupStops([]);
 
-    if (!routeId) return;
+    if (!pickupRouteId) return;
 
     const selectedRoute = routes.find(
-      (route) => route._id === routeId
+      (route) => route._id === pickupRouteId
     );
 
     if (selectedRoute) {
-      const stops = selectedRoute.stops || [];
-
-      const filteredStops =
-        stops.length > 2
-          ? stops.slice(1, stops.length - 1)
-          : stops;
-
-      setRouteStops(filteredStops);
+      setPickupStops(
+        getRouteStops(selectedRoute)
+      );
     }
 
     try {
-      setLoadingBuses(true);
+      setLoadingPickupBuses(true);
 
-      const data = await getBusesByRoute(routeId);
+      const data =
+        await getBusesByRoute(pickupRouteId);
 
-      setRouteBuses(data?.buses || []);
+      setPickupBuses(data?.buses || []);
     } catch (error) {
-      console.error("Failed to load buses:", error);
-      setRouteBuses([]);
+      console.error(
+        "Failed to load pickup buses:",
+        error
+      );
+
+      setPickupBuses([]);
     } finally {
-      setLoadingBuses(false);
+      setLoadingPickupBuses(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // Drop Route change
+  // Route -> Drop Bus + Drop Stops
+  // --------------------------------------------------
+
+  const handleDropRouteChange = async (event) => {
+    const dropRouteId = event.target.value;
+
+    setFormData((previous) => ({
+      ...previous,
+      dropRouteId,
+      dropBusId: "",
+      dropStop: "",
+    }));
+
+    setDropBuses([]);
+    setDropStops([]);
+
+    if (!dropRouteId) return;
+
+    const selectedRoute = routes.find(
+      (route) => route._id === dropRouteId
+    );
+
+    if (selectedRoute) {
+      setDropStops(
+        getRouteStops(selectedRoute)
+      );
+    }
+
+    try {
+      setLoadingDropBuses(true);
+
+      const data =
+        await getBusesByRoute(dropRouteId);
+
+      setDropBuses(data?.buses || []);
+    } catch (error) {
+      console.error(
+        "Failed to load drop buses:",
+        error
+      );
+
+      setDropBuses([]);
+    } finally {
+      setLoadingDropBuses(false);
     }
   };
 
@@ -232,7 +373,10 @@ const EditStudentModal = ({
     try {
       setLoading(true);
 
-      await updateStudent(student._id, formData);
+      await updateStudent(
+        student._id,
+        formData
+      );
 
       if (refreshStudents) {
         await refreshStudents();
@@ -240,7 +384,10 @@ const EditStudentModal = ({
 
       handleClose();
     } catch (error) {
-      console.error("Failed to update student:", error);
+      console.error(
+        "Failed to update student:",
+        error
+      );
 
       alert(
         error?.response?.data?.message ||
@@ -256,39 +403,31 @@ const EditStudentModal = ({
   // --------------------------------------------------
 
   const selectedParent = parents.find(
-    (parent) => parent._id === formData.parentId
+    (parent) =>
+      parent._id === formData.parentId
   );
 
-  const selectedRoute = routes.find(
-    (route) => route._id === formData.routeId
+  const selectedPickupRoute = routes.find(
+    (route) =>
+      route._id === formData.pickupRouteId
   );
 
-  // --------------------------------------------------
-  // Route display
-  // --------------------------------------------------
+  const selectedDropRoute = routes.find(
+    (route) =>
+      route._id === formData.dropRouteId
+  );
 
-  const getRouteLabel = (route) => {
-    if (!route) return "";
+  const pickupRoutes =
+  routes.filter(
+    (route) =>
+      route.tripType === "PICKUP"
+  );
 
-    const stops = route.stops || [];
-
-    const stopNames = stops
-      .map((stop) => stop?.stopName)
-      .filter(Boolean)
-      .join(" → ");
-
-    return stopNames
-      ? `${route.routeName} (${stopNames})`
-      : route.routeName || "";
-  };
-
-  // --------------------------------------------------
-  // Pickup stop label
-  // --------------------------------------------------
-
-  const getStopLabel = (stop) => {
-    return stop?.stopName || "";
-  };
+const dropRoutes =
+  routes.filter(
+    (route) =>
+      route.tripType === "DROP"
+  );
 
   return (
     <Dialog
@@ -332,13 +471,16 @@ const EditStudentModal = ({
               width: 46,
               height: 46,
               borderRadius: "12px",
-              backgroundColor: "rgba(255,255,255,0.16)",
+              backgroundColor:
+                "rgba(255,255,255,0.16)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <EditOutlinedIcon sx={{ fontSize: 25 }} />
+            <EditOutlinedIcon
+              sx={{ fontSize: 25 }}
+            />
           </Box>
 
           <Box>
@@ -368,9 +510,11 @@ const EditStudentModal = ({
           onClick={handleClose}
           sx={{
             color: "#fff",
-            backgroundColor: "rgba(255,255,255,0.12)",
+            backgroundColor:
+              "rgba(255,255,255,0.12)",
             "&:hover": {
-              backgroundColor: "rgba(255,255,255,0.22)",
+              backgroundColor:
+                "rgba(255,255,255,0.22)",
             },
           }}
         >
@@ -407,14 +551,13 @@ const EditStudentModal = ({
             <Box
               sx={{
                 backgroundColor: "#fff",
-                border: "1px solid #e2e8f0",
+                border:
+                  "1px solid #e2e8f0",
                 borderRadius: "14px",
                 p: 2.2,
                 mb: 2,
               }}
             >
-              {/* Section Header */}
-
               <Box
                 sx={{
                   display: "flex",
@@ -460,8 +603,6 @@ const EditStudentModal = ({
                 </Box>
               </Box>
 
-              {/* Fields */}
-
               <Box
                 sx={{
                   display: "grid",
@@ -476,7 +617,9 @@ const EditStudentModal = ({
                   fullWidth
                   label="Admission Number"
                   name="admissionNumber"
-                  value={formData.admissionNumber}
+                  value={
+                    formData.admissionNumber
+                  }
                   onChange={handleChange}
                   size="small"
                 />
@@ -494,12 +637,12 @@ const EditStudentModal = ({
                   fullWidth
                   label="Class"
                   name="className"
-                  value={formData.className}
+                  value={
+                    formData.className
+                  }
                   onChange={handleChange}
                   size="small"
                 />
-
-                {/* Parent */}
 
                 <TextField
                   select
@@ -533,19 +676,234 @@ const EditStudentModal = ({
             </Box>
 
             {/* =================================================
-                TRANSPORT ASSIGNMENT
+                PICKUP TRANSPORT
             ================================================== */}
 
             <Box
               sx={{
                 backgroundColor: "#fff",
-                border: "1px solid #e2e8f0",
+                border:
+                  "1px solid #bfdbfe",
+                borderRadius: "14px",
+                p: 2.2,
+                mb: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "10px",
+                    backgroundColor: "#eaf3ff",
+                    color: "#1976d2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <DirectionsBusOutlinedIcon />
+                </Box>
+
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#172033",
+                    }}
+                  >
+                    Pickup Transport
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: "11px",
+                      color: "#7b8794",
+                    }}
+                  >
+                    Select the bus and route used to pick up the student.
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                  },
+                  gap: 1.5,
+                }}
+              >
+                <TextField
+                  select
+                  fullWidth
+                  label="Pickup Route"
+                  name="pickupRouteId"
+                  value={
+                    formData.pickupRouteId
+                  }
+                  onChange={
+                    handlePickupRouteChange
+                  }
+                  size="small"
+                  sx={{
+                    gridColumn: {
+                      xs: "auto",
+                      sm: "1 / -1",
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    Select pickup route
+                  </MenuItem>
+                    {pickupRoutes.map((route) => (
+                      <MenuItem
+                        key={route._id}
+                        value={route._id}
+                      >
+                        {getRouteLabel(route)}
+                      </MenuItem>
+                    ))}
+                </TextField>
+
+                <TextField
+                  select
+                  fullWidth
+                  label="Pickup Bus"
+                  name="pickupBusId"
+                  value={
+                    formData.pickupBusId
+                  }
+                  onChange={handleChange}
+                  size="small"
+                  disabled={
+                    !formData.pickupRouteId ||
+                    loadingPickupBuses
+                  }
+                >
+                  <MenuItem value="">
+                    {!formData.pickupRouteId
+                      ? "Select route first"
+                      : loadingPickupBuses
+                      ? "Loading buses..."
+                      : pickupBuses.length === 0
+                      ? "No buses available"
+                      : "Select pickup bus"}
+                  </MenuItem>
+
+                  {pickupBuses.map((bus) => (
+                    <MenuItem
+                      key={bus._id}
+                      value={bus._id}
+                    >
+                      {bus.busNumber ||
+                        "Unnamed Bus"}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  select
+                  fullWidth
+                  label="Pickup Stop"
+                  name="pickupStop"
+                  value={
+                    formData.pickupStop
+                  }
+                  onChange={handleChange}
+                  size="small"
+                  disabled={
+                    !formData.pickupRouteId
+                  }
+                >
+                  <MenuItem value="">
+                    {!formData.pickupRouteId
+                      ? "Select route first"
+                      : pickupStops.length === 0
+                      ? "No pickup stops available"
+                      : "Select pickup stop"}
+                  </MenuItem>
+
+                  {pickupStops.map(
+                    (stop, index) => (
+                      <MenuItem
+                        key={
+                          stop?._id ||
+                          `${stop?.stopName}-${index}`
+                        }
+                        value={
+                          stop?.stopName || ""
+                        }
+                      >
+                        {getStopLabel(stop)}
+                      </MenuItem>
+                    )
+                  )}
+                </TextField>
+              </Box>
+
+              {formData.pickupRouteId && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    px: 1.5,
+                    py: 1.2,
+                    borderRadius: "9px",
+                    backgroundColor: "#f0f7ff",
+                    border:
+                      "1px solid #d5e9ff",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "11px",
+                      color: "#24639b",
+                    }}
+                  >
+                    Pickup route:{" "}
+                    <strong>
+                      {selectedPickupRoute?.routeName ||
+                        "Route"}
+                    </strong>
+                    {" • "}
+                    {pickupBuses.length} bus
+                    {pickupBuses.length !== 1
+                      ? "es"
+                      : ""}{" "}
+                    available
+                    {" • "}
+                    {pickupStops.length} stop
+                    {pickupStops.length !== 1
+                      ? "s"
+                      : ""}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* =================================================
+                DROP TRANSPORT
+            ================================================== */}
+
+            <Box
+              sx={{
+                backgroundColor: "#fff",
+                border:
+                  "1px solid #bbf7d0",
                 borderRadius: "14px",
                 p: 2.2,
               }}
             >
-              {/* Section Header */}
-
               <Box
                 sx={{
                   display: "flex",
@@ -577,7 +935,7 @@ const EditStudentModal = ({
                       color: "#172033",
                     }}
                   >
-                    Transport Assignment
+                    Drop Transport
                   </Typography>
 
                   <Typography
@@ -586,140 +944,164 @@ const EditStudentModal = ({
                       color: "#7b8794",
                     }}
                   >
-                    Select route first. Available buses and
-                    pickup stops will load automatically.
+                    Select the bus and route used to drop the student.
                   </Typography>
                 </Box>
               </Box>
 
-              {/* =================================================
-                  ROUTE
-              ================================================== */}
-
-              <TextField
-                select
-                fullWidth
-                label="Route"
-                name="routeId"
-                value={formData.routeId}
-                onChange={handleRouteChange}
-                size="small"
-                sx={{ mb: 1.5 }}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                  },
+                  gap: 1.5,
+                }}
               >
-                <MenuItem value="">
-                  Select route
-                </MenuItem>
-
-                {routes.map((route) => (
-                  <MenuItem
-                    key={route._id}
-                    value={route._id}
-                  >
-                    {getRouteLabel(route)}
+                <TextField
+                  select
+                  fullWidth
+                  label="Drop Route"
+                  name="dropRouteId"
+                  value={
+                    formData.dropRouteId
+                  }
+                  onChange={
+                    handleDropRouteChange
+                  }
+                  size="small"
+                  sx={{
+                    gridColumn: {
+                      xs: "auto",
+                      sm: "1 / -1",
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    Select drop route
                   </MenuItem>
-                ))}
-              </TextField>
 
-              {/* =================================================
-                  BUS
-              ================================================== */}
+                  {dropRoutes.map((route) => (
+                    <MenuItem
+                      key={route._id}
+                      value={route._id}
+                    >
+                      {getRouteLabel(route)}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-              <TextField
-                select
-                fullWidth
-                label="Bus"
-                name="busId"
-                value={formData.busId}
-                onChange={handleChange}
-                size="small"
-                disabled={!formData.routeId || loadingBuses}
-                sx={{ mb: 1.5 }}
-              >
-                <MenuItem value="">
-                  {!formData.routeId
-                    ? "Select route first"
-                    : loadingBuses
-                    ? "Loading buses..."
-                    : routeBuses.length === 0
-                    ? "No buses available"
-                    : "Select bus"}
-                </MenuItem>
-
-                {routeBuses.map((bus) => (
-                  <MenuItem
-                    key={bus._id}
-                    value={bus._id}
-                  >
-                    {bus.busNumber || "Unnamed Bus"}
+                <TextField
+                  select
+                  fullWidth
+                  label="Drop Bus"
+                  name="dropBusId"
+                  value={
+                    formData.dropBusId
+                  }
+                  onChange={handleChange}
+                  size="small"
+                  disabled={
+                    !formData.dropRouteId ||
+                    loadingDropBuses
+                  }
+                >
+                  <MenuItem value="">
+                    {!formData.dropRouteId
+                      ? "Select route first"
+                      : loadingDropBuses
+                      ? "Loading buses..."
+                      : dropBuses.length === 0
+                      ? "No buses available"
+                      : "Select drop bus"}
                   </MenuItem>
-                ))}
-              </TextField>
 
-              {/* =================================================
-                  PICKUP STOP
-              ================================================== */}
+                  {dropBuses.map((bus) => (
+                    <MenuItem
+                      key={bus._id}
+                      value={bus._id}
+                    >
+                      {bus.busNumber ||
+                        "Unnamed Bus"}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-              <TextField
-                select
-                fullWidth
-                label="Pickup Stop"
-                name="pickupStop"
-                value={formData.pickupStop}
-                onChange={handleChange}
-                size="small"
-                disabled={!formData.routeId}
-              >
-                <MenuItem value="">
-                  {!formData.routeId
-                    ? "Select route first"
-                    : routeStops.length === 0
-                    ? "No pickup stops available"
-                    : "Select pickup stop"}
-                </MenuItem>
-
-                {routeStops.map((stop, index) => (
-                  <MenuItem
-                    key={
-                      stop?._id ||
-                      `${stop?.stopName}-${index}`
-                    }
-                    value={stop?.stopName || ""}
-                  >
-                    {getStopLabel(stop)}
+                <TextField
+                  select
+                  fullWidth
+                  label="Drop Stop"
+                  name="dropStop"
+                  value={
+                    formData.dropStop
+                  }
+                  onChange={handleChange}
+                  size="small"
+                  disabled={
+                    !formData.dropRouteId
+                  }
+                >
+                  <MenuItem value="">
+                    {!formData.dropRouteId
+                      ? "Select route first"
+                      : dropStops.length === 0
+                      ? "No drop stops available"
+                      : "Select drop stop"}
                   </MenuItem>
-                ))}
-              </TextField>
 
-              {/* Information */}
+                  {dropStops.map(
+                    (stop, index) => (
+                      <MenuItem
+                        key={
+                          stop?._id ||
+                          `${stop?.stopName}-${index}`
+                        }
+                        value={
+                          stop?.stopName || ""
+                        }
+                      >
+                        {getStopLabel(stop)}
+                      </MenuItem>
+                    )
+                  )}
+                </TextField>
+              </Box>
 
-              {formData.routeId && (
+              {formData.dropRouteId && (
                 <Box
                   sx={{
                     mt: 2,
                     px: 1.5,
                     py: 1.2,
                     borderRadius: "9px",
-                    backgroundColor: "#f0f7ff",
-                    border: "1px solid #d5e9ff",
+                    backgroundColor: "#f0fdf4",
+                    border:
+                      "1px solid #dcfce7",
                   }}
                 >
                   <Typography
                     sx={{
                       fontSize: "11px",
-                      color: "#24639b",
+                      color: "#237a4b",
                     }}
                   >
-                    Route selected:{" "}
+                    Drop route:{" "}
                     <strong>
-                      {selectedRoute?.routeName || "Route"}
+                      {selectedDropRoute?.routeName ||
+                        "Route"}
                     </strong>
                     {" • "}
-                    {routeBuses.length} bus
-                    {routeBuses.length !== 1 ? "es" : ""}{" "}
+                    {dropBuses.length} bus
+                    {dropBuses.length !== 1
+                      ? "es"
+                      : ""}{" "}
                     available
                     {" • "}
-                    {routeStops.length} pickup stop
-                    {routeStops.length !== 1 ? "s" : ""}
+                    {dropStops.length} stop
+                    {dropStops.length !== 1
+                      ? "s"
+                      : ""}
                   </Typography>
                 </Box>
               )}
@@ -747,7 +1129,9 @@ const EditStudentModal = ({
       >
         <Button
           onClick={handleClose}
-          startIcon={<CancelOutlinedIcon />}
+          startIcon={
+            <CancelOutlinedIcon />
+          }
           sx={{
             color: "#64748b",
             fontWeight: 600,
@@ -787,7 +1171,9 @@ const EditStudentModal = ({
             },
           }}
         >
-          {loading ? "Updating..." : "Update Student"}
+          {loading
+            ? "Updating..."
+            : "Update Student"}
         </Button>
       </Box>
     </Dialog>

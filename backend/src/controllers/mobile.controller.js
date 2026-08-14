@@ -142,642 +142,1191 @@ exports.getDriverDashboard = async (req, res) => {
 };
 
 exports.startTrip = async (
-  req,
-  res
+    req,
+    res
 ) => {
-  try {
 
-    console.log(
-  "START TRIP BODY:",
-  req.body
-);
+    try {
 
-    const {
-      tripType,
-      routeId,
-    } = req.body;
+        console.log(
+            "START TRIP BODY:",
+            req.body
+        );
 
-    const route =
-      await Route.findById(
-        routeId
-      );
 
-    if (!route) {
+        const {
+            tripType,
+            routeId,
+        } = req.body;
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Route not found",
-      });
+
+        // ==========================================
+        // VALIDATE TRIP TYPE
+        // ==========================================
+
+        if (
+            !tripType ||
+            !["PICKUP", "DROP"].includes(tripType)
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Valid trip type is required: PICKUP or DROP",
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND ROUTE
+        // ==========================================
+
+        const route =
+            await Route.findById(
+                routeId
+            );
+
+
+        if (!route) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Route not found",
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK ROUTE BELONGS TO SCHOOL
+        // ==========================================
+
+        if (
+            route.schoolId.toString() !==
+            req.user.schoolId.toString()
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Route belongs to another school",
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK ROUTE TYPE
+        // ==========================================
+
+        if (
+            route.tripType !==
+            tripType
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    `This route is a ${route.tripType} route`,
+            });
+
+        }
+
+
+        // ==========================================
+        // INDIA DATE
+        // ==========================================
+
+        const now = new Date(
+            new Date().toLocaleString(
+                "en-US",
+                {
+                    timeZone:
+                        "Asia/Kolkata",
+                }
+            )
+        );
+
+
+        const today =
+            `${now.getFullYear()}-${String(
+                now.getMonth() + 1
+            ).padStart(2, "0")}-${String(
+                now.getDate()
+            ).padStart(2, "0")}`;
+
+
+        // ==========================================
+        // CHECK IF THIS TRIP WAS ALREADY COMPLETED
+        // TODAY
+        // ==========================================
+
+        const completedTrip =
+            await Trip.findOne({
+
+                routeId,
+
+                tripType,
+
+                tripDate:
+                    today,
+
+                status:
+                    "COMPLETED",
+
+            });
+
+
+        if (completedTrip) {
+
+            // Check whether route was edited
+            // after the previous trip was completed
+
+            if (
+                route.updatedAt <=
+                completedTrip.updatedAt
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "This trip has already been completed today",
+
+                });
+
+            }
+
+        }
+
+
+        // ==========================================
+        // CHECK SCHEDULED TIME
+        // ==========================================
+
+        const [
+            hours,
+            minutes
+        ] =
+            route.scheduledTime
+                .split(":")
+                .map(Number);
+
+
+        const scheduledTime =
+            new Date(now);
+
+
+        scheduledTime.setHours(
+            hours,
+            minutes,
+            0,
+            0
+        );
+
+
+        const diffMinutes =
+            (
+                scheduledTime -
+                now
+            ) /
+            1000 /
+            60;
+
+
+        console.log(
+            "START TRIP CHECK:",
+            {
+                route:
+                    route.routeName,
+
+                tripType,
+
+                scheduledTime:
+                    route.scheduledTime,
+
+                now,
+
+                diffMinutes,
+            }
+        );
+
+
+        // ==========================================
+        // TRIP CAN START ONLY 30 MINUTES BEFORE
+        // SCHEDULED TIME
+        // ==========================================
+
+        if (
+            diffMinutes > 30
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Trip can only start 30 minutes before scheduled time",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND DRIVER'S BUS
+        // ==========================================
+
+        const bus =
+            await Bus.findOne({
+
+                driverId:
+                    req.user.id,
+
+                schoolId:
+                    req.user.schoolId,
+
+            });
+
+
+        if (!bus) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "No bus assigned",
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK EXISTING ACTIVE TRIP
+        // ==========================================
+
+        const existingTrip =
+            await Trip.findOne({
+
+                driverId:
+                    req.user.id,
+
+                status:
+                    "STARTED",
+
+                routeId,
+
+                tripType,
+
+            });
+
+
+        if (existingTrip) {
+
+            return res.status(200).json({
+
+                success: true,
+
+                trip:
+                    existingTrip,
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CREATE TRIP
+        // ==========================================
+
+        const trip =
+            await Trip.create({
+
+                schoolId:
+                    req.user.schoolId,
+
+                busId:
+                    bus._id,
+
+                routeId,
+
+                driverId:
+                    req.user.id,
+
+                tripType,
+
+                tripDate:
+                    today,
+
+                startTime:
+                    new Date(),
+
+                status:
+                    "STARTED",
+
+            });
+
+
+        // ==========================================
+        // DRIVER ATTENDANCE
+        // ==========================================
+
+        const existingAttendance =
+            await Attendance.findOne({
+
+                driverId:
+                    req.user.id,
+
+                schoolId:
+                    req.user.schoolId,
+
+                tripDate:
+                    today,
+
+            });
+
+
+        // First trip of the day
+        if (!existingAttendance) {
+
+            console.log(
+                "Creating Attendance..."
+            );
+
+
+            const attendance =
+                await Attendance.create({
+
+                    driverId:
+                        req.user.id,
+
+                    schoolId:
+                        req.user.schoolId,
+
+                    tripDate:
+                        today,
+
+                    dutyOnTime:
+                        new Date(),
+
+                    status:
+                        "PRESENT",
+
+                });
+
+
+            console.log(
+                "Attendance Created:",
+                attendance
+            );
+
+        } else {
+
+            console.log(
+                "Attendance already exists"
+            );
+
+        }
+
+
+        // ==========================================
+        // FIND STUDENTS FOR THIS TRIP
+        // ==========================================
+
+        let students;
+
+
+        if (
+            tripType ===
+            "PICKUP"
+        ) {
+
+            // PICKUP:
+            // pickupBusId + pickupRouteId
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        req.user.schoolId,
+
+                    pickupBusId:
+                        bus._id,
+
+                    pickupRouteId:
+                        routeId,
+
+                });
+
+        } else {
+
+            // DROP:
+            // dropBusId + dropRouteId
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        req.user.schoolId,
+
+                    dropBusId:
+                        bus._id,
+
+                    dropRouteId:
+                        routeId,
+
+                });
+
+        }
+
+
+        console.log(
+            "TRIP STUDENTS:",
+            {
+                tripType,
+                routeId,
+                busId: bus._id,
+                totalStudents:
+                    students.length,
+            }
+        );
+
+
+        // ==========================================
+        // NOTIFY PARENTS
+        // ==========================================
+
+        const notifiedParents =
+            new Set();
+
+
+        for (
+            const student of students
+        ) {
+
+            if (
+                !student.parentId
+            ) {
+                continue;
+            }
+
+
+            const parentId =
+                student.parentId.toString();
+
+
+            if (
+                notifiedParents.has(
+                    parentId
+                )
+            ) {
+                continue;
+            }
+
+
+            const parent =
+                await User.findById(
+                    parentId
+                );
+
+
+            if (
+                parent?.expoPushToken &&
+                parent
+                    ?.notificationSettings
+                    ?.tripAlerts
+            ) {
+
+                await sendNotification(
+
+                    parent.expoPushToken,
+
+                    "🚌 Trip Started",
+
+                    tripType === "PICKUP"
+
+                        ? "Your child's pickup bus has started its route."
+
+                        : "Your child's drop bus has started its route."
+
+                );
+
+
+                notifiedParents.add(
+                    parentId
+                );
+
+            }
+
+        }
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(201).json({
+
+            success: true,
+
+            trip,
+
+            totalStudents:
+                students.length,
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "START TRIP ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
 
-   const now = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Kolkata",
-  })
-);
-
-const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-const completedTrip =
-  await Trip.findOne({
-
-    routeId,
-
-    tripType,
-
-    tripDate: today,
-
-    status: "COMPLETED",
-
-  });
-
-if (completedTrip) {
-
-  const route =
-    await Route.findById(
-      routeId
-    );
-
-  if (
-    route.updatedAt <=
-    completedTrip.updatedAt
-  ) {
-
-    return res.status(400).json({
-      success: false,
-      message:
-        "This trip has already been completed today",
-    });
-
-  }
-
-}
-
-  // const now =
-  // new Date();
-
-const [hours, minutes] =
-  route.scheduledTime
-    .split(":")
-    .map(Number);
-
-const scheduledTime =
-  new Date(now);
-
-scheduledTime.setHours(
-  hours,
-  minutes,
-  0,
-  0
-);
-
-const diffMinutes =
-  (
-    scheduledTime -
-    now
-  ) /
-  1000 /
-  60;
-
-  console.log(
-  "START TRIP CHECK:",
-  {
-    route: route.routeName,
-    scheduledTime:
-      route.scheduledTime,
-    now,
-    diffMinutes,
-  }
-);
-
-if (
-  diffMinutes > 30
-) {
-
-  return res.status(400).json({
-
-    success: false,
-
-    message:
-      "Trip can only start 30 minutes before scheduled time",
-
-  });
-
-}
-
-    
-
-
-    const bus =
-      await Bus.findOne({
-        driverId:
-          req.user.id,
-
-        schoolId:
-          req.user.schoolId,
-      });
-
-    if (!bus) {
-
-      return res.status(404).json({
-        success: false,
-        message:
-          "No bus assigned",
-      });
-
-    }
-
-    const existingTrip =
-  await Trip.findOne({
-    driverId:
-      req.user.id,
-
-    status:
-      "STARTED",
-
-    routeId,
-
-    tripType,
-  });
-
-if (existingTrip) {
-
-  return res.status(200).json({
-    success: true,
-    trip:
-      existingTrip,
-  });
-
-}
-
-    const trip =
-      await Trip.create({
-        schoolId:
-          req.user.schoolId,
-
-        busId:
-          bus._id,
-
-        routeId,
-
-        driverId:
-          req.user.id,
-
-          tripType,
-
-        tripDate:
-          today,
-
-        startTime:
-          new Date(),
-
-        status:
-          "STARTED",
-      });
-
-      // Check if attendance already exists for today
-const existingAttendance =
-await Attendance.findOne({
-
-    driverId: req.user.id,
-
-    schoolId: req.user.schoolId,
-
-    tripDate: today,
-
-});
-
-// First trip of the day
-if (!existingAttendance) {
-
-    console.log("Creating Attendance...");
-
-    const attendance =
-    await Attendance.create({
-
-        driverId: req.user.id,
-
-        schoolId: req.user.schoolId,
-
-        tripDate: today,
-
-        dutyOnTime: new Date(),
-
-        status: "PRESENT",
-
-    });
-
-    console.log(
-        "Attendance Created:",
-        attendance
-    );
-
-} else {
-
-    console.log(
-        "Attendance already exists"
-    );
-
-}
-
-     const students =
-  await Student.find({
-    busId: bus._id,
-     routeId: routeId,
-  });
-
-const notifiedParents =
-  new Set();
-
-for (const student of students) {
-
-  if (!student.parentId)
-    continue;
-
-  const parentId =
-    student.parentId.toString();
-
-  if (
-    notifiedParents.has(
-      parentId
-    )
-  ) {
-    continue;
-  }
-
-  const parent =
-    await User.findById(
-      parentId
-    );
-
-  if (
-    parent?.expoPushToken &&
-    parent?.notificationSettings?.tripAlerts
-  ) {
-
-    await sendNotification(
-      parent.expoPushToken,
-      "🚌 Trip Started",
-      "Bus has started its route."
-    );
-
-    notifiedParents.add(
-      parentId
-    );
-  }
-}
-
-    res.status(201).json({
-      success: true,
-      trip,
-    });
-
-  } catch (error) {
-    console.log(
-    "START TRIP ERROR:",
-    error
-  );
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 };
 
 exports.endTrip = async (
-  req,
-  res
+    req,
+    res
 ) => {
-  try {
 
-    const trip =
-      await Trip.findById(
-        req.params.tripId
-      );
+    try {
 
-    if (!trip) {
+        // ==========================================
+        // FIND TRIP
+        // ==========================================
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Trip not found",
-      });
+        const trip =
+            await Trip.findById(
+                req.params.tripId
+            );
 
-    }
 
-    const students =
-      await Student.find({
+        if (!trip) {
 
-        busId:
-          trip.busId,
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Trip not found",
+            });
 
-        routeId:
-          trip.routeId,
+        }
 
-      });
 
-    const boardedStudents =
-      await Boarding.find({
+        // ==========================================
+        // FIND STUDENTS FOR THIS TRIP
+        // ==========================================
 
-        tripId:
-          trip._id,
+        let students;
 
-      });
 
-    const boardedIds =
-      boardedStudents.map(
-        (item) =>
-          item.studentId.toString()
-      );
+        if (
+            trip.tripType ===
+            "PICKUP"
+        ) {
 
-    const existingAttendance =
-      await StudentAttendance.findOne({
-        tripId:
-          trip._id,
-      });
+            // PICKUP:
+            // pickupBusId + pickupRouteId
 
-    if (!existingAttendance) {
+            students =
+                await Student.find({
 
-      const attendanceRecords =
-        students.map(
-          (student) => ({
+                    schoolId:
+                        trip.schoolId,
 
-            studentId:
-              student._id,
+                    pickupBusId:
+                        trip.busId,
 
-            tripId:
-              trip._id,
+                    pickupRouteId:
+                        trip.routeId,
 
-            tripType:
-              trip.tripType,
+                });
 
-             tripDate: 
-              trip.tripDate,
+        } else {
 
-            busId:
-              trip.busId,
+            // DROP:
+            // dropBusId + dropRouteId
 
-            routeId:
-              trip.routeId,
+            students =
+                await Student.find({
 
-            schoolId:
-              trip.schoolId,
+                    schoolId:
+                        trip.schoolId,
 
-            attendanceDate:
-              new Date(),
+                    dropBusId:
+                        trip.busId,
 
-            status:
-              boardedIds.includes(
-                student._id.toString()
-              )
-                ? "PRESENT"
-                : "ABSENT",
+                    dropRouteId:
+                        trip.routeId,
 
-          })
+                });
+
+        }
+
+
+        console.log(
+            "END TRIP STUDENTS:",
+            {
+                tripType:
+                    trip.tripType,
+
+                busId:
+                    trip.busId,
+
+                routeId:
+                    trip.routeId,
+
+                totalStudents:
+                    students.length,
+            }
         );
 
-      await StudentAttendance.insertMany(
-        attendanceRecords
-      );
 
-      for (const student of students) {
+        // ==========================================
+        // FIND BOARDED STUDENTS
+        // ==========================================
 
-  if (
-    !boardedIds.includes(
-      student._id.toString()
-    )
-  ) {
+        const boardedStudents =
+            await Boarding.find({
 
-    continue;
+                tripId:
+                    trip._id,
 
-  }
+            });
 
-  const parent =
-    await User.findById(
-      student.parentId
-    );
 
-  if (
+        const boardedIds =
+            boardedStudents.map(
+                (item) =>
+                    item.studentId.toString()
+            );
 
-    parent
-      ?.notificationSettings
-      ?.boardingAlerts &&
 
-    parent
-      ?.expoPushToken
+        // ==========================================
+        // CHECK ATTENDANCE ALREADY CREATED
+        // ==========================================
 
-  ) {
+        const existingAttendance =
+            await StudentAttendance.findOne({
 
-    await sendNotification(
+                tripId:
+                    trip._id,
 
-      parent.expoPushToken,
+            });
 
-      trip.tripType === "DROP"
-  ? "🔵 Student Reached Home"
-  : "🏫 Student Reached School",
 
-     trip.tripType === "DROP"
+        // ==========================================
+        // CREATE STUDENT ATTENDANCE
+        // ==========================================
 
-  ? `${student.name} has reached home safely`
+        if (
+            !existingAttendance
+        ) {
 
-  : `${student.name} has reached school safely`
+            const attendanceRecords =
+                students.map(
+                    (student) => ({
 
-    );
+                        studentId:
+                            student._id,
 
-  }
+                        tripId:
+                            trip._id,
 
-}
+                        tripType:
+                            trip.tripType,
+
+                        tripDate:
+                            trip.tripDate,
+
+                        busId:
+                            trip.busId,
+
+                        routeId:
+                            trip.routeId,
+
+                        schoolId:
+                            trip.schoolId,
+
+                        attendanceDate:
+                            new Date(),
+
+                        status:
+                            boardedIds.includes(
+                                student._id.toString()
+                            )
+                                ? "PRESENT"
+                                : "ABSENT",
+
+                    })
+                );
+
+
+            // Only insert if there are students
+
+            if (
+                attendanceRecords.length > 0
+            ) {
+
+                await StudentAttendance.insertMany(
+                    attendanceRecords
+                );
+
+            }
+
+
+            // ==========================================
+            // SEND STUDENT REACHED NOTIFICATIONS
+            // ==========================================
+
+            for (
+                const student of students
+            ) {
+
+                // Student did not board
+                // so don't send reached notification
+
+                if (
+                    !boardedIds.includes(
+                        student._id.toString()
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                // Student has no parent
+
+                if (
+                    !student.parentId
+                ) {
+
+                    continue;
+
+                }
+
+
+                const parent =
+                    await User.findById(
+                        student.parentId
+                    );
+
+
+                if (
+                    parent
+                        ?.notificationSettings
+                        ?.boardingAlerts &&
+                    parent
+                        ?.expoPushToken
+                ) {
+
+                    await sendNotification(
+
+                        parent.expoPushToken,
+
+                        trip.tripType ===
+                        "DROP"
+
+                            ? "🔵 Student Reached Home"
+
+                            : "🏫 Student Reached School",
+
+
+                        trip.tripType ===
+                        "DROP"
+
+                            ? `${student.name} has reached home safely`
+
+                            : `${student.name} has reached school safely`
+
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        // ==========================================
+        // COMPLETE TRIP
+        // ==========================================
+
+        trip.endTime =
+            new Date();
+
+
+        trip.status =
+            "COMPLETED";
+
+
+        await trip.save();
+
+
+        // ==========================================
+        // DRIVER DUTY OFF
+        // ==========================================
+
+        await updateDriverDutyOff(
+
+            req.user.id,
+
+            req.user.schoolId,
+
+            trip.tripDate
+
+        );
+
+
+        // ==========================================
+        // RESET BOARDED STATUS
+        // ONLY FOR STUDENTS OF THIS TRIP
+        // ==========================================
+
+        const studentIds =
+            students.map(
+                (student) =>
+                    student._id
+            );
+
+
+        if (
+            studentIds.length > 0
+        ) {
+
+            await Student.updateMany(
+
+                {
+                    _id: {
+                        $in:
+                            studentIds,
+                    },
+                },
+
+                {
+                    $set: {
+                        boardedToday:
+                            false,
+                    },
+                }
+
+            );
+
+        }
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+                "Trip Completed",
+
+            totalStudents:
+                students.length,
+
+            present:
+                boardedIds.length,
+
+            absent:
+                Math.max(
+                    students.length -
+                    boardedIds.length,
+                    0
+                ),
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "END TRIP ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
 
-    trip.endTime =
-      new Date();
-
-    trip.status =
-      "COMPLETED";
-
-    await trip.save();
-
-    await updateDriverDutyOff(
-  req.user.id,
-  req.user.schoolId,
-  trip.tripDate
-);
-
-    await Student.updateMany(
-  {
-    busId:
-      trip.busId,
-  },
-  {
-    boardedToday:
-      false,
-  }
-);
-
-    res.status(200).json({
-
-      success: true,
-
-      message:
-        "Trip Completed",
-
-      totalStudents:
-        students.length,
-
-      present:
-        boardedIds.length,
-
-      absent:
-        students.length -
-        boardedIds.length,
-
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 };
 
 
 exports.getTripStudents = async (
-  req,
-  res
+    req,
+    res
 ) => {
 
-  try {
+    try {
 
-    console.log(
-      "Received Trip ID:",
-      req.params.tripId
-    );
+        console.log(
+            "Received Trip ID:",
+            req.params.tripId
+        );
 
-    const tripId =
-      req.params.tripId;
 
-    const activeTrip =
-      await Trip.findById(
-        tripId
-      );
+        const tripId =
+            req.params.tripId;
 
-    if (!activeTrip) {
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "No active trip found",
-      });
+        // ==========================================
+        // FIND ACTIVE TRIP
+        // ==========================================
 
-    }
+        const activeTrip =
+            await Trip.findById(
+                tripId
+            );
 
-    console.log(
-      "Trip Found:",
-      activeTrip
-    );
 
-    console.log(
-      "Trip Bus ID:",
-      activeTrip.busId
-    );
+        if (!activeTrip) {
 
-    const route =
-      await Route.findById(
-        activeTrip.routeId
-      );
-
-    if (!route) {
-
-      return res.status(404).json({
-        success: false,
-        message:
-          "Route not found",
-      });
-
-    }
-
-    const students =
-      await Student.find({
-
-        busId:
-          activeTrip.busId,
-
-        routeId:
-          activeTrip.routeId,
-
-      });
-
-    console.log(
-      "Students Found:",
-      students.length
-    );
-
-    const groupedStudents =
-      [];
-
-    route.stops.forEach(
-      (stop) => {
-
-        const stopStudents =
-          students.filter(
-            (student) =>
-              student.pickupStop ===
-              stop.stopName
-          );
-
-        if (
-          stopStudents.length > 0
-        ) {
-
-          groupedStudents.push({
-
-            stopName:
-              stop.stopName,
-
-            students:
-              stopStudents,
-
-          });
+            return res.status(404).json({
+                success: false,
+                message:
+                    "No active trip found",
+            });
 
         }
 
-      }
-    );
 
-    res.status(200).json({
+        console.log(
+            "Trip Found:",
+            activeTrip
+        );
 
-      success: true,
 
-      groupedStudents,
+        console.log(
+            "Trip Type:",
+            activeTrip.tripType
+        );
 
-    });
 
-  } catch (error) {
+        console.log(
+            "Trip Bus ID:",
+            activeTrip.busId
+        );
 
-    console.log(
-      error
-    );
 
-    res.status(500).json({
+        console.log(
+            "Trip Route ID:",
+            activeTrip.routeId
+        );
 
-      success: false,
 
-      message:
-        error.message,
+        // ==========================================
+        // FIND ROUTE
+        // ==========================================
 
-    });
+        const route =
+            await Route.findById(
+                activeTrip.routeId
+            );
 
-  }
+
+        if (!route) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Route not found",
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND STUDENTS
+        // ==========================================
+
+        let students;
+
+
+        if (
+            activeTrip.tripType ===
+            "PICKUP"
+        ) {
+
+            // --------------------------------------
+            // PICKUP STUDENTS
+            // --------------------------------------
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        activeTrip.schoolId,
+
+                    pickupBusId:
+                        activeTrip.busId,
+
+                    pickupRouteId:
+                        activeTrip.routeId,
+
+                });
+
+
+        } else if (
+            activeTrip.tripType ===
+            "DROP"
+        ) {
+
+            // --------------------------------------
+            // DROP STUDENTS
+            // --------------------------------------
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        activeTrip.schoolId,
+
+                    dropBusId:
+                        activeTrip.busId,
+
+                    dropRouteId:
+                        activeTrip.routeId,
+
+                });
+
+
+        } else {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid trip type",
+
+            });
+
+        }
+
+
+        console.log(
+            "Students Found:",
+            students.length
+        );
+
+
+        // ==========================================
+        // GROUP STUDENTS BY STOP
+        // ==========================================
+
+        const groupedStudents =
+            [];
+
+
+        route.stops.forEach(
+            (stop) => {
+
+
+                const stopStudents =
+                    students.filter(
+                        (student) => {
+
+                            const studentStop =
+                                activeTrip.tripType ===
+                                "PICKUP"
+
+                                    ? student.pickupStop
+
+                                    : student.dropStop;
+
+
+                            return (
+                                studentStop ===
+                                stop.stopName
+                            );
+
+                        }
+                    );
+
+
+                if (
+                    stopStudents.length > 0
+                ) {
+
+                    groupedStudents.push({
+
+                        stopName:
+                            stop.stopName,
+
+                        students:
+                            stopStudents,
+
+                    });
+
+                }
+
+            }
+        );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            tripType:
+                activeTrip.tripType,
+
+            groupedStudents,
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "GET TRIP STUDENTS ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
+
+    }
 
 };
 
@@ -933,212 +1482,473 @@ exports.unboardStudent = async (
 
 
 exports.tripSummary = async (
-  req,
-  res
+    req,
+    res
 ) => {
-  try {
 
-    const tripId =
-      req.params.tripId;
+    try {
 
-    const trip =
-      await Trip.findById(
-        tripId
-      )
-      .populate("driverId")
-      .populate("busId");
+        const tripId =
+            req.params.tripId;
 
-    const bus =
-    await Bus.findById(
-      trip.busId._id
-    );
 
-    const route =
-      await Route.findById(
-        trip.routeId
-      );
+        // ==========================================
+        // FIND TRIP
+        // ==========================================
 
-    const students =
-    await Student.find({
-      busId: trip.busId,
-      routeId: trip.routeId,
-    });
-
-    const boardedRecords =
-      await Boarding.find({
-        tripId,
-      }).populate(
-        "studentId"
-      );
-
-    const boardedStudents =
-      boardedRecords.map(
-        (record) => ({
-          _id:
-            record.studentId._id,
-          name:
-            record.studentId.name,
-        })
-      );
-
-    const boardedIds =
-      boardedStudents.map(
-        (student) =>
-          student._id.toString()
-      );
-
-    const absentStudents =
-      students
-        .filter(
-          (student) =>
-            !boardedIds.includes(
-              student._id.toString()
+        const trip =
+            await Trip.findById(
+                tripId
             )
-        )
-        .map(
-          (student) => ({
-            _id:
-              student._id,
-            name:
-              student.name,
-          })
+            .populate("driverId")
+            .populate("busId");
+
+
+        if (!trip) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Trip not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND BUS
+        // ==========================================
+
+        const bus =
+            await Bus.findById(
+                trip.busId._id
+            );
+
+
+        if (!bus) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Bus not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND ROUTE
+        // ==========================================
+
+        const route =
+            await Route.findById(
+                trip.routeId
+            );
+
+
+        if (!route) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Route not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND STUDENTS FOR THIS TRIP
+        // ==========================================
+
+        let students;
+
+
+        if (
+            trip.tripType ===
+            "PICKUP"
+        ) {
+
+            // --------------------------------------
+            // PICKUP STUDENTS
+            // --------------------------------------
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        trip.schoolId,
+
+                    pickupBusId:
+                        trip.busId._id,
+
+                    pickupRouteId:
+                        trip.routeId,
+
+                });
+
+
+        } else if (
+            trip.tripType ===
+            "DROP"
+        ) {
+
+            // --------------------------------------
+            // DROP STUDENTS
+            // --------------------------------------
+
+            students =
+                await Student.find({
+
+                    schoolId:
+                        trip.schoolId,
+
+                    dropBusId:
+                        trip.busId._id,
+
+                    dropRouteId:
+                        trip.routeId,
+
+                });
+
+
+        } else {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid trip type",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND BOARDED STUDENTS
+        // ==========================================
+
+        const boardedRecords =
+            await Boarding.find({
+
+                tripId,
+
+            }).populate(
+                "studentId"
+            );
+
+
+        const boardedStudents =
+            boardedRecords
+                .filter(
+                    (record) =>
+                        record.studentId
+                )
+                .map(
+                    (record) => ({
+
+                        _id:
+                            record.studentId._id,
+
+                        name:
+                            record.studentId.name,
+
+                    })
+                );
+
+
+        // ==========================================
+        // BOARDed STUDENT IDS
+        // ==========================================
+
+        const boardedIds =
+            boardedStudents.map(
+                (student) =>
+                    student._id.toString()
+            );
+
+
+        // ==========================================
+        // ABSENT STUDENTS
+        // ==========================================
+
+        const absentStudents =
+            students
+                .filter(
+                    (student) =>
+                        !boardedIds.includes(
+                            student._id.toString()
+                        )
+                )
+                .map(
+                    (student) => ({
+
+                        _id:
+                            student._id,
+
+                        name:
+                            student.name,
+
+                    })
+                );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            tripType:
+                trip.tripType,
+
+            driverName:
+                trip.driverId?.name,
+
+            busNumber:
+                bus.busNumber,
+
+            routeName:
+                route?.routeName,
+
+            totalStudents:
+                students.length,
+
+            totalBoarded:
+                boardedStudents.length,
+
+            absent:
+                absentStudents.length,
+
+            boardedStudents,
+
+            absentStudents,
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "TRIP SUMMARY ERROR:",
+            error
         );
 
-    res.status(200).json({
-      success: true,
 
-      driverName:
-        trip.driverId.name,
+        return res.status(500).json({
 
-      busNumber:
-        bus.busNumber,
+            success: false,
 
-      routeName:
-      route?.routeName,
+            message:
+                error.message,
 
-      totalStudents:
-        students.length,
+        });
 
-      totalBoarded:
-        boardedStudents.length,
+    }
 
-      absent:
-        absentStudents.length,
-
-      boardedStudents,
-
-      absentStudents,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 };
 
 exports.tripHistory = async (
-  req,
-  res
+    req,
+    res
 ) => {
-  try {
 
-    const trips =
-      await Trip.find({
-        driverId:
-          req.user.id,
-      })
-      .populate(
-        "routeId",
-        "routeName"
-      )
-      .populate(
-        "busId",
-        "busNumber"
-      )
-      .sort({
-        createdAt: -1,
-      });
+    try {
 
-    const history =
-      await Promise.all(
+        // ==========================================
+        // GET DRIVER TRIPS
+        // ==========================================
 
-        trips.map(
-          async (trip) => {
+        const trips =
+            await Trip.find({
 
-            const boarded =
-              await Boarding.countDocuments({
-                tripId:
-                  trip._id,
-              });
+                driverId:
+                    req.user.id,
 
-            const totalStudents =
-              await Student.countDocuments({
+            })
 
-                busId:
-                  trip.busId._id,
+            .populate(
+                "routeId",
+                "routeName"
+            )
 
-                routeId:
-                  trip.routeId._id,
+            .populate(
+                "busId",
+                "busNumber"
+            )
 
-              });
+            .sort({
+                createdAt: -1,
+            });
 
-            return {
 
-              _id:
-                trip._id,
+        // ==========================================
+        // BUILD HISTORY
+        // ==========================================
 
-              tripType:
-                trip.tripType,
+        const history =
+            await Promise.all(
 
-              routeName:
-                trip.routeId
-                  ?.routeName,
+                trips.map(
+                    async (trip) => {
 
-              busNumber:
-                trip.busId
-                  ?.busNumber,
 
-              date:
-                trip.createdAt,
+                        // ==================================
+                        // BOARDED STUDENTS
+                        // ==================================
 
-              boarded,
+                        const boarded =
+                            await Boarding.countDocuments({
 
-              absent:
-                Math.max(
-                  0,
-                  totalStudents -
-                  boarded
-                ),
+                                tripId:
+                                    trip._id,
 
-              status:
-                trip.status,
+                            });
 
-            };
 
-          }
-        )
+                        // ==================================
+                        // TOTAL STUDENTS FOR THIS TRIP
+                        // ==================================
 
-      );
+                        let totalStudents;
 
-    res.status(200).json({
-      success: true,
-      history,
-    });
 
-  } catch (error) {
+                        if (
+                            trip.tripType ===
+                            "PICKUP"
+                        ) {
 
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
+                            totalStudents =
+                                await Student.countDocuments({
 
-  }
+                                    schoolId:
+                                        trip.schoolId,
+
+                                    pickupBusId:
+                                        trip.busId._id,
+
+                                    pickupRouteId:
+                                        trip.routeId._id,
+
+                                });
+
+                        } else if (
+                            trip.tripType ===
+                            "DROP"
+                        ) {
+
+                            totalStudents =
+                                await Student.countDocuments({
+
+                                    schoolId:
+                                        trip.schoolId,
+
+                                    dropBusId:
+                                        trip.busId._id,
+
+                                    dropRouteId:
+                                        trip.routeId._id,
+
+                                });
+
+                        } else {
+
+                            totalStudents =
+                                0;
+
+                        }
+
+
+                        // ==================================
+                        // RETURN HISTORY ITEM
+                        // ==================================
+
+                        return {
+
+                            _id:
+                                trip._id,
+
+                            tripType:
+                                trip.tripType,
+
+                            routeName:
+                                trip.routeId
+                                    ?.routeName,
+
+                            busNumber:
+                                trip.busId
+                                    ?.busNumber,
+
+                            date:
+                                trip.createdAt,
+
+                            boarded,
+
+                            absent:
+                                Math.max(
+                                    0,
+                                    totalStudents -
+                                    boarded
+                                ),
+
+                            totalStudents,
+
+                            status:
+                                trip.status,
+
+                        };
+
+                    }
+                )
+
+            );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            history,
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "TRIP HISTORY ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
+
+    }
+
 };
 
 exports.dutyOn = async (req, res) => {
@@ -1782,194 +2592,482 @@ exports.getBoardedStudents =
   };
 
  
-exports.getMyBusLocation =
-async (req, res) => {
+exports.getMyBusLocation = async (
+    req,
+    res
+) => {
+
+    console.log(
+        "GET MY BUS LOCATION HIT"
+    );
+
+    try {
+
+        // ==========================================
+        // GET TRIP TYPE
+        // ==========================================
+
+        const tripType =
+            req.query.tripType || "PICKUP";
 
 
-   console.log(
-    "GET MY BUS LOCATION HIT"
-  );
+        if (
+            !["PICKUP", "DROP"].includes(
+                tripType
+            )
+        ) {
 
-  try {
+            return res.status(400).json({
 
-    const student =
-      await Student.findOne({
-        parentId:
-          req.user.id,
-      });
+                success: false,
 
-    if (!student) {
+                message:
+                    "Invalid trip type. Use PICKUP or DROP",
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Student not found",
-      });
+            });
 
-    }
+        }
 
-    const location =
-      await BusLocation.findOne({
-        busId:
-          student.busId,
-      });
 
-      const route =
-        await Route.findById(
-          student.routeId
+        // ==========================================
+        // FIND STUDENT
+        // ==========================================
+
+        const student =
+            await Student.findOne({
+
+                parentId:
+                    req.user.id,
+
+            });
+
+
+        if (!student) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Student not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // SELECT TRANSPORT BASED ON TRIP TYPE
+        // ==========================================
+
+        let busId;
+        let routeId;
+        let stopName;
+
+
+        if (
+            tripType ===
+            "PICKUP"
+        ) {
+
+            busId =
+                student.pickupBusId;
+
+            routeId =
+                student.pickupRouteId;
+
+            stopName =
+                student.pickupStop;
+
+        } else {
+
+            busId =
+                student.dropBusId;
+
+            routeId =
+                student.dropRouteId;
+
+            stopName =
+                student.dropStop;
+
+        }
+
+
+        // ==========================================
+        // CHECK TRANSPORT ASSIGNMENT
+        // ==========================================
+
+        if (
+            !busId ||
+            !routeId
+        ) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    `No ${tripType.toLowerCase()} transport assigned to this student`,
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND BUS LOCATION
+        // ==========================================
+
+        const location =
+            await BusLocation.findOne({
+
+                busId,
+
+            });
+
+
+        // ==========================================
+        // FIND ROUTE
+        // ==========================================
+
+        const route =
+            await Route.findById(
+                routeId
+            );
+
+
+        let studentStop =
+            null;
+
+
+        if (route) {
+
+            studentStop =
+                route.stops.find(
+                    (stop) =>
+                        stop.stopName ===
+                        stopName
+                );
+
+        }
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            tripType,
+
+            busId,
+
+            routeId,
+
+            location,
+
+            studentStop,
+
+            stops:
+                route?.stops || [],
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "GET MY BUS LOCATION ERROR:",
+            error
         );
 
-      let pickupStop = null;
 
-      if (route) {
+        return res.status(500).json({
 
-        pickupStop =
-          route.stops.find(
-            (stop) =>
-              stop.stopName ===
-              student.pickupStop
-          );
+            success: false,
 
-      }
+            message:
+                error.message,
 
-    res.status(200).json({
+        });
 
-      success: true,
-
-      busId:
-        student.busId,
-
-      routeId:
-        student.routeId,
-
-      location,
-      pickupStop,
-      stops:
-      route?.stops || [],
-
-
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message,
-
-    });
-
-  }
+    }
 
 };
 
 
-exports.getProfile =
-async (req, res) => {
+exports.getProfile = async (
+    req,
+    res
+) => {
 
-  console.log(
-    "PROFILE API HIT"
-  );
+    console.log(
+        "PROFILE API HIT"
+    );
 
-  try {
+    try {
 
-    const parent =
-      await User.findById(
-        req.user.id
-      );
+        // ==========================================
+        // FIND PARENT
+        // ==========================================
 
-    const students =
-      await Student.find({
-        parentId:
-          req.user.id,
-      })
-      .populate(
-        "busId"
-      )
-      .populate(
-        "routeId"
-      );
+        const parent =
+            await User.findById(
+                req.user.id
+            );
 
-    if (
-      !students.length
-    ) {
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "No students found",
-      });
+        if (!parent) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Parent not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND STUDENTS
+        // ==========================================
+
+        const students =
+            await Student.find({
+
+                parentId:
+                    req.user.id,
+
+            })
+
+            // Pickup
+            .populate(
+                "pickupBusId"
+            )
+
+            .populate(
+                "pickupRouteId"
+            )
+
+            // Drop
+            .populate(
+                "dropBusId"
+            )
+
+            .populate(
+                "dropRouteId"
+            );
+
+
+        if (
+            !students.length
+        ) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "No students found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIRST STUDENT
+        // ==========================================
+
+        const firstStudent =
+            students[0];
+
+
+        // ==========================================
+        // PICKUP BUS + DRIVER
+        // ==========================================
+
+        let pickupBus =
+            null;
+
+
+        if (
+            firstStudent.pickupBusId
+        ) {
+
+            pickupBus =
+                await Bus.findById(
+                    firstStudent.pickupBusId._id
+                ).populate(
+                    "driverId",
+                    "name phone"
+                );
+
+        }
+
+
+        // ==========================================
+        // DROP BUS + DRIVER
+        // ==========================================
+
+        let dropBus =
+            null;
+
+
+        if (
+            firstStudent.dropBusId
+        ) {
+
+            dropBus =
+                await Bus.findById(
+                    firstStudent.dropBusId._id
+                ).populate(
+                    "driverId",
+                    "name phone"
+                );
+
+        }
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+
+            // ======================================
+            // PARENT
+            // ======================================
+
+            parent: {
+
+                name:
+                    parent.name,
+
+                phone:
+                    parent.phone,
+
+                profileImage:
+                    parent.profileImage,
+
+            },
+
+
+            // ======================================
+            // STUDENTS
+            // ======================================
+
+            students,
+
+
+            // ======================================
+            // TRANSPORT
+            // ======================================
+
+            transport: {
+
+                // ----------------------------------
+                // PICKUP
+                // ----------------------------------
+
+                pickup: {
+
+                    busNumber:
+                        pickupBus
+                            ?.busNumber,
+
+                    vehicleNumber:
+                        pickupBus
+                            ?.vehicleNumber,
+
+                    routeName:
+                        firstStudent
+                            .pickupRouteId
+                            ?.routeName,
+
+                    pickupStop:
+                        firstStudent
+                            .pickupStop,
+
+                    driverName:
+                        pickupBus
+                            ?.driverId
+                            ?.name,
+
+                    driverPhone:
+                        pickupBus
+                            ?.driverId
+                            ?.phone,
+
+                },
+
+
+                // ----------------------------------
+                // DROP
+                // ----------------------------------
+
+                drop: {
+
+                    busNumber:
+                        dropBus
+                            ?.busNumber,
+
+                    vehicleNumber:
+                        dropBus
+                            ?.vehicleNumber,
+
+                    routeName:
+                        firstStudent
+                            .dropRouteId
+                            ?.routeName,
+
+                    dropStop:
+                        firstStudent
+                            .dropStop,
+
+                    driverName:
+                        dropBus
+                            ?.driverId
+                            ?.name,
+
+                    driverPhone:
+                        dropBus
+                            ?.driverId
+                            ?.phone,
+
+                },
+
+            },
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "PROFILE API ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-
-    const firstStudent =
-      students[0];
-
-    const bus =
-      await Bus.findById(
-        firstStudent.busId._id
-      ).populate(
-        "driverId",
-        "name phone"
-      );
-
-    res.status(200).json({
-
-      success: true,
-
-      parent: {
-        name:
-          parent.name,
-
-        phone:
-          parent.phone,
-
-        profileImage:
-          parent.profileImage,
-      },
-
-      students,
-
-      transport: {
-
-        busNumber:
-          bus.busNumber,
-
-        vehicleNumber:
-          bus.vehicleNumber,
-
-        routeName:
-          firstStudent.routeId
-            ?.routeName,
-
-        pickupStop:
-          firstStudent
-            .pickupStop,
-
-        driverName:
-          bus.driverId?.name,
-
-        driverPhone:
-          bus.driverId?.phone,
-
-      },
-
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message,
-
-    });
-
-  }
 
 };
 
@@ -2023,210 +3121,295 @@ async (req, res) => {
 };
 
 
-exports.getHistory =
-async (req, res) => {
+exports.getHistory = async (
+    req,
+    res
+) => {
 
-  try {
+    try {
 
-    const {
-      date,
-    } = req.query;
-
-    const students =
-      await Student.find({
-        parentId:
-          req.user.id,
-      });
-
-    const studentIds =
-      students.map(
-        (student) =>
-          student._id
-      );
-
-    let query = {
-
-      studentId: {
-        $in:
-          studentIds,
-      },
-
-    };
-
-    if (date) {
-
-      const [year, month, day] =
-  date.split("-");
-
-const start =
-  new Date(
-    year,
-    month - 1,
-    day
-  );
-
-const end =
-  new Date(
-    year,
-    month - 1,
-    Number(day) + 1
-  );
+        const {
+            date,
+        } = req.query;
 
 
-  console.log(
-  "FILTER DATE:",
-  date
-);
+        // ==========================================
+        // FIND PARENT'S STUDENTS
+        // ==========================================
 
-console.log(
-  "START:",
-  start
-);
+        const students =
+            await Student.find({
 
-console.log(
-  "END:",
-  end
-);
+                parentId:
+                    req.user.id,
 
-      query.attendanceDate = {
+            });
 
-        $gte: start,
 
-        $lt: end,
+        const studentIds =
+            students.map(
+                (student) =>
+                    student._id
+            );
 
-      };
 
-    } else {
+        // ==========================================
+        // BUILD QUERY
+        // ==========================================
 
-}
+        let query = {
 
-    const attendance =
-      await StudentAttendance.find(
-        query
-      )
+            studentId: {
+                $in:
+                    studentIds,
+            },
 
-      .populate(
-        "studentId",
-        "name pickupStop"
-      )
+        };
 
-      .sort({
-        attendanceDate: -1,
-      });
 
-    const grouped = {};
+        // ==========================================
+        // DATE FILTER
+        // ==========================================
 
-    attendance.forEach(
-      (record) => {
+        if (date) {
 
-        const attendanceDate =
-  new Date(
-    record.attendanceDate
-  );
+            const [
+                year,
+                month,
+                day
+            ] =
+                date.split("-");
 
-const dateKey =
-`${attendanceDate.getFullYear()}-${
-  String(
-    attendanceDate.getMonth() + 1
-  ).padStart(2, "0")
-}-${
-  String(
-    attendanceDate.getDate()
-  ).padStart(2, "0")
-}`;
 
-        const groupKey =
-          `${dateKey}-${record.tripType}`;
+            const start =
+                new Date(
+                    year,
+                    month - 1,
+                    day
+                );
 
-        if (
-          !grouped[groupKey]
-        ) {
 
-          grouped[groupKey] = {
+            const end =
+                new Date(
+                    year,
+                    month - 1,
+                    Number(day) + 1
+                );
 
-            date:
-              dateKey,
 
-            tripType:
-              record.tripType,
+            console.log(
+                "FILTER DATE:",
+                date
+            );
 
-            students: [],
 
-          };
+            console.log(
+                "START:",
+                start
+            );
+
+
+            console.log(
+                "END:",
+                end
+            );
+
+
+            query.attendanceDate = {
+
+                $gte:
+                    start,
+
+                $lt:
+                    end,
+
+            };
 
         }
 
-        grouped[groupKey]
-          .students
-          .push({
 
-            name:
-              record.studentId.name,
+        // ==========================================
+        // GET ATTENDANCE
+        // ==========================================
 
-            pickupStop:
-              record.studentId.pickupStop,
+        const attendance =
+            await StudentAttendance.find(
+                query
+            )
 
-            status:
-              record.status,
+            .populate(
+                "studentId",
+                "name pickupStop dropStop"
+            )
 
-          });
+            .sort({
+                attendanceDate:
+                    -1,
+            });
 
-      }
-    );
 
-    const history =
+        // ==========================================
+        // GROUP ATTENDANCE
+        // BY DATE + TRIP TYPE
+        // ==========================================
 
-  Object.values(
-    grouped
-  )
+        const grouped = {};
 
-  .sort(
-    (a, b) => {
 
-      return (
+        attendance.forEach(
+            (record) => {
 
-        new Date(
-          b.date
-        ) -
+                if (
+                    !record.studentId
+                ) {
 
-        new Date(
-          a.date
-        )
+                    return;
 
-      );
+                }
+
+
+                const attendanceDate =
+                    new Date(
+                        record.attendanceDate
+                    );
+
+
+                const dateKey =
+                    `${attendanceDate.getFullYear()}-${String(
+                        attendanceDate.getMonth() + 1
+                    ).padStart(2, "0")}-${String(
+                        attendanceDate.getDate()
+                    ).padStart(2, "0")}`;
+
+
+                const groupKey =
+                    `${dateKey}-${record.tripType}`;
+
+
+                if (
+                    !grouped[groupKey]
+                ) {
+
+                    grouped[groupKey] = {
+
+                        date:
+                            dateKey,
+
+                        tripType:
+                            record.tripType,
+
+                        students:
+                            [],
+
+                    };
+
+                }
+
+
+                // ==================================
+                // SELECT CORRECT STOP
+                // ==================================
+
+                const stop =
+                    record.tripType ===
+                    "PICKUP"
+
+                        ? record
+                            .studentId
+                            .pickupStop
+
+                        : record
+                            .studentId
+                            .dropStop;
+
+
+                grouped[groupKey]
+                    .students
+                    .push({
+
+                        name:
+                            record
+                                .studentId
+                                .name,
+
+                        stop,
+
+                        status:
+                            record.status,
+
+                    });
+
+            }
+        );
+
+
+        // ==========================================
+        // SORT HISTORY
+        // ==========================================
+
+        const history =
+            Object.values(
+                grouped
+            )
+
+            .sort(
+                (a, b) => {
+
+                    return (
+
+                        new Date(
+                            b.date
+                        ) -
+
+                        new Date(
+                            a.date
+                        )
+
+                    );
+
+                }
+            );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            history:
+                date
+
+                    ? history
+
+                    : history.slice(
+                        0,
+                        4
+                    ),
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "GET HISTORY ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-  );
-
-res.status(200).json({
-
-  success: true,
-
-  history:
-
-    date
-
-      ? history
-
-      : history.slice(
-          0,
-          4
-        ),
-
-});
-
-  } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message,
-
-    });
-
-  }
 
 };
 

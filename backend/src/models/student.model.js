@@ -28,21 +28,43 @@ const studentSchema = new mongoose.Schema({
         ref: "User"
     },
 
-    busId: {
+  // ==========================================
+// PICKUP TRANSPORT
+// ==========================================
+
+pickupBusId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Bus"
+    ref: "Bus",
 },
 
-    routeId: {
-    type:
-      mongoose.Schema.Types.ObjectId,
+pickupRouteId: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: "Route",
 },
 
-    pickupStop: {
+pickupStop: {
     type: String,
-    required: true,
 },
+
+
+// ==========================================
+// DROP TRANSPORT
+// ==========================================
+
+dropBusId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Bus",
+},
+
+dropRouteId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Route",
+},
+
+dropStop: {
+    type: String,
+},
+
 boardedToday: {
   type: Boolean,
   default: false,
