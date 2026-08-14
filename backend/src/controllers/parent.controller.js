@@ -344,193 +344,428 @@ exports.deleteParent = async (req, res) => {
 };
 
 
-exports.getParentDashboard =
-async (req, res) => {
+exports.getParentDashboard = async (req, res) => {
 
-  console.log(
-    "Parent Dashboard File Hit"
-  );
+    console.log(
+        "Parent Dashboard File Hit"
+    );
 
-  try {
+    try {
 
-    const parent =
-      await User.findById(
-        req.user.id
-      );
-
-    const students =
-      await Student.find({
-        parentId: parent._id,
-      })
-      .populate(
-        "busId",
-        "busNumber driverId"
-      )
-      .populate(
-        "routeId",
-        "routeName"
-      );
-
-    if (
-      !students.length
-    ) {
-
-      return res.status(404).json({
-        success: false,
-        message:
-          "No student found",
-      });
-
-    }
-
-    const firstStudent =
-      students[0];
-
-    const bus =
-      await Bus.findById(
-        firstStudent.busId._id
-      ).populate(
-        "driverId",
-        "name phone",
-      );
-
-    const activeTrip =
-      await Trip.findOne({
-        busId:
-          firstStudent.busId._id,
-
-        status:
-          "STARTED",
-      });
-
-    const liveLocation =
-      await BusLocation.findOne({
-        busId:
-          firstStudent.busId._id,
-      });
-
-    const route =
-      await Route.findById(
-        firstStudent.routeId._id
-      );
-
-    let approachingStop =
-      null;
-
-    if (
-      activeTrip &&
-      route &&
-      route.stops?.length &&
-      liveLocation
-    ) {
-
-      let nearestDistance =
-        Number.MAX_VALUE;
-
-      route.stops.forEach(
-        (stop) => {
-
-          const distance =
-            Math.sqrt(
-              Math.pow(
-                stop.latitude -
-                liveLocation.latitude,
-                2
-              ) +
-              Math.pow(
-                stop.longitude -
-                liveLocation.longitude,
-                2
-              )
+        const parent =
+            await User.findById(
+                req.user.id
             );
 
-          if (
-            distance <
-            nearestDistance
-          ) {
+        if (!parent) {
 
-            nearestDistance =
-              distance;
-
-            approachingStop =
-              stop.stopName;
-
-          }
+            return res.status(404).json({
+                success: false,
+                message: "Parent not found",
+            });
 
         }
-      );
+
+
+        // ==========================================
+        // FIND STUDENTS
+        // ==========================================
+
+        const students =
+            await Student.find({
+                parentId: parent._id,
+            })
+            .populate(
+                "pickupBusId"
+            )
+            .populate(
+                "pickupRouteId"
+            )
+            .populate(
+                "dropBusId"
+            )
+            .populate(
+                "dropRouteId"
+            );
+
+
+        if (!students.length) {
+
+            return res.status(404).json({
+                success: false,
+                message: "No student found",
+            });
+
+        }
+
+
+        const firstStudent =
+            students[0];
+
+
+        // ==========================================
+        // FIND ACTIVE TRIP
+        // ==========================================
+
+        const activeTrip =
+            await Trip.findOne({
+
+                schoolId:
+                    req.user.schoolId,
+
+                status:
+                    "STARTED",
+
+                $or: [
+
+                    // PICKUP
+                    {
+                        busId:
+                            firstStudent
+                                .pickupBusId
+                                ?._id,
+
+                        tripType:
+                            "PICKUP",
+
+                        routeId:
+                            firstStudent
+                                .pickupRouteId
+                                ?._id,
+                    },
+
+                    // DROP
+                    {
+                        busId:
+                            firstStudent
+                                .dropBusId
+                                ?._id,
+
+                        tripType:
+                            "DROP",
+
+                        routeId:
+                            firstStudent
+                                .dropRouteId
+                                ?._id,
+                    },
+
+                ],
+
+            })
+            .sort({
+                startTime: -1,
+            });
+
+
+        console.log(
+            "ACTIVE TRIP:",
+            activeTrip
+        );
+
+
+        // ==========================================
+        // DETERMINE CURRENT TRANSPORT
+        // ==========================================
+
+        let bus = null;
+
+        let route = null;
+
+        let currentStop = null;
+
+
+        if (activeTrip) {
+
+            // --------------------------------------
+            // ACTIVE TRIP BUS
+            // --------------------------------------
+
+            bus =
+                await Bus.findById(
+                    activeTrip.busId
+                )
+                .populate(
+                    "driverId",
+                    "name phone"
+                );
+
+
+            // --------------------------------------
+            // ACTIVE TRIP ROUTE
+            // --------------------------------------
+
+            route =
+                await Route.findById(
+                    activeTrip.routeId
+                );
+
+
+            // --------------------------------------
+            // ACTIVE STUDENT STOP
+            // --------------------------------------
+
+            if (
+                activeTrip.tripType ===
+                "PICKUP"
+            ) {
+
+                currentStop =
+                    firstStudent.pickupStop;
+
+            } else if (
+                activeTrip.tripType ===
+                "DROP"
+            ) {
+
+                currentStop =
+                    firstStudent.dropStop;
+
+            }
+
+        } else {
+
+            // ======================================
+            // NO ACTIVE TRIP
+            //
+            // Use PICKUP as default
+            // ======================================
+
+            if (
+                firstStudent.pickupBusId
+            ) {
+
+                bus =
+                    await Bus.findById(
+                        firstStudent
+                            .pickupBusId
+                            ._id
+                    )
+                    .populate(
+                        "driverId",
+                        "name phone"
+                    );
+
+            }
+
+
+            if (
+                firstStudent.pickupRouteId
+            ) {
+
+                route =
+                    await Route.findById(
+                        firstStudent
+                            .pickupRouteId
+                            ._id
+                    );
+
+            }
+
+
+            currentStop =
+                firstStudent.pickupStop;
+
+        }
+
+
+        // ==========================================
+        // LIVE BUS LOCATION
+        // ==========================================
+
+        let liveLocation = null;
+
+
+        if (bus?._id) {
+
+            liveLocation =
+                await BusLocation.findOne({
+                    busId:
+                        bus._id,
+                });
+
+        }
+
+
+        // ==========================================
+        // FIND APPROACHING STOP
+        // ==========================================
+
+        let approachingStop = null;
+
+
+        if (
+            route &&
+            route.stops?.length &&
+            liveLocation
+        ) {
+
+            let nearestDistance =
+                Number.MAX_VALUE;
+
+
+            route.stops.forEach(
+                (stop) => {
+
+                    if (
+                        typeof stop.latitude !==
+                            "number" ||
+                        typeof stop.longitude !==
+                            "number"
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    const distance =
+                        Math.sqrt(
+
+                            Math.pow(
+                                stop.latitude -
+                                liveLocation.latitude,
+                                2
+                            ) +
+
+                            Math.pow(
+                                stop.longitude -
+                                liveLocation.longitude,
+                                2
+                            )
+
+                        );
+
+
+                    if (
+                        distance <
+                        nearestDistance
+                    ) {
+
+                        nearestDistance =
+                            distance;
+
+                        approachingStop =
+                            stop.stopName;
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        console.log(
+            "APPROACHING STOP:",
+            approachingStop
+        );
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            boardingStatus:
+
+                students.map(
+                    (student) => ({
+
+                        name:
+                            student.name,
+
+                        boardedToday:
+                            student.boardedToday,
+
+                    })
+                ),
+
+
+            studentName:
+                firstStudent.name,
+
+
+            // ======================================
+            // CURRENT TRANSPORT
+            // ======================================
+
+            tripType:
+                activeTrip?.tripType ||
+                "PICKUP",
+
+
+            routeName:
+                route?.routeName,
+
+
+            pickupStop:
+                firstStudent.pickupStop,
+
+
+            dropStop:
+                firstStudent.dropStop,
+
+
+            currentStop,
+
+
+            busNumber:
+                bus?.busNumber,
+
+
+            vehicleNumber:
+                bus?.vehicleNumber,
+
+
+            driverName:
+                bus?.driverId?.name,
+
+
+            driverPhone:
+                bus?.driverId?.phone,
+
+
+            totalStudents:
+                students.length,
+
+
+            students,
+
+
+            activeTrip,
+
+
+            liveLocation,
+
+
+            approachingStop,
+
+
+            boardedToday:
+                firstStudent.boardedToday,
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "PARENT DASHBOARD ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-
-    console.log(
-      "ACTIVE TRIP:",
-      activeTrip
-    );
-
-    console.log(
-      "APPROACHING STOP:",
-      approachingStop
-    );
-
-    res.status(200).json({
-
-      success: true,
-
-      boardingStatus:
-  students.map(
-    (student) => ({
-      name:
-        student.name,
-
-      boardedToday:
-        student.boardedToday,
-    })
-  ),
-
-      studentName:
-        firstStudent.name,
-
-      routeName:
-        firstStudent.routeId?.routeName,
-
-      pickupStop:
-        firstStudent.pickupStop,
-
-      busNumber:
-        bus.busNumber,
-
-      vehicleNumber:
-        bus.vehicleNumber,
-
-      driverName:
-        bus.driverId?.name,
-
-      driverPhone:
-        bus.driverId?.phone,
-
-      totalStudents:
-        students.length,
-
-      students,
-
-      activeTrip,
-
-      liveLocation,
-
-      approachingStop,
-
-       boardedToday: firstStudent.boardedToday,
-
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
-
 };
