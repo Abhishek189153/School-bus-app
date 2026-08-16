@@ -2609,10 +2609,8 @@ exports.getMyBusLocation = async (
 
         const student =
             await Student.findOne({
-
                 parentId:
                     req.user.id,
-
             });
 
 
@@ -2631,114 +2629,70 @@ exports.getMyBusLocation = async (
 
 
         // ==========================================
-        // FIND ACTIVE TRIP
+        // STUDENT TRANSPORT ASSIGNMENTS
         // ==========================================
 
-        const activeTrips =
-            await Trip.find({
-
-                status:
-                    "STARTED",
-
-                busId: {
-                    $in: [
-                        student.pickupBusId,
-                        student.dropBusId,
-                    ].filter(Boolean),
-                },
-
-            })
-            .sort({
-                createdAt: -1,
-            });
+        const transportOptions = [];
 
 
-        // ==========================================
-        // NO ACTIVE TRIP
-        // ==========================================
+        // ------------------------------------------
+        // PICKUP
+        // ------------------------------------------
 
         if (
-            !activeTrips.length
+            student.pickupBusId &&
+            student.pickupRouteId
         ) {
 
-            return res.status(200).json({
-
-                success: true,
+            transportOptions.push({
 
                 tripType:
-                    null,
+                    "PICKUP",
 
-                location:
-                    null,
+                busId:
+                    student.pickupBusId,
 
-                studentStop:
-                    null,
+                routeId:
+                    student.pickupRouteId,
 
-                stops:
-                    [],
+                stopName:
+                    student.pickupStop,
 
             });
 
         }
 
 
-        // ==========================================
-        // USE CURRENT ACTIVE TRIP
-        // ==========================================
-
-        const trip =
-            activeTrips[0];
-
-
-        const tripType =
-            trip.tripType;
-
-
-        // ==========================================
-        // SELECT STUDENT TRANSPORT
-        // BASED ON ACTIVE TRIP
-        // ==========================================
-
-        let busId;
-        let routeId;
-        let stopName;
-
+        // ------------------------------------------
+        // DROP
+        // ------------------------------------------
 
         if (
-            tripType ===
-            "PICKUP"
+            student.dropBusId &&
+            student.dropRouteId
         ) {
 
-            busId =
-                student.pickupBusId;
+            transportOptions.push({
 
-            routeId =
-                student.pickupRouteId;
+                tripType:
+                    "DROP",
 
-            stopName =
-                student.pickupStop;
+                busId:
+                    student.dropBusId,
 
-        } else {
+                routeId:
+                    student.dropRouteId,
 
-            busId =
-                student.dropBusId;
+                stopName:
+                    student.dropStop,
 
-            routeId =
-                student.dropRouteId;
-
-            stopName =
-                student.dropStop;
+            });
 
         }
 
 
-        // ==========================================
-        // SAFETY CHECK
-        // ==========================================
-
         if (
-            !busId ||
-            !routeId
+            !transportOptions.length
         ) {
 
             return res.status(404).json({
@@ -2746,7 +2700,7 @@ exports.getMyBusLocation = async (
                 success: false,
 
                 message:
-                    `No ${tripType.toLowerCase()} transport assigned to this student`,
+                    "No transport assigned to this student",
 
             });
 
@@ -2754,7 +2708,189 @@ exports.getMyBusLocation = async (
 
 
         // ==========================================
-        // FIND BUS LOCATION
+        // FIND ACTIVE TRIP
+        //
+        // IMPORTANT:
+        // Match BOTH bus AND route AND trip type
+        // ==========================================
+
+        let activeTrip = null;
+
+
+        for (
+            const option
+            of transportOptions
+        ) {
+
+            const trip =
+                await Trip.findOne({
+
+                    status:
+                        "STARTED",
+
+                    tripType:
+                        option.tripType,
+
+                    busId:
+                        option.busId,
+
+                    routeId:
+                        option.routeId,
+
+                })
+                .sort({
+                    createdAt:
+                        -1,
+                });
+
+
+            if (trip) {
+
+                activeTrip =
+                    trip;
+
+                break;
+
+            }
+
+        }
+
+
+        // ==========================================
+        // DETERMINE TRANSPORT TO DISPLAY
+        // ==========================================
+
+        let selectedTransport;
+
+
+        if (activeTrip) {
+
+            // --------------------------------------
+            // ACTIVE TRIP
+            // --------------------------------------
+
+            selectedTransport =
+                transportOptions.find(
+                    (option) =>
+                        option.tripType ===
+                        activeTrip.tripType &&
+
+                        option.busId.toString() ===
+                        activeTrip.busId.toString() &&
+
+                        option.routeId.toString() ===
+                        activeTrip.routeId.toString()
+                );
+
+        }
+
+
+        // ==========================================
+        // NO ACTIVE TRIP
+        //
+        // Find the most recently used trip so that
+        // we can still show:
+        //
+        // - last bus location
+        // - last route
+        // - route stops
+        // - student's stop
+        // ==========================================
+
+        if (!activeTrip) {
+
+            const recentTrips =
+                await Trip.find({
+
+                    $or:
+                        transportOptions.map(
+                            (option) => ({
+
+                                tripType:
+                                    option.tripType,
+
+                                busId:
+                                    option.busId,
+
+                                routeId:
+                                    option.routeId,
+
+                            })
+                        ),
+
+                })
+                .sort({
+
+                    createdAt:
+                        -1,
+
+                })
+                .limit(1);
+
+
+            if (
+                recentTrips.length
+            ) {
+
+                const recentTrip =
+                    recentTrips[0];
+
+
+                selectedTransport =
+                    transportOptions.find(
+                        (option) =>
+                            option.tripType ===
+                            recentTrip.tripType &&
+
+                            option.busId.toString() ===
+                            recentTrip.busId.toString() &&
+
+                            option.routeId.toString() ===
+                            recentTrip.routeId.toString()
+                    );
+
+            }
+
+        }
+
+
+        // ==========================================
+        // FINAL FALLBACK
+        //
+        // If there is no active/recent trip,
+        // use pickup first, otherwise drop.
+        // ==========================================
+
+        if (!selectedTransport) {
+
+            selectedTransport =
+                transportOptions[0];
+
+        }
+
+
+        // ==========================================
+        // SELECT BUS / ROUTE
+        // ==========================================
+
+        const busId =
+            selectedTransport.busId;
+
+        const routeId =
+            selectedTransport.routeId;
+
+        const tripType =
+            selectedTransport.tripType;
+
+        const stopName =
+            selectedTransport.stopName;
+
+
+        // ==========================================
+        // FIND LAST KNOWN BUS LOCATION
+        //
+        // IMPORTANT:
+        // This works even when trip is completed.
         // ==========================================
 
         const location =
@@ -2804,12 +2940,18 @@ exports.getMyBusLocation = async (
 
             success: true,
 
-            tripType:
+            // TRUE = currently moving
+            // FALSE = last known location only
 
-                tripType,
+            activeTrip:
+                !!activeTrip,
 
             tripId:
-                trip._id,
+                activeTrip?._id ||
+                null,
+
+            tripType:
+                tripType,
 
             busId:
                 busId,
@@ -2817,14 +2959,17 @@ exports.getMyBusLocation = async (
             routeId:
                 routeId,
 
+            // Last known location
             location:
                 location,
 
             studentStop:
                 studentStop,
 
+            // All stops of selected route
             stops:
-                route?.stops || [],
+                route?.stops ||
+                [],
 
         });
 

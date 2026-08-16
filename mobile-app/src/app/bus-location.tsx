@@ -57,6 +57,11 @@ export default function BusLocation() {
     setTripType,
   ] = useState<string | null>(null);
 
+  const [
+  activeTrip,
+  setActiveTrip,
+] = useState(false);
+
 
   const [
     darkMode,
@@ -117,78 +122,127 @@ export default function BusLocation() {
 
 
   // =====================================================
-  // LOAD LOCATION
-  // =====================================================
+// LOAD LOCATION
+// =====================================================
 
-  const loadLocation =
-    async () => {
+const loadLocation =
+  async () => {
 
-      try {
+    try {
 
-        const data =
-          await getMyBusLocation();
-
-
-        console.log(
-          "BUS LOCATION API:",
-          data
-        );
+      const data =
+        await getMyBusLocation();
 
 
-        if (
-          data?.success &&
-          data?.location
-        ) {
-
-          setLocation(
-            data.location
-          );
+      console.log(
+        "BUS LOCATION API:",
+        data
+      );
 
 
-          setStudentStop(
-            data.studentStop || null
-          );
+      if (!data?.success) {
+        return;
+      }
 
 
-          setTripType(
-            data.tripType || null
-          );
+      // ================================================
+      // ACTIVE / INACTIVE TRIP
+      // ================================================
+
+      setActiveTrip(
+        data.activeTrip === true
+      );
 
 
-          setStops(
-            data.stops || []
-          );
+      // ================================================
+      // IMPORTANT:
+      // KEEP LAST KNOWN LOCATION
+      // EVEN WHEN TRIP IS COMPLETED
+      // ================================================
 
+      if (data.location) {
 
-          console.log(
-            "TRIP TYPE:",
-            data.tripType
-          );
-
-
-          console.log(
-            "STUDENT STOP:",
-            data.studentStop
-          );
-
-
-          console.log(
-            "ROUTE STOPS:",
-            data.stops
-          );
-
-        }
-
-      } catch (error) {
-
-        console.log(
-          "LOAD BUS LOCATION ERROR:",
-          error
+        setLocation(
+          data.location
         );
 
       }
 
-    };
+
+      // ================================================
+      // KEEP ROUTE INFORMATION
+      // ================================================
+
+      setStudentStop(
+        data.studentStop || null
+      );
+
+
+      setTripType(
+        data.tripType || null
+      );
+
+
+      setStops(
+        data.stops || []
+      );
+
+
+      // ================================================
+      // IF NO ACTIVE TRIP
+      // CLEAR LIVE ETA/DISTANCE
+      // ================================================
+
+      if (
+        data.activeTrip !== true
+      ) {
+
+        setDistance("");
+        setEta("");
+
+      }
+
+
+      console.log(
+        "ACTIVE TRIP:",
+        data.activeTrip
+      );
+
+
+      console.log(
+        "TRIP TYPE:",
+        data.tripType
+      );
+
+
+      console.log(
+        "STUDENT STOP:",
+        data.studentStop
+      );
+
+
+      console.log(
+        "ROUTE STOPS:",
+        data.stops
+      );
+
+
+      console.log(
+        "LAST BUS LOCATION:",
+        data.location
+      );
+
+
+    } catch (error) {
+
+      console.log(
+        "LOAD BUS LOCATION ERROR:",
+        error
+      );
+
+    }
+
+  };
 
 
   // =====================================================
@@ -232,102 +286,93 @@ export default function BusLocation() {
   }, []);
 
 
-  // =====================================================
-  // UPDATE EXISTING MAP
-  // =====================================================
+ // =====================================================
+// UPDATE EXISTING MAP
+// =====================================================
 
-  useEffect(() => {
+useEffect(() => {
 
-    if (
-      !location ||
-      !webViewRef.current ||
-      !mapLoaded
-    ) {
-
-      return;
-
-    }
+  if (
+    !location ||
+    !webViewRef.current ||
+    !mapLoaded
+  ) {
+    return;
+  }
 
 
-    const latitude =
-      Number(
-        location.latitude
-      );
+  const latitude =
+    Number(
+      location.latitude
+    );
 
 
-    const longitude =
-      Number(
-        location.longitude
-      );
+  const longitude =
+    Number(
+      location.longitude
+    );
 
 
-    if (
-      Number.isNaN(latitude) ||
-      Number.isNaN(longitude)
-    ) {
-
-      return;
-
-    }
+  if (
+    Number.isNaN(latitude) ||
+    Number.isNaN(longitude)
+  ) {
+    return;
+  }
 
 
-    const studentLatitude =
-      Number(
-        studentStop?.latitude
-      );
+  const studentLatitude =
+    Number(
+      studentStop?.latitude
+    );
 
 
-    const studentLongitude =
-      Number(
-        studentStop?.longitude
-      );
+  const studentLongitude =
+    Number(
+      studentStop?.longitude
+    );
 
 
-    const studentStopName =
-      studentStop?.stopName || "";
+  const hasStudentStop =
+    !Number.isNaN(
+      studentLatitude
+    ) &&
+    !Number.isNaN(
+      studentLongitude
+    );
 
 
-    const javascript = `
+  const javascript = `
 
-      (function() {
+    (function() {
 
-        // ============================================
-        // UPDATE BUS MARKER
-        // ============================================
+      // ============================================
+      // UPDATE BUS MARKER
+      // ============================================
 
-        if (
-          window.busMarker
-        ) {
+      if (
+        window.busMarker
+      ) {
 
-          window.busMarker.setLatLng([
-            ${latitude},
-            ${longitude}
-          ]);
+        window.busMarker.setLatLng([
+          ${latitude},
+          ${longitude}
+        ]);
 
-        }
-
-
-        // ============================================
-        // UPDATE STUDENT STOP
-        // ============================================
-
-        if (
-          window.studentStopMarker &&
-          ${!Number.isNaN(studentLatitude)} &&
-          ${!Number.isNaN(studentLongitude)}
-        ) {
-
-          window.studentStopMarker.setLatLng([
-            ${studentLatitude},
-            ${studentLongitude}
-          ]);
-
-        }
+      }
 
 
-        // ============================================
-        // REMOVE OLD ROUTE
-        // ============================================
+      // ============================================
+      // NO ACTIVE TRIP
+      //
+      // Keep bus at LAST known location.
+      // Do NOT remove the marker.
+      // Do NOT clear the map.
+      // ============================================
+
+      if (
+        ${!activeTrip}
+      ) {
 
         if (
           window.routeLine
@@ -341,112 +386,155 @@ export default function BusLocation() {
 
         }
 
+        true;
+        return;
 
-        // ============================================
-        // DRAW ROAD ROUTE
-        // ============================================
-
-        if (
-          ${!Number.isNaN(studentLatitude)} &&
-          ${!Number.isNaN(studentLongitude)}
-        ) {
-
-          fetch(
-            "https://router.project-osrm.org/route/v1/driving/" +
-            "${longitude},${latitude};" +
-            "${studentLongitude},${studentLatitude}" +
-            "?overview=full&geometries=geojson"
-          )
-          .then(
-            response =>
-              response.json()
-          )
-          .then(
-            data => {
-
-              if (
-                !data.routes ||
-                !data.routes.length
-              ) {
-
-                return;
-
-              }
+      }
 
 
-              const route =
-                data.routes[0];
+      // ============================================
+      // ACTIVE TRIP
+      // UPDATE STUDENT STOP
+      // ============================================
+
+      if (
+        window.studentStopMarker &&
+        ${hasStudentStop}
+      ) {
+
+        window.studentStopMarker.setLatLng([
+          ${studentLatitude},
+          ${studentLongitude}
+        ]);
+
+      }
 
 
-              const coordinates =
-                route.geometry.coordinates.map(
-                  point => [
-                    point[1],
-                    point[0]
-                  ]
-                );
+      // ============================================
+      // REMOVE OLD ROUTE
+      // ============================================
+
+      if (
+        window.routeLine
+      ) {
+
+        map.removeLayer(
+          window.routeLine
+        );
+
+        window.routeLine = null;
+
+      }
 
 
-              window.routeLine =
-                L.polyline(
-                  coordinates,
-                  {
-                    color: "#1976D2",
-                    weight: 5,
-                  }
-                ).addTo(map);
+      // ============================================
+      // DRAW LIVE ROAD ROUTE
+      // ============================================
 
+      if (
+        ${hasStudentStop}
+      ) {
 
-              window.ReactNativeWebView.postMessage(
-                JSON.stringify({
+        fetch(
+          "https://router.project-osrm.org/route/v1/driving/" +
+          "${longitude},${latitude};" +
+          "${studentLongitude},${studentLatitude}" +
+          "?overview=full&geometries=geojson"
+        )
 
-                  distance:
-                    (
-                      route.distance /
-                      1000
-                    ).toFixed(2),
+        .then(
+          response =>
+            response.json()
+        )
 
-                  eta:
-                    Math.ceil(
-                      route.duration /
-                      60
-                    ),
+        .then(
+          data => {
 
-                })
-              );
+            if (
+              !data.routes ||
+              !data.routes.length
+            ) {
+
+              return;
 
             }
-          )
-          .catch(
-            error => {
 
-              console.log(
-                "OSRM ERROR:",
-                error
+
+            const route =
+              data.routes[0];
+
+
+            const coordinates =
+              route.geometry.coordinates.map(
+                point => [
+                  point[1],
+                  point[0]
+                ]
               );
 
-            }
-          );
 
-        }
-
-      })();
-
-      true;
-
-    `;
-
-
-    webViewRef.current.injectJavaScript(
-      javascript
-    );
+            window.routeLine =
+              L.polyline(
+                coordinates,
+                {
+                  color: "#1976D2",
+                  weight: 5,
+                }
+              ).addTo(map);
 
 
-  }, [
-    location,
-    studentStop,
-    mapLoaded,
-  ]);
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({
+
+                distance:
+                  (
+                    route.distance /
+                    1000
+                  ).toFixed(2),
+
+                eta:
+                  Math.ceil(
+                    route.duration /
+                    60
+                  ),
+
+              })
+            );
+
+          }
+        )
+
+        .catch(
+          error => {
+
+            console.log(
+              "OSRM ERROR:",
+              error
+            );
+
+          }
+        );
+
+      }
+
+    })();
+
+    true;
+
+  `;
+
+
+  webViewRef.current.injectJavaScript(
+    javascript
+  );
+
+
+}, [
+  location,
+  studentStop,
+  mapLoaded,
+  activeTrip,
+]);
 
 
   // =====================================================
