@@ -1,16 +1,15 @@
-import React, { useState,  useEffect, } from "react";
+import React, { useState, useEffect } from "react";
 
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   Switch,
   ScrollView,
 } from "react-native";
 
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -22,9 +21,13 @@ import {
   router,
 } from "expo-router";
 
+import PressableScale from "../../components/PressableScale";
+import { useTheme } from "../../contexts/ThemeContext";
+
 export default function Settings() {
 
- const [darkMode, setDarkMode] = useState(false);
+ const { darkMode, setDarkMode } = useTheme();
+ const insets = useSafeAreaInsets();
 
  const [
   tripAlerts,
@@ -37,16 +40,15 @@ const [
 ] = useState(true);
 
 useEffect(() => {
-  loadTheme();
+  loadPreferences();
 }, []);
 
-const loadTheme = async () => {
-  const theme = await AsyncStorage.getItem("darkMode");
+// previously this only ran when a dark-mode value already existed in
+// storage, so on a fresh install trip/boarding preferences never loaded
+// even if they'd been saved — now independent of theme entirely.
+const loadPreferences = async () => {
 
-  if (theme !== null) {
-    setDarkMode(theme === "true");
-
-    const tripSetting =
+  const tripSetting =
   await AsyncStorage.getItem(
     "tripAlerts"
   );
@@ -75,23 +77,12 @@ if (
   );
 
 }
-  }
 };
 
-const toggleDarkMode = async (value: boolean) => {
-
-  // console.log(
-  //   "Saving theme:",
-  //   value
-  // );
-
+const toggleDarkMode = (value: boolean) => {
+  // context updates in-memory state instantly across every tab and
+  // persists to AsyncStorage in the background — no local write needed
   setDarkMode(value);
-
-  await AsyncStorage.setItem(
-    "darkMode",
-    value.toString()
-  );
-
 };
 
 const toggleTripAlerts =
@@ -187,7 +178,10 @@ async (value: boolean) => {
 
   <ScrollView
     showsVerticalScrollIndicator={false}
-    contentContainerStyle={styles.scrollContent}
+    contentContainerStyle={[
+      styles.scrollContent,
+      { paddingTop: insets.top + 30, paddingBottom: 100 + insets.bottom },
+    ]}
   >
 
 <Text
@@ -239,7 +233,12 @@ async (value: boolean) => {
           />
         </View>
 
-        <View style={styles.settingRow}>
+        <View
+  style={[
+    styles.settingRow,
+    styles.lastRow,
+  ]}
+>
           <Text
   style={[
     styles.settingText,
@@ -259,30 +258,6 @@ async (value: boolean) => {
           }
         />
         </View>
-
-        {/* <View
-          style={[
-            styles.settingRow,
-            styles.lastRow,
-          ]}
-        >
-         <Text
-  style={[
-    styles.settingText,
-    {
-      color: darkMode
-        ? "#FFFFFF"
-        : "#1F2937",
-    },
-  ]}
->
-            Drop Alerts
-          </Text>
-          <Switch
-            value={true}
-            disabled
-          />
-        </View> */}
 
       </View>
 
@@ -349,8 +324,9 @@ async (value: boolean) => {
         Support
         </Text>
 
-        <TouchableOpacity
+        <PressableScale
   style={styles.supportItem}
+  scaleTo={0.98}
   onPress={() =>
     router.push("/help-center")
   }
@@ -367,7 +343,7 @@ async (value: boolean) => {
   >
     Help Center
   </Text>
-</TouchableOpacity>
+</PressableScale>
 
 <View
   style={[
@@ -380,11 +356,12 @@ async (value: boolean) => {
   ]}
 />
 
-<TouchableOpacity
+<PressableScale
   style={[
     styles.supportItem,
     styles.lastSupportItem,
   ]}
+  scaleTo={0.98}
   onPress={() =>
     router.push("/contact-admin")
   }
@@ -401,19 +378,20 @@ async (value: boolean) => {
   >
     Contact Admin
   </Text>
-</TouchableOpacity>
+</PressableScale>
 
       </View>
 
       {/* Logout */}
-      <TouchableOpacity
+      <PressableScale
         style={styles.logoutButton}
+        scaleTo={0.97}
         onPress={handleLogout}
       >
         <Text style={styles.logoutText}>
           Logout
         </Text>
-      </TouchableOpacity>
+      </PressableScale>
 
       <Text style={styles.versionText}>
         Version 1.0.0
@@ -447,22 +425,18 @@ const styles = StyleSheet.create({
 
     padding: 16,
 
-    paddingTop: 30,
-
-    paddingBottom: 100,
-
   },
 
   heading: {
 
     fontSize: 28,
-    marginLeft: -35,
 
     fontWeight: "bold",
 
     color: "#0F4C81",
 
     marginBottom: 20,
+    marginLeft: -30,
 
   },
 

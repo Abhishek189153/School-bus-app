@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
+  Animated,
   StyleSheet,
   FlatList,
   BackHandler,
-  SafeAreaView,
   StatusBar,
-  Platform,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { getAssignedRoutes, startTrip } from "../services/mobile.service";
 
@@ -20,28 +20,120 @@ import {
   updateLocation,
 } from "../services/location.service";
 
+// --- reusable "press to scale" wrapper for a smoother native feel ---
+function PressableScale({
+  onPress,
+  disabled,
+  style,
+  children,
+  scaleTo = 0.97,
+}: {
+  onPress?: () => void;
+  disabled?: boolean;
+  style?: any;
+  children: React.ReactNode;
+  scaleTo?: number;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (value: number) => {
+    Animated.spring(scale, {
+      toValue: value,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      onPressIn={() => !disabled && animateTo(scaleTo)}
+      onPressOut={() => !disabled && animateTo(1)}
+    >
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export default function RoutesScreen() {
   const { tripCompleted } = useLocalSearchParams();
-  const [routes, setRoutes] = useState<any[]>([]);
-  const [busNumber, setBusNumber] = useState("");
+  const [routes, setRoutes] = React.useState<any[]>([]);
+  const [busNumber, setBusNumber] = React.useState("");
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    loadRoutes();
-    const interval = setInterval(() => {
-      loadRoutes();
-    }, 30000); // every 30 sec
+  // guards against overlapping fetches (mount-interval + focus firing close together)
+  const isFetchingRef = useRef(false);
 
-    return () => clearInterval(interval);
+  // Active routes first, then Pending, then Completed. Stable within each
+  // group — doesn't reorder routes that already share the same status.
+  const STATUS_ORDER: Record<string, number> = {
+    ACTIVE: 0,
+    PENDING: 1,
+    COMPLETED: 2,
+  };
+
+  const sortedRoutes = useMemo(() => {
+    return [...routes].sort(
+      (a, b) =>
+        (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
+    );
+  }, [routes]);
+
+  const loadRoutes = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      const data = await getAssignedRoutes();
+
+      if (!data.success) return;
+
+      // Weekly Off
+      if (data.weeklyOff) {
+        router.replace({
+          pathname: "/day-status",
+          params: {
+            type: "weeklyOff",
+            title: data.day,
+            message: data.message,
+          },
+        });
+        return;
+      }
+
+      // Holiday
+      if (data.holiday) {
+        router.replace({
+          pathname: "/day-status",
+          params: {
+            type: "holiday",
+            title: data.holidayName,
+            message: data.message,
+          },
+        });
+        return;
+      }
+
+      // Normal Routes
+      setRoutes(data.routes);
+      setBusNumber(data.busNumber);
+    } finally {
+      isFetchingRef.current = false;
+    }
   }, []);
 
+  // single effect owns: focus-triggered load, 30s polling, and the back handler
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadRoutes();
-    }, [])
-  );
 
-  useFocusEffect(
-    React.useCallback(() => {
+      const interval = setInterval(() => {
+        loadRoutes();
+      }, 30000);
+
       const onBackPress = () => {
         router.replace("/driver-dashboard");
         return true;
@@ -52,161 +144,78 @@ export default function RoutesScreen() {
         onBackPress
       );
 
-      return () => subscription.remove();
-    }, [])
+      return () => {
+        clearInterval(interval);
+        subscription.remove();
+      };
+    }, [loadRoutes])
   );
 
+  const startLocationTracking = async (busId: any) => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
 
-  const startLocationTracking =
-async (busId:any) => {
+    if (status !== "granted") {
+      return;
+    }
 
-  console.log(
-    "GPS Function Called"
-  );
-
-  const { status } =
-    await Location.requestForegroundPermissionsAsync();
-
-  console.log(
-    "Permission Status:",
-    status
-  );
-
-  if (
-    status !== "granted"
-  ) {
-    return;
-  }
-
-  await Location.watchPositionAsync(
-    {
-      accuracy:
-        Location.Accuracy.High,
-
-      timeInterval: 10000,
-
-      distanceInterval: 20,
-    },
-
-    async (location) => {
-
-      console.log(
-        "GPS Coordinates:",
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      try {
-
-        const response =
+    await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 10000,
+        distanceInterval: 20,
+      },
+      async (location) => {
+        try {
           await updateLocation(
             busId,
             location.coords.latitude,
             location.coords.longitude
           );
-
-        console.log(
-          "Location API Response:",
-          response
-        );
-
-      } catch (error) {
-
-        console.log(
-          "Location Update Error:",
-          error
-        );
-
+        } catch (error) {
+          console.log("Location Update Error:", error);
+        }
       }
+    );
+  };
 
+  const handleRoutePress = async (item: any) => {
+    if (item.status !== "ACTIVE") return;
+    try {
+      const data = await startTrip(item.tripType, item._id);
+
+      if (data.success) {
+        await startLocationTracking(data.trip.busId);
+
+        router.push({
+          pathname: "/students",
+          params: {
+            tripId: data.trip._id,
+          },
+        });
+      }
+    } catch (error) {
+      console.log("START TRIP ERROR:", error);
+      Alert.alert("Error", "Failed to start trip");
     }
-  );
-
-};
-
- const loadRoutes = async () => {
-
-  const data = await getAssignedRoutes();
-
-  console.log("Assigned Routes API:", data);
-
-  if (!data.success) return;
-
-  // ==========================
-  // Weekly Off
-  // ==========================
-
-  if (data.weeklyOff) {
-
-   router.replace({
-
-  pathname: "/day-status",
-
-  params: {
-
-    type: "weeklyOff",
-
-    title: data.day,
-
-    message: data.message,
-
-  },
-
-});
-
-    return;
-
-  }
-
-  // ==========================
-  // Holiday
-  // ==========================
-
-  if (data.holiday) {
-
-   router.replace({
-
-  pathname: "/day-status",
-
-  params: {
-
-    type: "holiday",
-
-    title: data.holidayName,
-
-    message: data.message,
-
-  },
-
-});
-
-    return;
-
-  }
-
-  // ==========================
-  // Normal Routes
-  // ==========================
-
-  setRoutes(data.routes);
-
-  setBusNumber(data.busNumber);
-
-};
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
-      
-      {/* Redesigned Header Layout with explicit alignment */}
+
+      {/* Header — spacer now matches the back button width so the title is truly centered */}
       <View style={styles.headerContainer}>
-        <TouchableOpacity
+        <PressableScale
           style={styles.backButtonCircle}
           onPress={() => router.replace("/driver-dashboard")}
-          activeOpacity={0.7}
         >
           <Text style={styles.backArrowText}>←</Text>
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.title}>Assigned Routes</Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -215,17 +224,21 @@ async (busId:any) => {
       <View style={styles.busBadgeContainer}>
         <View style={styles.busIndicatorDot} />
         <Text style={styles.busText}>
-           <Text style={styles.busNumberValue}>{busNumber}</Text>
+          <Text style={styles.busNumberValue}>{busNumber}</Text>
         </Text>
       </View>
 
       <FlatList
-        data={routes}
+        data={sortedRoutes}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContentContainer}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        initialNumToRender={8}
         renderItem={({ item }) => (
-          <TouchableOpacity
+          <PressableScale
             style={[
               styles.routeCard,
               item.status === "ACTIVE" && styles.cardActive,
@@ -233,136 +246,60 @@ async (busId:any) => {
               item.status === "COMPLETED" && styles.cardCompleted,
             ]}
             disabled={item.status !== "ACTIVE"}
-            activeOpacity={0.9}
-            onPress={async () => {
-              if (item.status !== "ACTIVE") return;
-              try {
-                console.log("CLICKED ITEM:", item);
-                console.log("TRIP TYPE:", item.tripType);
-                console.log("ROUTE ID:", item._id);
-
-                const data = await startTrip(item.tripType, item._id);
-                console.log("START TRIP RESPONSE:", data);
-
-                if (data.success) {
-
-  console.log(
-    "TRIP STARTED"
-  );
-
-  console.log(
-    "BUS ID:",
-    data.trip.busId
-  );
-
-  await startLocationTracking(
-    data.trip.busId
-  );
-
-  router.push({
-    pathname: "/students",
-    params: {
-      tripId:
-        data.trip._id,
-    },
-  });
-
-}
-              } catch (error) {
-                console.log("START TRIP ERROR:", error);
-              }
-            }}
+            scaleTo={0.98}
+            onPress={() => handleRoutePress(item)}
           >
             {/* Top Row: Route Name & Trip Type Chip */}
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.routeNameWrap}>
+                <Text
+                  style={styles.routeText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.routeName}
+                </Text>
 
-            
-          <View
-  style={{
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  }}
->
-  {/* Route Name + Time */}
-  <View
-    style={{
-      flexDirection: "row",
-      alignItems: "center",
-      flex: 1,
-    }}
-  >
-    <Text style={styles.routeText}>
-      {item.routeName}
-    </Text>
+                <View style={styles.timeChip}>
+                  <Text style={styles.timeChipText}>
+                    🕒{" "}
+                    {new Date(
+                      `2000-01-01T${item.scheduledTime}`
+                    ).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </Text>
+                </View>
+              </View>
 
-    <View
-      style={{
-        marginLeft: 8,
-        backgroundColor: "#ffffff22",
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
-      }}
-    >
-      <Text
-        style={{
-          color: "#fff",
-          fontSize: 11,
-          fontWeight: "bold",
-        }}
-      >
-        🕒 {new Date(
-          `2000-01-01T${item.scheduledTime}`
-        ).toLocaleTimeString(
-          "en-US",
-          {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          }
-        )}
-      </Text>
-    </View>
-  </View>
-
-  {/* Trip Type Badge */}
-  <View
-    style={{
-      backgroundColor: "#ffffff22",
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-      marginLeft: 10,
-    }}
-  >
-    <Text
-      style={{
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 12,
-      }}
-    >
-      {item.tripType}
-    </Text>
-  </View>
-</View>
-
+              <View style={styles.tripTypeBadge}>
+                <Text style={styles.tripTypeBadgeText} numberOfLines={1}>
+                  {item.tripType}
+                </Text>
+              </View>
+            </View>
 
             {/* Middle Row: Status Indicator & Timer Details */}
             <View style={styles.cardStatusRow}>
               <View style={styles.statusGroup}>
-                <View style={[
-                  styles.statusIndicatorDot,
-                  item.status === "ACTIVE" && styles.dotActive,
-                  item.status === "PENDING" && styles.dotPending,
-                  item.status === "COMPLETED" && styles.dotCompleted,
-                ]} />
-                <Text style={[
-                  styles.statusLabelText,
-                  item.status === "ACTIVE" && styles.textActiveContrast,
-                  item.status === "PENDING" && styles.textPendingContrast,
-                  item.status === "COMPLETED" && styles.textCompletedContrast,
-                ]}>
+                <View
+                  style={[
+                    styles.statusIndicatorDot,
+                    item.status === "ACTIVE" && styles.dotActive,
+                    item.status === "PENDING" && styles.dotPending,
+                    item.status === "COMPLETED" && styles.dotCompleted,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusLabelText,
+                    item.status === "ACTIVE" && styles.textActiveContrast,
+                    item.status === "PENDING" && styles.textPendingContrast,
+                    item.status === "COMPLETED" && styles.textCompletedContrast,
+                  ]}
+                >
                   {item.status === "ACTIVE"
                     ? "Active"
                     : item.status === "COMPLETED"
@@ -372,14 +309,18 @@ async (busId:any) => {
               </View>
 
               {item.status !== "COMPLETED" && (
-                <Text style={[
-                  styles.timeText,
-                  item.status === "ACTIVE" && styles.textActiveContrast,
-                  item.status === "PENDING" && styles.textPendingContrast
-                ]}>
+                <Text
+                  style={[
+                    styles.timeText,
+                    item.status === "ACTIVE" && styles.textActiveContrast,
+                    item.status === "PENDING" && styles.textPendingContrast,
+                  ]}
+                >
                   {item.status === "PENDING"
                     ? item.minutesLeft >= 60
-                      ? `⏱ ${Math.floor(item.minutesLeft / 60)}h ${item.minutesLeft % 60}m`
+                      ? `⏱ ${Math.floor(item.minutesLeft / 60)}h ${
+                          item.minutesLeft % 60
+                        }m`
                       : `⏱ ${item.minutesLeft} min`
                     : item.status === "ACTIVE"
                     ? "🚌 Ready"
@@ -389,25 +330,29 @@ async (busId:any) => {
             </View>
 
             {/* Bottom Row: Path Representation */}
-            <View style={[
-              styles.dividerLine,
-              item.status === "ACTIVE" && styles.dividerActive,
-              item.status === "PENDING" && styles.dividerPending,
-              item.status === "COMPLETED" && styles.dividerCompleted,
-            ]} />
-            
-            <Text style={[
-              styles.routeInfo,
-              item.status === "ACTIVE" && styles.textActiveContrastMuted,
-              item.status === "PENDING" && styles.textPendingContrastMuted,
-              item.status === "COMPLETED" && styles.textCompletedContrastMuted,
-            ]}>
+            <View
+              style={[
+                styles.dividerLine,
+                item.status === "ACTIVE" && styles.dividerActive,
+                item.status === "PENDING" && styles.dividerPending,
+                item.status === "COMPLETED" && styles.dividerCompleted,
+              ]}
+            />
+
+            <Text
+              style={[
+                styles.routeInfo,
+                item.status === "ACTIVE" && styles.textActiveContrastMuted,
+                item.status === "PENDING" && styles.textPendingContrastMuted,
+                item.status === "COMPLETED" && styles.textCompletedContrastMuted,
+              ]}
+            >
               {item.routePath}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -424,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: Platform.OS === "ios" ? 10 : 30, 
+    marginTop: 10,
     marginBottom: 20,
     height: 58,
   },
@@ -441,10 +386,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
-    ...Platform.select({
-      ios: { paddingBottom: 2 },
-      android: { paddingBottom: 4 },
-    }),
   },
   title: {
     fontSize: 22,
@@ -454,7 +395,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerSpacer: {
-    width: 44, // Perfectly balances the layout against the back button size
+    width: 54, // now matches backButtonCircle width so the title is truly centered
   },
   busBadgeContainer: {
     flexDirection: "row",
@@ -514,28 +455,44 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  routeNameWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
+  },
   routeText: {
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
     letterSpacing: 0.2,
+    flexShrink: 1,
   },
-  tripTypeChip: {
+  timeChip: {
+    marginLeft: 8,
+    backgroundColor: "#ffffff22",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  timeChipText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  tripTypeBadge: {
+    backgroundColor: "#ffffff22",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 20,
+    marginLeft: 10,
+    flexShrink: 0,
   },
-  chipDefaultBg: {
-    backgroundColor: "#3D3D3D",
-  },
-  chipActiveBg: {
-    backgroundColor: "#166534",
-  },
-  tripTypeText: {
-    color: "#E2E8F0",
+  tripTypeBadgeText: {
+    color: "#fff",
     fontWeight: "bold",
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontSize: 12,
   },
   cardStatusRow: {
     flexDirection: "row",

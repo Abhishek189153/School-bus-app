@@ -1,25 +1,18 @@
-import React,
-{
-  useEffect,
-  useState,
-} from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   Image,
-  Alert,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useFocusEffect } from "expo-router";
 
-import {
-  router,
-  useFocusEffect,
-} from "expo-router";
+import PressableScale from "../../components/PressableScale";
+import { useTheme } from "../../contexts/ThemeContext";
 
 import {
   getProfile
@@ -27,164 +20,19 @@ import {
 
 export default function Profile() {
 
-  const [darkMode, setDarkMode] =
-  useState(false);
+  const { darkMode } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [
     profile,
     setProfile,
   ] = useState<any>(null);
 
-  useEffect(() => {
-
-    loadProfile();
-    
-
-  }, []);
-
-  useFocusEffect(
-  React.useCallback(() => {
-
-    
-    loadTheme();
-
-  }, [])
-);
-
-
-//   const pickImage =
-// async () => {
-
-//   Alert.alert(
-
-//     "Profile Photo",
-
-//     "Choose Option",
-
-//     [
-
-//       {
-//         text:
-//           "Camera",
-
-//         onPress:
-//           openCamera,
-//       },
-
-//       {
-//         text:
-//           "Gallery",
-
-//         onPress:
-//           openGallery,
-//       },
-
-//       {
-//         text:
-//           "Cancel",
-
-//         style:
-//           "cancel",
-//       },
-
-//     ]
-
-//   );
-
-// };
-
-// const openGallery =
-// async () => {
-
-//   const result =
-//     await ImagePicker.launchImageLibraryAsync({
-
-//       mediaTypes:
-//         ImagePicker.MediaTypeOptions.Images,
-
-//       quality: 0.8,
-
-//     });
-
-//   if (
-//     !result.canceled
-//   ) {
-
-//     const imageUri =
-//       result.assets[0].uri;
-
-//     await updateProfileImage(
-//       imageUri
-//     );
-
-//     loadProfile();
-
-//   }
-
-// };
-
-
-// const openCamera =
-// async () => {
-
-//   const permission =
-//     await ImagePicker.requestCameraPermissionsAsync();
-
-//   if (
-//     !permission.granted
-//   ) {
-
-//     return;
-
-//   }
-
-//   const result =
-//     await ImagePicker.launchCameraAsync({
-
-//       quality: 0.8,
-
-//     });
-
-//   if (
-//     !result.canceled
-//   ) {
-
-//     const imageUri =
-//       result.assets[0].uri;
-
-//     await updateProfileImage(
-//       imageUri
-//     );
-
-//     loadProfile();
-
-//   }
-
-// };
-
-
-  const loadTheme = async () => {
-
-  const theme =
-    await AsyncStorage.getItem(
-      "darkMode"
-    );
-
-  setDarkMode(
-    theme === "true"
-  );
-};
-
   const loadProfile =
-    async () => {
+    useCallback(async () => {
 
       const data =
         await getProfile();
-
-      console.log(
-        "PROFILE RESPONSE:",
-        data
-      );
 
       if (
         data.success
@@ -196,7 +44,15 @@ export default function Profile() {
 
       }
 
-    };
+    }, []);
+
+  // refresh whenever the tab regains focus (e.g. after editing on
+  // /profile-details and coming back)
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   if (!profile) {
 
@@ -245,7 +101,7 @@ export default function Profile() {
   ]}
   contentContainerStyle={{
     flexGrow: 1,
-    paddingBottom: 80,
+    paddingBottom: 80 + insets.bottom,
   }}
   showsVerticalScrollIndicator={false}
 >
@@ -254,9 +110,12 @@ export default function Profile() {
 
     <View style={styles.topBackground} />
 
-    {/* Profile Card */}
+    {/* Profile Card — single Pressable for the whole card. The image
+        used to have its own nested TouchableOpacity pointed at the same
+        route, which forces React Native to negotiate two overlapping
+        touch responders on every tap and makes the press feel delayed. */}
 
-    <TouchableOpacity
+    <PressableScale
   style={[
     styles.profileCard,
     
@@ -268,6 +127,7 @@ export default function Profile() {
     },
     
   ]}
+  scaleTo={0.98}
 
    onPress={() =>
     router.push(
@@ -276,11 +136,7 @@ export default function Profile() {
   }
 >
 
-      <TouchableOpacity
-  style={styles.profileImageWrapper}
-  onPress={() =>
-    router.push("/profile-details")}
->
+      <View style={styles.profileImageWrapper}>
   {
     profile.parent.profileImage
       ? (
@@ -322,7 +178,7 @@ export default function Profile() {
       ✎
     </Text>
   </View>
-</TouchableOpacity>
+</View>
 
      <Text
   style={[
@@ -366,7 +222,7 @@ export default function Profile() {
         </Text>
       </View>
 
-    </TouchableOpacity>
+    </PressableScale>
 
     {/* Children */}
 
@@ -1137,10 +993,8 @@ StyleSheet.create({
 
   loadingContainer: {
     flex: 1,
-    // justifyContent:
-    //   "center",
-    // alignItems:
-    //   "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   headerCard: {

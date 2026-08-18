@@ -3,18 +3,21 @@ import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   Image,
   StyleSheet,
   Linking,
   Animated,
   ScrollView,
-  Dimensions,
   useWindowDimensions,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import ParentMiniMap
 from "../../components/ParentMiniMap";
+
+import PressableScale from "../../components/PressableScale";
+import { useTheme } from "../../contexts/ThemeContext";
 
 import {
   registerForPushNotifications,
@@ -27,7 +30,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import {
   getParentDashboard, getAnnouncements,
 } from "../../services/mobile.service";
@@ -38,6 +41,8 @@ export default function ParentDashboard() {
   // useWindowDimensions re-renders automatically on rotation / fold,
   // unlike Dimensions.get() which is captured once at import time.
   const { width: winWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { darkMode } = useTheme();
 
   const greetingOpacity =
     useRef(new Animated.Value(0)).current;
@@ -56,9 +61,6 @@ export default function ParentDashboard() {
 
   const buttonOpacity =
     useRef(new Animated.Value(0)).current;
-
-  const [darkMode, setDarkMode] =
-  React.useState(false);
 
   const [
   showBoardingCard,
@@ -96,19 +98,10 @@ async () => {
     const expoToken =
       await registerForPushNotifications();
 
-    console.log(
-      "EXPO TOKEN GENERATED:",
-      expoToken
-    );
-
     if (expoToken) {
 
       await savePushToken(
         expoToken
-      );
-
-      console.log(
-        "TOKEN SENT TO BACKEND"
       );
 
     }
@@ -133,11 +126,6 @@ setupNotifications();
     const data =
       await getParentDashboard();
 
-    console.log(
-      "Dashboard Response:",
-      data
-    );
-
     if (data?.success) {
 
       setDashboard(data);
@@ -157,11 +145,6 @@ setupNotifications();
 
     const announcementData =
       await getAnnouncements();
-
-    console.log(
-      "ANNOUNCEMENTS RESPONSE:",
-      announcementData
-    );
 
     if (
       announcementData?.success
@@ -349,15 +332,6 @@ useEffect(() => {
   announcements
 ]);
 
- useFocusEffect(
-  React.useCallback(() => {
-
-    loadTheme();
-
-  }, [])
-);
-
-
   const handleCall = () => {
 
   if (
@@ -369,32 +343,6 @@ useEffect(() => {
     );
 
   }
-
-};
-
-  const handleLogout =
-    async () => {
-      await AsyncStorage.removeItem(
-        "token"
-      );
-
-      await AsyncStorage.removeItem(
-        "user"
-      );
-
-      router.replace("/");
-    };
-
-    const loadTheme = async () => {
-
-  const theme =
-    await AsyncStorage.getItem(
-      "darkMode"
-    );
-
-  setDarkMode(
-    theme === "true"
-  );
 
 };
 
@@ -423,7 +371,7 @@ useEffect(() => {
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingBottom: 30,
+        paddingBottom: 30 + insets.bottom,
       }}
     >
       <View
@@ -563,7 +511,7 @@ useEffect(() => {
                 buttonOpacity,
             }}
           >
-           <TouchableOpacity
+           <PressableScale
               style={[
                 styles.callButton,
                 {
@@ -573,6 +521,7 @@ useEffect(() => {
                       : "#2E7D32",
                 },
               ]}
+              scaleTo={0.94}
               onPress={handleCall}
             >
 
@@ -587,14 +536,15 @@ useEffect(() => {
                 Call Driver
               </Text>
               
-            </TouchableOpacity>
+            </PressableScale>
           </Animated.View>
         </View>
       </View>
 
 
 
-      <TouchableOpacity
+      <PressableScale
+  scaleTo={0.98}
   onPress={() =>
     router.push(
       "/bus-location"
@@ -622,7 +572,7 @@ useEffect(() => {
 
 </View>
 
-</TouchableOpacity>
+</PressableScale>
 
 
 {
@@ -642,7 +592,8 @@ useEffect(() => {
       }}
     >
 
-      <TouchableOpacity
+      <PressableScale
+        scaleTo={0.85}
         onPress={async () => {
 
   const currentBoarding =
@@ -678,7 +629,7 @@ useEffect(() => {
           size={24}
           color="#2E7D32"
         />
-      </TouchableOpacity>
+      </PressableScale>
 
       <Text
         style={{
@@ -739,7 +690,8 @@ announcements.length > 0 && (
         }}
       >
 
-        <TouchableOpacity
+        <PressableScale
+          scaleTo={0.85}
           onPress={async () => {
 
   const currentAnnouncement =
@@ -767,7 +719,7 @@ announcements.length > 0 && (
             size={24}
             color="#D97706"
           />
-        </TouchableOpacity>
+        </PressableScale>
 
         <Text
           style={{

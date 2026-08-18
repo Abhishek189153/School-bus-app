@@ -1,5 +1,4 @@
 import React, {
-  useEffect,
   useState,
   useCallback,
 } from "react";
@@ -8,19 +7,20 @@ import {
   useFocusEffect,
 } from "expo-router";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
-
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
 } from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import DateTimePicker
   from "@react-native-community/datetimepicker";
+
+import PressableScale from "../../components/PressableScale";
+import { useTheme } from "../../contexts/ThemeContext";
 
 import {
   getHistory,
@@ -32,6 +32,9 @@ export default function History() {
   // ==========================================
   // STATE
   // ==========================================
+
+  const { darkMode } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [
     selectedDate,
@@ -55,44 +58,12 @@ export default function History() {
     setHistory,
   ] = useState<any[]>([]);
 
-  const [
-    darkMode,
-    setDarkMode,
-  ] = useState(false);
-
 
   // ==========================================
-  // INITIAL LOAD
+  // LOAD HISTORY (on mount + whenever tab regains focus)
   // ==========================================
 
-  useEffect(() => {
-
-    loadHistory();
-
-  }, []);
-
-
-  // ==========================================
-  // LOAD THEME WHEN SCREEN FOCUSES
-  // ==========================================
-
-  useFocusEffect(
-    useCallback(() => {
-
-      loadTheme();
-
-      // Refresh history whenever page opens
-      loadHistory();
-
-    }, [])
-  );
-
-
-  // ==========================================
-  // LOAD HISTORY
-  // ==========================================
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
 
     try {
 
@@ -118,36 +89,13 @@ export default function History() {
 
     }
 
-  };
+  }, []);
 
-
-  // ==========================================
-  // LOAD THEME
-  // ==========================================
-
-  const loadTheme = async () => {
-
-    try {
-
-      const theme =
-        await AsyncStorage.getItem(
-          "darkMode"
-        );
-
-      setDarkMode(
-        theme === "true"
-      );
-
-    } catch (error) {
-
-      console.log(
-        "THEME LOAD ERROR:",
-        error
-      );
-
-    }
-
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, [loadHistory])
+  );
 
 
   // ==========================================
@@ -260,7 +208,7 @@ export default function History() {
       ]}
 
       contentContainerStyle={{
-        paddingBottom: 120,
+        paddingBottom: 120 + insets.bottom,
       }}
 
       showsVerticalScrollIndicator={false}
@@ -280,6 +228,7 @@ export default function History() {
               darkMode
                 ? "#FFFFFF"
                 : "#0F4C81",
+            marginTop: insets.top + 5,
           },
 
         ]}
@@ -300,7 +249,7 @@ export default function History() {
         }}
       >
 
-        <TouchableOpacity
+        <PressableScale
 
           style={[
             styles.filterCard,
@@ -315,6 +264,8 @@ export default function History() {
             },
 
           ]}
+
+          scaleTo={0.97}
 
           onPress={() =>
             setShowPicker(true)
@@ -338,14 +289,16 @@ export default function History() {
             📆 Filter By Date
           </Text>
 
-        </TouchableOpacity>
+        </PressableScale>
 
 
         {isFiltered && (
 
-          <TouchableOpacity
+          <PressableScale
 
             style={styles.clearButton}
+
+            scaleTo={0.94}
 
             onPress={
               clearFilter
@@ -359,7 +312,7 @@ export default function History() {
               Clear
             </Text>
 
-          </TouchableOpacity>
+          </PressableScale>
 
         )}
 
@@ -690,8 +643,6 @@ const styles =
 
       marginBottom: 20,
 
-      marginTop: 25,
-
     },
 
 
@@ -735,6 +686,7 @@ const styles =
       borderRadius: 16,
 
       height: 50,
+      width: 80,
 
       marginBottom: 20,
 
