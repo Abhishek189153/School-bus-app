@@ -2350,6 +2350,50 @@ exports.tripHistory = async (
         );
 
 
+        // DEBUG
+// ==========================================
+
+console.log(
+    "========== TRIP HISTORY DEBUG =========="
+);
+
+console.log(
+    "Driver ID:",
+    driverId
+);
+
+console.log(
+    "School ID:",
+    schoolId
+);
+
+console.log(
+    "Selected Date:",
+    selectedDate
+);
+
+const allDriverTrips =
+    await Trip.find({
+        driverId,
+        schoolId,
+    })
+    .select(
+        "_id tripDate tripType status startTime endTime"
+    )
+    .sort({
+        createdAt: -1,
+    });
+
+console.log(
+    "ALL DRIVER TRIPS:",
+    allDriverTrips
+);
+
+console.log(
+    "========================================"
+);
+
+
         // ==========================================
         // GET COMPLETED TRIPS
         // FOR SELECTED DATE
