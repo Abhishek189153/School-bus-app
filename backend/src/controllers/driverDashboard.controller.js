@@ -4,84 +4,58 @@ const Route = require("../models/route.model");
 const Attendance = require("../models/attendance.model");
 const Trip = require("../models/trip.model");
 
-
-// ======================================================
-// GET DRIVER DASHBOARD
-// ======================================================
-
 exports.getDriverDashboard = async (req, res) => {
-
   try {
 
     const driverId =
       req.user.id;
 
+    const schoolId =
+      req.user.schoolId;
 
-    // ==================================================
+    // ==========================================
     // FIND DRIVER
-    // ==================================================
+    // ==========================================
 
     const driver =
       await User.findById(
         driverId
       ).select("-password");
 
-
     if (!driver) {
 
       return res.status(404).json({
-
         success: false,
-
-        message:
-          "Driver not found",
-
+        message: "Driver not found",
       });
 
     }
 
-
-    // ==================================================
+    // ==========================================
     // FIND DRIVER'S BUS
-    // ==================================================
+    // ==========================================
 
     const bus =
       await Bus.findOne({
-
         driverId,
-
-        schoolId:
-          req.user.schoolId,
-
+        schoolId,
       });
-
 
     if (!bus) {
 
       return res.status(404).json({
-
         success: false,
-
         message:
           "No bus assigned to driver",
-
       });
 
     }
 
-
-    // ==================================================
+    // ==========================================
     // INDIA DATE
-    // ==================================================
-    //
-    // This gives today's date according to India.
-    //
-    // Example:
-    // 2026-08-20
-    //
-    // ==================================================
+    // ==========================================
 
-    const now =
+    const indiaNow =
       new Date(
         new Date().toLocaleString(
           "en-US",
@@ -92,21 +66,87 @@ exports.getDriverDashboard = async (req, res) => {
         )
       );
 
-
     const today =
-      `${now.getFullYear()}-${String(
-        now.getMonth() + 1
+      `${indiaNow.getFullYear()}-${String(
+        indiaNow.getMonth() + 1
       ).padStart(2, "0")}-${String(
-        now.getDate()
+        indiaNow.getDate()
       ).padStart(2, "0")}`;
 
+    console.log(
+      "================================="
+    );
 
-    // ==================================================
+    console.log(
+      "DRIVER DASHBOARD"
+    );
+
+    console.log(
+      "Driver:",
+      driver.name
+    );
+
+    console.log(
+      "Today:",
+      today
+    );
+
+    // ==========================================
+    // CLOSE OLD UNFINISHED TRIPS
+    // ==========================================
+    //
+    // IMPORTANT:
+    // If yesterday's trip was left STARTED,
+    // it must NOT remain an active trip today.
+    //
+    // We do NOT delete it.
+    //
+    // We simply mark it COMPLETED so it remains
+    // available in Trip History.
+    //
+    // ==========================================
+
+    const oldTripsResult =
+      await Trip.updateMany(
+
+        {
+          driverId,
+
+          busId:
+            bus._id,
+
+          status:
+            "STARTED",
+
+          tripDate: {
+            $ne:
+              today,
+          },
+
+        },
+
+        {
+          $set: {
+            status:
+              "COMPLETED",
+
+            endTime:
+              new Date(),
+          },
+        }
+
+      );
+
+    console.log(
+      "OLD STARTED TRIPS CLOSED:",
+      oldTripsResult.modifiedCount
+    );
+
+    // ==========================================
     // PRIMARY ROUTE
-    // ==================================================
+    // ==========================================
 
     let route = null;
-
 
     if (bus.routeId) {
 
@@ -117,45 +157,31 @@ exports.getDriverDashboard = async (req, res) => {
 
     }
 
-
-    // ==================================================
-    // DRIVER ATTENDANCE FOR TODAY
-    // ==================================================
+    // ==========================================
+    // TODAY'S DRIVER ATTENDANCE
+    // ==========================================
 
     const todayAttendance =
       await Attendance.findOne({
 
         driverId,
 
-        schoolId:
-          req.user.schoolId,
+        schoolId,
 
         tripDate:
           today,
 
       });
 
-
-    // ==================================================
+    // ==========================================
     // DUTY STATUS
-    // ==================================================
-    //
-    // ON:
-    // Driver has started duty today
-    // and has NOT completed the last route yet.
-    //
-    // OFF:
-    // No duty started today
-    // OR duty has already ended today.
-    //
-    // ==================================================
+    // ==========================================
 
     let dutyStatus =
       "OFF";
 
     let dutySince =
       null;
-
 
     if (
       todayAttendance?.dutyOnTime &&
@@ -170,30 +196,16 @@ exports.getDriverDashboard = async (req, res) => {
 
     }
 
-
-    // ==================================================
-    // ACTIVE TRIP
-    // ==================================================
-    //
-    // VERY IMPORTANT:
-    //
-    // We check BOTH:
-    //
-    // status = STARTED
-    //
-    // AND
-    //
-    // tripDate = TODAY
-    //
-    // Therefore a trip left STARTED yesterday
-    // will NOT appear as today's active trip.
-    //
-    // ==================================================
+    // ==========================================
+    // FIND TODAY'S ACTIVE TRIP ONLY
+    // ==========================================
 
     const activeTrip =
       await Trip.findOne({
 
         driverId,
+
+        schoolId,
 
         busId:
           bus._id,
@@ -212,44 +224,45 @@ exports.getDriverDashboard = async (req, res) => {
       )
 
       .sort({
-
         startTime:
           -1,
+      });
+
+    // ==========================================
+    // LOGS
+    // ==========================================
+
+    console.log(
+      "Today's active trip:"
+    );
+
+    if (activeTrip) {
+
+      console.log({
+        id:
+          activeTrip._id,
+
+        tripDate:
+          activeTrip.tripDate,
+
+        tripType:
+          activeTrip.tripType,
+
+        status:
+          activeTrip.status,
+
+        route:
+          activeTrip.routeId?.routeName,
 
       });
 
+    } else {
 
-    // ==================================================
-    // LOGS
-    // ==================================================
+      console.log(
+        "NO ACTIVE TRIP FOR TODAY"
+      );
 
-    console.log(
-      "================================="
-    );
-
-    console.log(
-      "DRIVER DASHBOARD"
-    );
-
-    console.log(
-      "Driver:",
-      driver.name
-    );
-
-    console.log(
-      "Bus:",
-      bus.busNumber
-    );
-
-    console.log(
-      "Today:",
-      today
-    );
-
-    console.log(
-      "Attendance:",
-      todayAttendance
-    );
+    }
 
     console.log(
       "Duty Status:",
@@ -262,62 +275,28 @@ exports.getDriverDashboard = async (req, res) => {
     );
 
     console.log(
-      "Today's Active Trip:",
-      activeTrip
-    );
-
-    console.log(
-      "Primary Route:",
-      route?.routeName
-    );
-
-    console.log(
       "================================="
     );
 
-
-    // ==================================================
+    // ==========================================
     // RESPONSE
-    // ==================================================
+    // ==========================================
 
     return res.status(200).json({
 
-      success: true,
+      success:
+        true,
 
       data: {
 
-        // ----------------------------------------------
-        // DRIVER
-        // ----------------------------------------------
-
         driver,
-
-
-        // ----------------------------------------------
-        // BUS
-        // ----------------------------------------------
 
         bus,
 
-
-        // ----------------------------------------------
-        // PRIMARY ROUTE
-        // ----------------------------------------------
-
         route,
-
-
-        // ----------------------------------------------
-        // TODAY'S ATTENDANCE
-        // ----------------------------------------------
 
         attendance:
           todayAttendance,
-
-
-        // ----------------------------------------------
-        // DUTY
-        // ----------------------------------------------
 
         duty: {
 
@@ -329,21 +308,8 @@ exports.getDriverDashboard = async (req, res) => {
 
         },
 
-
-        // ----------------------------------------------
-        // TODAY'S ACTIVE TRIP
-        // ----------------------------------------------
-
         activeTrip:
           activeTrip || null,
-
-
-        // ----------------------------------------------
-        // TODAY
-        // ----------------------------------------------
-
-        todayTripDate:
-          today,
 
       },
 
@@ -356,10 +322,10 @@ exports.getDriverDashboard = async (req, res) => {
       error
     );
 
-
     return res.status(500).json({
 
-      success: false,
+      success:
+        false,
 
       message:
         error.message,
@@ -367,5 +333,4 @@ exports.getDriverDashboard = async (req, res) => {
     });
 
   }
-
 };

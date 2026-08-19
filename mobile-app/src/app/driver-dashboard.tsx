@@ -85,7 +85,7 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [bus, setBus] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
-  const [activeRoutesCount, setActiveRoutesCount] = useState(0);
+  //const [activeRoutesCount, setActiveRoutesCount] = useState(0);
 
   const [duty, setDuty] = useState<{
   status: "ON" | "OFF";
@@ -139,41 +139,57 @@ export default function DriverDashboard() {
     return () => loop.stop();
   }, [activeTrip]);
 
-  const loadDashboard = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    try {
-      const [data, routesData] = await Promise.all([
-        getDriverDashboard(),
-        getAssignedRoutes(),
-      ]);
+ const loadDashboard = useCallback(async () => {
 
-      if (data.success) {
-        setBus(data.bus);
-        setActiveTrip(data.activeTrip);
+  if (isFetchingRef.current) return;
 
-         setDuty(
-    data.duty || {
-      status: "OFF",
-      since: null,
+  isFetchingRef.current = true;
+
+  try {
+
+    const data =
+      await getDriverDashboard();
+
+    if (data.success) {
+
+      setBus(
+        data.bus
+      );
+
+      setActiveTrip(
+        data.activeTrip || null
+      );
+
+      setDuty(
+        data.duty || {
+          status: "OFF",
+          since: null,
+        }
+      );
+
     }
-  );
-      }
-      
 
-      if (routesData.success) {
-        const activeCount = routesData.routes.filter(
-          (route: any) => route.status === "ACTIVE"
-        ).length;
-        setActiveRoutesCount(activeCount);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, []);
+  } catch (error) {
+
+    console.error(
+      "DRIVER DASHBOARD LOAD ERROR:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Failed to load dashboard"
+    );
+
+  } finally {
+
+    setLoading(false);
+
+    isFetchingRef.current = false;
+
+  }
+
+}, []);
 
   // single source of truth for focus + polling (previously this ran twice per focus)
   useFocusEffect(
@@ -371,26 +387,63 @@ export default function DriverDashboard() {
   )}
 </View>
 
-          <View style={[styles.statCard, { backgroundColor: "#F2F9F3" }]}>
-            <View style={[styles.badgeIconBg, { backgroundColor: "#DCEFDD" }]}>
-              <Text style={styles.badgeIconSymbol}>🚌</Text>
-            </View>
-            <Text style={[styles.statNumber, { color: "#16A34A" }]}>
-              {activeRoutesCount.toString()}
-            </Text>
-            <Text style={styles.statLabel}>Active Trip</Text>
+         <View
+  style={[
+    styles.statCard,
+    {
+      backgroundColor: "#F2F9F3",
+    },
+  ]}
+>
 
-            <Text
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                fontWeight: "600",
-                color: activeTrip ? "#16A34A" : "#6B7280",
-              }}
-            >
-              {activeTrip ? "🚌 1 Ongoing Trip" : "🚌 0 Ongoing Trips"}
-            </Text>
-          </View>
+  <View
+    style={[
+      styles.badgeIconBg,
+      {
+        backgroundColor: "#DCEFDD",
+      },
+    ]}
+  >
+    <Text style={styles.badgeIconSymbol}>
+      🚌
+    </Text>
+  </View>
+
+  <Text
+    style={[
+      styles.statNumber,
+      {
+        color:
+          activeTrip
+            ? "#16A34A"
+            : "#6B7280",
+      },
+    ]}
+  >
+    {activeTrip ? "1" : "0"}
+  </Text>
+
+  <Text style={styles.statLabel}>
+    Active Trip
+  </Text>
+
+  <Text
+    style={{
+      marginTop: 8,
+      fontSize: 12,
+      fontWeight: "600",
+      color:
+        activeTrip
+          ? "#16A34A"
+          : "#6B7280",
+    }}
+  >
+    {activeTrip
+      ? `🚌 ${activeTrip.tripType || ""} Ongoing Trip`
+      : "🚌 No Ongoing Trip"}
+  </Text>
+
+</View>
         </View>
 
         {/* Action Button — now a spring-scale press for a smoother feel */}
