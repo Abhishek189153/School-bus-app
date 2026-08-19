@@ -87,6 +87,14 @@ export default function DriverDashboard() {
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [activeRoutesCount, setActiveRoutesCount] = useState(0);
 
+  const [duty, setDuty] = useState<{
+  status: "ON" | "OFF";
+  since: string | null;
+}>({
+  status: "OFF",
+  since: null,
+});
+
   // guards against overlapping fetches (focus + interval firing close together)
   const isFetchingRef = useRef(false);
 
@@ -143,7 +151,15 @@ export default function DriverDashboard() {
       if (data.success) {
         setBus(data.bus);
         setActiveTrip(data.activeTrip);
+
+         setDuty(
+    data.duty || {
+      status: "OFF",
+      since: null,
+    }
+  );
       }
+      
 
       if (routesData.success) {
         const activeCount = routesData.routes.filter(
@@ -282,17 +298,78 @@ export default function DriverDashboard() {
       <View style={styles.bodyContent}>
         {/* Stats Section Cards */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: "#EDF5FF" }]}>
-            <View style={[styles.badgeIconBg, { backgroundColor: "#D1E5FF" }]}>
-              <Text style={styles.badgeIconSymbol}>🛡️</Text>
-            </View>
-            <Text style={styles.statNumber}>{activeTrip ? "ON" : "OFF"}</Text>
-            <Text style={styles.statLabel}>Duty Status</Text>
+         <View style={[styles.statCard, { backgroundColor: "#EDF5FF" }]}>
+  
+  <View
+    style={[
+      styles.badgeIconBg,
+      {
+        backgroundColor:
+          duty.status === "ON"
+            ? "#D1E5FF"
+            : "#E5E7EB",
+      },
+    ]}
+  >
+    <Text style={styles.badgeIconSymbol}>
+      🛡️
+    </Text>
+  </View>
 
-            <View style={styles.subPillBlue}>
-              <Text style={styles.subPillBlueText}>🕒 Since 10:30 PM</Text>
-            </View>
-          </View>
+  <Text
+    style={[
+      styles.statNumber,
+      {
+        color:
+          duty.status === "ON"
+            ? "#16A34A"
+            : "#6B7280",
+      },
+    ]}
+  >
+    {duty.status}
+  </Text>
+
+  <Text style={styles.statLabel}>
+    Duty Status
+  </Text>
+
+  {duty.status === "ON" && duty.since ? (
+    <View style={styles.subPillBlue}>
+      <Text style={styles.subPillBlueText}>
+        🕒 Since{" "}
+        {new Date(duty.since).toLocaleTimeString(
+          "en-IN",
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }
+        )}
+      </Text>
+    </View>
+  ) : (
+    <View
+      style={[
+        styles.subPillBlue,
+        {
+          backgroundColor: "#E5E7EB",
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.subPillBlueText,
+          {
+            color: "#6B7280",
+          },
+        ]}
+      >
+        🕒 Duty Not Started
+      </Text>
+    </View>
+  )}
+</View>
 
           <View style={[styles.statCard, { backgroundColor: "#F2F9F3" }]}>
             <View style={[styles.badgeIconBg, { backgroundColor: "#DCEFDD" }]}>

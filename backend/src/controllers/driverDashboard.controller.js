@@ -9,123 +9,264 @@ exports.getDriverDashboard = async (req, res) => {
 
     const driverId = req.user.id;
 
-    const driver = await User.findById(driverId)
-      .select("-password");
+    // ==========================================
+    // FIND DRIVER
+    // ==========================================
 
-    const bus = await Bus.findOne({
-      driverId
-    });
+    const driver =
+      await User.findById(driverId)
+        .select("-password");
+
+    if (!driver) {
+
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found",
+      });
+
+    }
+
+    // ==========================================
+    // FIND DRIVER'S BUS
+    // ==========================================
+
+    const bus =
+      await Bus.findOne({
+        driverId,
+        schoolId:
+          req.user.schoolId,
+      });
+
+    if (!bus) {
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "No bus assigned to driver",
+      });
+
+    }
+
+    // ==========================================
+    // INDIA DATE
+    // ==========================================
+
+    const now =
+      new Date(
+        new Date().toLocaleString(
+          "en-US",
+          {
+            timeZone:
+              "Asia/Kolkata",
+          }
+        )
+      );
+
+    const today =
+      `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        now.getDate()
+      ).padStart(2, "0")}`;
+
+    // ==========================================
+    // PRIMARY ROUTE
+    // ==========================================
 
     let route = null;
 
-    if (bus?.routeId) {
-      route = await Route.findById(
-        bus.routeId
-      );
+    if (bus.routeId) {
+
+      route =
+        await Route.findById(
+          bus.routeId
+        );
+
     }
+
+    // ==========================================
+    // DRIVER ATTENDANCE
+    // ==========================================
 
     const todayAttendance =
       await Attendance.findOne({
+
         driverId,
-      }).sort({
-        createdAt: -1,
+
+        schoolId:
+          req.user.schoolId,
+
+        tripDate:
+          today,
+
       });
 
-    let activeTrip =
-  await Trip.findOne({
-    driverId,
-    status: "STARTED",
-  });
+    // ==========================================
+    // DUTY STATUS
+    // ==========================================
 
-if (!activeTrip && bus?.routeId) {
+    let dutyStatus = "OFF";
+    let dutySince = null;
 
-  const route =
-    await Route.findById(
-      bus.routeId
-    );
-
-  if (
-    route?.scheduledTime
-  ) {
-
-    const now =
-      new Date();
-
-    const [hour, minute] =
-      route.scheduledTime
-        .split(":")
-        .map(Number);
-
-    const tripTime =
-      new Date();
-
-    tripTime.setHours(
-      hour,
-      minute,
-      0,
-      0
-    );
-
-    const diffMinutes =
-      (
-        tripTime - now
-      ) /
-      1000 /
-      60;
-
-    // Same ACTIVE logic used in Routes page
     if (
-      diffMinutes <= 30
+      todayAttendance?.dutyOnTime &&
+      !todayAttendance?.dutyOffTime
     ) {
 
-      activeTrip = {
-        _id: "TIME_ACTIVE",
-        status: "ACTIVE_BY_TIME",
-      };
+      dutyStatus = "ON";
+
+      dutySince =
+        todayAttendance.dutyOnTime;
 
     }
 
-  }
+    // ==========================================
+    // ACTIVE TRIP
+    // ==========================================
+    //
+    // IMPORTANT:
+    // Only an actual STARTED trip is active.
+    //
+    // We do NOT create a fake ACTIVE_BY_TIME trip.
+    //
+    // ==========================================
 
-}
+    const activeTrip =
+      await Trip.findOne({
 
-console.log(
-  "DASHBOARD ACTIVE TRIP:",
-  activeTrip
-);
+        driverId,
 
-console.log(
-  "BUS:",
-  bus?.busNumber
-);
+        busId:
+          bus._id,
 
-console.log(
-  "ROUTE:",
-  route?.routeName
-);
+        status:
+          "STARTED",
 
-console.log(
-  "SCHEDULED:",
-  route?.scheduledTime
-);
+      })
 
-    res.status(200).json({
+      .populate(
+        "routeId",
+        "routeName scheduledTime tripType"
+      )
+
+      .sort({
+        startTime: -1,
+      });
+
+    // ==========================================
+    // LOGS
+    // ==========================================
+
+    console.log(
+      "================================="
+    );
+
+    console.log(
+      "DRIVER DASHBOARD"
+    );
+
+    console.log(
+      "Driver:",
+      driver.name
+    );
+
+    console.log(
+      "Bus:",
+      bus.busNumber
+    );
+
+    console.log(
+      "Today:",
+      today
+    );
+
+    console.log(
+      "Attendance:",
+      todayAttendance
+    );
+
+    console.log(
+      "Duty Status:",
+      dutyStatus
+    );
+
+    console.log(
+      "Duty Since:",
+      dutySince
+    );
+
+    console.log(
+      "Active Trip:",
+      activeTrip
+    );
+
+    console.log(
+      "Primary Route:",
+      route?.routeName
+    );
+
+    console.log(
+      "================================="
+    );
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(200).json({
+
       success: true,
 
       data: {
+
         driver,
+
         bus,
+
         route,
-        attendance: todayAttendance,
+
+        attendance:
+          todayAttendance,
+
+        // ======================================
+        // DUTY
+        // ======================================
+
+        duty: {
+
+          status:
+            dutyStatus,
+
+          since:
+            dutySince,
+
+        },
+
+        // ======================================
+        // ACTIVE TRIP
+        // ======================================
+
         activeTrip,
+
       },
+
     });
 
   } catch (error) {
 
-    res.status(500).json({
+    console.error(
+      "DRIVER DASHBOARD ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+
       success: false,
-      message: error.message,
+
+      message:
+        error.message,
+
     });
+
   }
 };
