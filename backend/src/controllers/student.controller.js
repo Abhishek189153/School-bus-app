@@ -304,8 +304,7 @@ exports.createStudent = async (req, res) => {
         // CREATE STUDENT
         // ==========================================
 
-        const student =
-            await Student.create({
+        const student = await Student.create({
 
                 name,
 
@@ -857,8 +856,7 @@ exports.updateStudent = async (
         // UPDATE STUDENT
         // ==========================================
 
-        const updatedStudent =
-            await Student.findByIdAndUpdate(
+        const updatedStudent = await Student.findByIdAndUpdate(
 
                 req.params.id,
 
