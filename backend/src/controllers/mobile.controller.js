@@ -18,6 +18,8 @@ const WorkingDay = require("../models/workingDay.model");
 
 
 
+
+
 exports.getDriverDashboard = async (req, res) => {
   try {
 
@@ -62,11 +64,11 @@ exports.getDriverDashboard = async (req, res) => {
         schoolId,
 
       })
-      .populate("routeId")
-      .populate(
-        "driverId",
-        "name phone"
-      );
+        .populate("routeId")
+        .populate(
+          "driverId",
+          "name phone"
+        );
 
 
     if (!bus) {
@@ -130,6 +132,48 @@ exports.getDriverDashboard = async (req, res) => {
 
 
     // ==========================================
+    // TODAY'S DRIVER ATTENDANCE
+    // ==========================================
+
+    const todayAttendance =
+      await Attendance.findOne({
+
+        driverId,
+
+        schoolId,
+
+        tripDate:
+          today,
+
+      });
+
+
+    // ==========================================
+    // DUTY STATUS
+    // ==========================================
+
+    let dutyStatus =
+      "OFF";
+
+    let dutySince =
+      null;
+
+
+    if (
+      todayAttendance?.dutyOnTime &&
+      !todayAttendance?.dutyOffTime
+    ) {
+
+      dutyStatus =
+        "ON";
+
+      dutySince =
+        todayAttendance.dutyOnTime;
+
+    }
+
+
+    // ==========================================
     // FIND TODAY'S ACTUAL ONGOING TRIP
     // ==========================================
 
@@ -150,14 +194,14 @@ exports.getDriverDashboard = async (req, res) => {
           "STARTED",
 
       })
-      .populate(
-        "routeId",
-        "routeName scheduledTime tripType"
-      )
-      .sort({
-        startTime:
-          -1,
-      });
+        .populate(
+          "routeId",
+          "routeName scheduledTime tripType"
+        )
+        .sort({
+          startTime:
+            -1,
+        });
 
 
     // ==========================================
@@ -193,9 +237,9 @@ exports.getDriverDashboard = async (req, res) => {
           bus._id,
 
       })
-      .populate(
-        "routeId"
-      );
+        .populate(
+          "routeId"
+        );
 
 
     extraRoutes.forEach(
@@ -230,7 +274,11 @@ exports.getDriverDashboard = async (req, res) => {
 
         if (
           !route?._id
-        ) return;
+        ) {
+
+          return;
+
+        }
 
 
         const id =
@@ -285,12 +333,15 @@ exports.getDriverDashboard = async (req, res) => {
 
         if (
           !route?.scheduledTime
-        ) return;
+        ) {
+
+          return;
+
+        }
 
 
         // --------------------------------------
-        // CHECK WHETHER THIS ROUTE WAS
-        // ALREADY COMPLETED TODAY
+        // CHECK WHETHER COMPLETED TODAY
         // --------------------------------------
 
         const completed =
@@ -307,9 +358,6 @@ exports.getDriverDashboard = async (req, res) => {
           );
 
 
-        // Completed routes are no longer
-        // active/ready for today.
-
         if (
           completed
         ) {
@@ -320,8 +368,7 @@ exports.getDriverDashboard = async (req, res) => {
 
 
         // --------------------------------------
-        // CHECK WHETHER THIS ROUTE IS
-        // CURRENTLY ONGOING
+        // CHECK WHETHER CURRENTLY ONGOING
         // --------------------------------------
 
         const ongoing =
@@ -337,9 +384,6 @@ exports.getDriverDashboard = async (req, res) => {
                 "STARTED"
           );
 
-
-        // If already running, it is handled
-        // separately as Ongoing Trip.
 
         if (
           ongoing
@@ -392,8 +436,8 @@ exports.getDriverDashboard = async (req, res) => {
         // Route becomes READY 30 minutes
         // before scheduled time.
         //
-        // It remains ready after scheduled
-        // time until driver starts it.
+        // It remains READY after scheduled time
+        // until driver starts it.
         //
         // --------------------------------------
 
@@ -429,7 +473,7 @@ exports.getDriverDashboard = async (req, res) => {
 
 
     // ==========================================
-    // ACTIVE TRIP TYPE
+    // ACTIVE TRIP LABEL
     // ==========================================
 
     let activeTripLabel =
@@ -468,8 +512,28 @@ exports.getDriverDashboard = async (req, res) => {
     );
 
     console.log(
+      "Driver ID:",
+      driverId
+    );
+
+    console.log(
       "Today:",
       today
+    );
+
+    console.log(
+      "Duty Status:",
+      dutyStatus
+    );
+
+    console.log(
+      "Duty Since:",
+      dutySince
+    );
+
+    console.log(
+      "Today's Attendance:",
+      todayAttendance
     );
 
     console.log(
@@ -485,7 +549,8 @@ exports.getDriverDashboard = async (req, res) => {
     console.log(
       "Ready Route Names:",
       readyRoutes.map(
-        r => r.routeName
+        (r) =>
+          r.routeName
       )
     );
 
@@ -535,13 +600,42 @@ exports.getDriverDashboard = async (req, res) => {
 
       bus,
 
+      // ======================================
+      // ONGOING TRIP
+      // ======================================
+
       activeTrip,
+
+      // ======================================
+      // READY ROUTES
+      // ======================================
 
       activeRoutesCount,
 
       readyRoutes,
 
       activeTripLabel,
+
+      // ======================================
+      // DUTY
+      // ======================================
+
+      duty: {
+
+        status:
+          dutyStatus,
+
+        since:
+          dutySince,
+
+      },
+
+      // ======================================
+      // RAW ATTENDANCE
+      // ======================================
+
+      attendance:
+        todayAttendance,
 
     });
 

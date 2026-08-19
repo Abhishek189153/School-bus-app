@@ -85,7 +85,7 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [bus, setBus] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
-  //const [activeRoutesCount, setActiveRoutesCount] = useState(0);
+  const [activeRoutesCount, setActiveRoutesCount] = useState(0);
 
   const [duty, setDuty] = useState<{
   status: "ON" | "OFF";
@@ -150,14 +150,23 @@ export default function DriverDashboard() {
     const data =
       await getDriverDashboard();
 
+    console.log(
+      "DRIVER DASHBOARD RESPONSE:",
+      data
+    );
+
     if (data.success) {
 
       setBus(
-        data.bus
+        data.bus || null
       );
 
       setActiveTrip(
         data.activeTrip || null
+      );
+
+      setActiveRoutesCount(
+        data.activeRoutesCount || 0
       );
 
       setDuty(
@@ -174,11 +183,6 @@ export default function DriverDashboard() {
     console.error(
       "DRIVER DASHBOARD LOAD ERROR:",
       error
-    );
-
-    Alert.alert(
-      "Error",
-      "Failed to load dashboard"
     );
 
   } finally {
@@ -409,24 +413,26 @@ export default function DriverDashboard() {
     </Text>
   </View>
 
+  {/* NUMBER */}
   <Text
     style={[
       styles.statNumber,
       {
         color:
-          activeTrip
+          activeRoutesCount > 0
             ? "#16A34A"
             : "#6B7280",
       },
     ]}
   >
-    {activeTrip ? "1" : "0"}
+    {activeRoutesCount}
   </Text>
 
   <Text style={styles.statLabel}>
     Active Trip
   </Text>
 
+  {/* STATUS */}
   <Text
     style={{
       marginTop: 8,
@@ -435,12 +441,18 @@ export default function DriverDashboard() {
       color:
         activeTrip
           ? "#16A34A"
-          : "#6B7280",
+          : activeRoutesCount > 0
+            ? "#2563EB"
+            : "#6B7280",
     }}
   >
     {activeTrip
-      ? `🚌 ${activeTrip.tripType || ""} Ongoing Trip`
-      : "🚌 No Ongoing Trip"}
+      ? `🚌 ${activeTrip.tripType} Ongoing Trip`
+      : activeRoutesCount > 0
+        ? activeRoutesCount === 1
+          ? "🚌 1 Ready Trip"
+          : `🚌 ${activeRoutesCount} Ready Trips`
+        : "🚌 No Active Trips"}
   </Text>
 
 </View>
