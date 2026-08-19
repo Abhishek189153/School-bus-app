@@ -21,110 +21,236 @@ const WorkingDay = require("../models/workingDay.model");
 exports.getDriverDashboard = async (req, res) => {
   try {
 
-    const bus = await Bus.findOne({
-      driverId: req.user.id,
-      schoolId: req.user.schoolId,
-    })
+    const driverId =
+      req.user.id;
+
+    const schoolId =
+      req.user.schoolId;
+
+    // ==========================================
+    // INDIA DATE
+    // ==========================================
+
+    const indiaNow =
+      new Date(
+        new Date().toLocaleString(
+          "en-US",
+          {
+            timeZone:
+              "Asia/Kolkata",
+          }
+        )
+      );
+
+    const today =
+      `${indiaNow.getFullYear()}-${String(
+        indiaNow.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        indiaNow.getDate()
+      ).padStart(2, "0")}`;
+
+
+    console.log(
+      "======================================"
+    );
+
+    console.log(
+      "DRIVER DASHBOARD"
+    );
+
+    console.log(
+      "Driver:",
+      driverId
+    );
+
+    console.log(
+      "School:",
+      schoolId
+    );
+
+    console.log(
+      "Today's Date:",
+      today
+    );
+
+
+    // ==========================================
+    // FIND DRIVER'S BUS
+    // ==========================================
+
+    const bus =
+      await Bus.findOne({
+
+        driverId,
+
+        schoolId,
+
+      })
       .populate("routeId")
       .populate(
         "driverId",
         "name phone"
       );
 
-    const activeTrip = await Trip.findOne({
-      driverId: req.user.id,
-      status: "STARTED",
-    });
 
-    // let activeRoutesCount = 0;
+    // ==========================================
+    // CLOSE OLD STARTED TRIPS
+    // ==========================================
+    //
+    // If yesterday's trip was left STARTED,
+    // it must NOT remain active today.
+    //
+    // We only close trips whose tripDate
+    // is different from today's date.
+    //
+    // ==========================================
 
-    // if (bus) {
+    const staleTrips =
+      await Trip.find({
 
-    //   const now = new Date();
+        driverId,
 
-    //   const routesToCheck = [];
+        schoolId,
 
-    //   // Primary Route
-    //   if (bus.routeId) {
+        status:
+          "STARTED",
 
-    //     routesToCheck.push(
-    //       bus.routeId
-    //     );
+        tripDate: {
+          $ne:
+            today,
+        },
 
-    //   }
+      });
 
-    //   // Additional Routes
-    //   const extraRoutes =
-    //     await BusRoute.find({
-    //       busId: bus._id,
-    //     }).populate("routeId");
 
-    //   extraRoutes.forEach(
-    //     (item) => {
+    if (
+      staleTrips.length > 0
+    ) {
 
-    //       if (
-    //         item.routeId
-    //       ) {
+      console.log(
+        "OLD STARTED TRIPS FOUND:",
+        staleTrips.length
+      );
 
-    //         routesToCheck.push(
-    //           item.routeId
-    //         );
 
-    //       }
+      for (
+        const oldTrip
+        of staleTrips
+      ) {
 
-    //     }
-    //   );
+        oldTrip.status =
+          "COMPLETED";
 
-    //   routesToCheck.forEach(
-    //     (route) => {
+        oldTrip.endTime =
+          oldTrip.endTime ||
+          oldTrip.updatedAt ||
+          new Date();
 
-    //       if (
-    //         !route?.scheduledTime
-    //       ) return;
+        await oldTrip.save();
 
-    //       const [hour, minute] =
-    //         route.scheduledTime
-    //           .split(":")
-    //           .map(Number);
 
-    //       const tripTime =
-    //         new Date();
+        console.log(
+          "OLD TRIP CLOSED:",
+          oldTrip._id.toString(),
+          "Date:",
+          oldTrip.tripDate
+        );
 
-    //       tripTime.setHours(
-    //         hour,
-    //         minute,
-    //         0,
-    //         0
-    //       );
+      }
 
-    //       const diffMinutes =
-    //         (
-    //           tripTime - now
-    //         ) /
-    //         1000 /
-    //         60;
+    }
 
-    //       // Same ACTIVE logic as Assigned Routes page
-    //       if (
-    //         diffMinutes <= 30 
-            
-    //       ) {
 
-    //         activeRoutesCount++;
+    // ==========================================
+    // FIND TODAY'S ACTIVE TRIP
+    // ==========================================
+    //
+    // IMPORTANT:
+    // tripDate MUST equal today's date.
+    //
+    // Therefore yesterday's STARTED trip
+    // can never appear here.
+    //
+    // ==========================================
 
-    //       }
+    const activeTrip =
+      await Trip.findOne({
 
-    //     }
-    //   );
+        driverId,
 
-    // }
+        schoolId,
 
-    res.status(200).json({
-      success: true,
+        busId:
+          bus?._id,
+
+        tripDate:
+          today,
+
+        status:
+          "STARTED",
+
+      })
+
+      .populate(
+        "routeId",
+        "routeName scheduledTime tripType"
+      )
+
+      .sort({
+        startTime:
+          -1,
+      });
+
+
+    // ==========================================
+    // LOG ACTIVE TRIP
+    // ==========================================
+
+    console.log(
+      "TODAY ACTIVE TRIP:",
+      activeTrip
+        ? {
+            id:
+              activeTrip._id,
+
+            tripDate:
+              activeTrip.tripDate,
+
+            tripType:
+              activeTrip.tripType,
+
+            status:
+              activeTrip.status,
+
+            startTime:
+              activeTrip.startTime,
+          }
+        : null
+    );
+
+
+    console.log(
+      "======================================"
+    );
+
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(200).json({
+
+      success:
+        true,
+
+      today,
+
       bus,
+
       activeTrip,
-     
+
     });
+
 
   } catch (error) {
 
@@ -133,9 +259,15 @@ exports.getDriverDashboard = async (req, res) => {
       error
     );
 
-    res.status(500).json({
-      success: false,
-      message: error.message,
+
+    return res.status(500).json({
+
+      success:
+        false,
+
+      message:
+        error.message,
+
     });
 
   }
