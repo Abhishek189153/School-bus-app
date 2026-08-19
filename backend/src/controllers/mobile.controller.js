@@ -27,6 +27,7 @@ exports.getDriverDashboard = async (req, res) => {
     const schoolId =
       req.user.schoolId;
 
+
     // ==========================================
     // INDIA DATE
     // ==========================================
@@ -36,8 +37,7 @@ exports.getDriverDashboard = async (req, res) => {
         new Date().toLocaleString(
           "en-US",
           {
-            timeZone:
-              "Asia/Kolkata",
+            timeZone: "Asia/Kolkata",
           }
         )
       );
@@ -50,32 +50,8 @@ exports.getDriverDashboard = async (req, res) => {
       ).padStart(2, "0")}`;
 
 
-    console.log(
-      "======================================"
-    );
-
-    console.log(
-      "DRIVER DASHBOARD"
-    );
-
-    console.log(
-      "Driver:",
-      driverId
-    );
-
-    console.log(
-      "School:",
-      schoolId
-    );
-
-    console.log(
-      "Today's Date:",
-      today
-    );
-
-
     // ==========================================
-    // FIND DRIVER'S BUS
+    // FIND BUS
     // ==========================================
 
     const bus =
@@ -93,16 +69,22 @@ exports.getDriverDashboard = async (req, res) => {
       );
 
 
+    if (!bus) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "No bus assigned to driver",
+
+      });
+
+    }
+
+
     // ==========================================
-    // CLOSE OLD STARTED TRIPS
-    // ==========================================
-    //
-    // If yesterday's trip was left STARTED,
-    // it must NOT remain active today.
-    //
-    // We only close trips whose tripDate
-    // is different from today's date.
-    //
+    // CLOSE YESTERDAY'S STALE TRIPS
     // ==========================================
 
     const staleTrips =
@@ -123,54 +105,32 @@ exports.getDriverDashboard = async (req, res) => {
       });
 
 
-    if (
-      staleTrips.length > 0
+    for (
+      const oldTrip
+      of staleTrips
     ) {
 
+      oldTrip.status =
+        "COMPLETED";
+
+      oldTrip.endTime =
+        oldTrip.endTime ||
+        oldTrip.updatedAt ||
+        new Date();
+
+      await oldTrip.save();
+
       console.log(
-        "OLD STARTED TRIPS FOUND:",
-        staleTrips.length
+        "OLD TRIP CLOSED:",
+        oldTrip._id.toString(),
+        oldTrip.tripDate
       );
-
-
-      for (
-        const oldTrip
-        of staleTrips
-      ) {
-
-        oldTrip.status =
-          "COMPLETED";
-
-        oldTrip.endTime =
-          oldTrip.endTime ||
-          oldTrip.updatedAt ||
-          new Date();
-
-        await oldTrip.save();
-
-
-        console.log(
-          "OLD TRIP CLOSED:",
-          oldTrip._id.toString(),
-          "Date:",
-          oldTrip.tripDate
-        );
-
-      }
 
     }
 
 
     // ==========================================
-    // FIND TODAY'S ACTIVE TRIP
-    // ==========================================
-    //
-    // IMPORTANT:
-    // tripDate MUST equal today's date.
-    //
-    // Therefore yesterday's STARTED trip
-    // can never appear here.
-    //
+    // FIND TODAY'S ACTUAL ONGOING TRIP
     // ==========================================
 
     const activeTrip =
@@ -181,7 +141,7 @@ exports.getDriverDashboard = async (req, res) => {
         schoolId,
 
         busId:
-          bus?._id,
+          bus._id,
 
         tripDate:
           today,
@@ -190,12 +150,10 @@ exports.getDriverDashboard = async (req, res) => {
           "STARTED",
 
       })
-
       .populate(
         "routeId",
         "routeName scheduledTime tripType"
       )
-
       .sort({
         startTime:
           -1,
@@ -203,31 +161,361 @@ exports.getDriverDashboard = async (req, res) => {
 
 
     // ==========================================
-    // LOG ACTIVE TRIP
+    // GET ALL ASSIGNED ROUTES
+    // ==========================================
+
+    const assignedRoutes = [];
+
+
+    // ------------------------------------------
+    // PRIMARY ROUTE
+    // ------------------------------------------
+
+    if (
+      bus.routeId
+    ) {
+
+      assignedRoutes.push(
+        bus.routeId
+      );
+
+    }
+
+
+    // ------------------------------------------
+    // EXTRA ROUTES
+    // ------------------------------------------
+
+    const extraRoutes =
+      await BusRoute.find({
+
+        busId:
+          bus._id,
+
+      })
+      .populate(
+        "routeId"
+      );
+
+
+    extraRoutes.forEach(
+      (item) => {
+
+        if (
+          item.routeId
+        ) {
+
+          assignedRoutes.push(
+            item.routeId
+          );
+
+        }
+
+      }
+    );
+
+
+    // ==========================================
+    // REMOVE DUPLICATE ROUTES
+    // ==========================================
+
+    const uniqueRoutes = [];
+
+    const routeIds =
+      new Set();
+
+
+    assignedRoutes.forEach(
+      (route) => {
+
+        if (
+          !route?._id
+        ) return;
+
+
+        const id =
+          route._id.toString();
+
+
+        if (
+          !routeIds.has(id)
+        ) {
+
+          routeIds.add(id);
+
+          uniqueRoutes.push(
+            route
+          );
+
+        }
+
+      }
+    );
+
+
+    // ==========================================
+    // GET TODAY'S TRIPS
+    // ==========================================
+
+    const todayTrips =
+      await Trip.find({
+
+        driverId,
+
+        schoolId,
+
+        busId:
+          bus._id,
+
+        tripDate:
+          today,
+
+      });
+
+
+    // ==========================================
+    // FIND READY ROUTES
+    // ==========================================
+
+    const readyRoutes = [];
+
+
+    uniqueRoutes.forEach(
+      (route) => {
+
+        if (
+          !route?.scheduledTime
+        ) return;
+
+
+        // --------------------------------------
+        // CHECK WHETHER THIS ROUTE WAS
+        // ALREADY COMPLETED TODAY
+        // --------------------------------------
+
+        const completed =
+          todayTrips.some(
+            (trip) =>
+
+              trip.routeId?.toString() ===
+                route._id.toString()
+
+              &&
+
+              trip.status ===
+                "COMPLETED"
+          );
+
+
+        // Completed routes are no longer
+        // active/ready for today.
+
+        if (
+          completed
+        ) {
+
+          return;
+
+        }
+
+
+        // --------------------------------------
+        // CHECK WHETHER THIS ROUTE IS
+        // CURRENTLY ONGOING
+        // --------------------------------------
+
+        const ongoing =
+          todayTrips.some(
+            (trip) =>
+
+              trip.routeId?.toString() ===
+                route._id.toString()
+
+              &&
+
+              trip.status ===
+                "STARTED"
+          );
+
+
+        // If already running, it is handled
+        // separately as Ongoing Trip.
+
+        if (
+          ongoing
+        ) {
+
+          return;
+
+        }
+
+
+        // --------------------------------------
+        // SCHEDULED TIME
+        // --------------------------------------
+
+        const [
+          hour,
+          minute,
+        ] =
+          route.scheduledTime
+            .split(":")
+            .map(Number);
+
+
+        const routeTime =
+          new Date(
+            indiaNow
+          );
+
+        routeTime.setHours(
+          hour,
+          minute,
+          0,
+          0
+        );
+
+
+        const diffMinutes =
+          (
+            routeTime -
+            indiaNow
+          ) /
+          1000 /
+          60;
+
+
+        // --------------------------------------
+        // READY WINDOW
+        // --------------------------------------
+        //
+        // Route becomes READY 30 minutes
+        // before scheduled time.
+        //
+        // It remains ready after scheduled
+        // time until driver starts it.
+        //
+        // --------------------------------------
+
+        if (
+          diffMinutes <= 30
+        ) {
+
+          readyRoutes.push(
+            route
+          );
+
+        }
+
+      }
+    );
+
+
+    // ==========================================
+    // ACTIVE TRIP COUNT
+    // ==========================================
+    //
+    // Ready routes + currently ongoing route
+    //
+    // ==========================================
+
+    const activeRoutesCount =
+      readyRoutes.length +
+      (
+        activeTrip
+          ? 1
+          : 0
+      );
+
+
+    // ==========================================
+    // ACTIVE TRIP TYPE
+    // ==========================================
+
+    let activeTripLabel =
+      null;
+
+
+    if (
+      activeTrip
+    ) {
+
+      activeTripLabel =
+        `${activeTrip.tripType} Ongoing Trip`;
+
+    } else if (
+      readyRoutes.length > 0
+    ) {
+
+      activeTripLabel =
+        readyRoutes.length === 1
+          ? "1 Ready Trip"
+          : `${readyRoutes.length} Ready Trips`;
+
+    }
+
+
+    // ==========================================
+    // LOGS
     // ==========================================
 
     console.log(
-      "TODAY ACTIVE TRIP:",
+      "======================================"
+    );
+
+    console.log(
+      "DRIVER DASHBOARD"
+    );
+
+    console.log(
+      "Today:",
+      today
+    );
+
+    console.log(
+      "Assigned Routes:",
+      uniqueRoutes.length
+    );
+
+    console.log(
+      "Ready Routes:",
+      readyRoutes.length
+    );
+
+    console.log(
+      "Ready Route Names:",
+      readyRoutes.map(
+        r => r.routeName
+      )
+    );
+
+    console.log(
+      "Today's Active Trip:",
       activeTrip
         ? {
             id:
               activeTrip._id,
 
-            tripDate:
-              activeTrip.tripDate,
+            route:
+              activeTrip.routeId
+                ?.routeName,
 
             tripType:
               activeTrip.tripType,
 
+            tripDate:
+              activeTrip.tripDate,
+
             status:
               activeTrip.status,
-
-            startTime:
-              activeTrip.startTime,
           }
         : null
     );
 
+    console.log(
+      "Active Routes Count:",
+      activeRoutesCount
+    );
 
     console.log(
       "======================================"
@@ -248,6 +536,12 @@ exports.getDriverDashboard = async (req, res) => {
       bus,
 
       activeTrip,
+
+      activeRoutesCount,
+
+      readyRoutes,
+
+      activeTripLabel,
 
     });
 
