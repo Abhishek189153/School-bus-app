@@ -2288,15 +2288,85 @@ exports.tripHistory = async (
 
     try {
 
+        const driverId =
+            req.user.id;
+
+        const schoolId =
+            req.user.schoolId;
+
+        const {
+            date,
+        } = req.query;
+
+
         // ==========================================
-        // GET DRIVER TRIPS
+        // INDIA DATE
+        // ==========================================
+
+        const indiaNow =
+            new Date(
+                new Date().toLocaleString(
+                    "en-US",
+                    {
+                        timeZone:
+                            "Asia/Kolkata",
+                    }
+                )
+            );
+
+
+        const today =
+            `${indiaNow.getFullYear()}-${String(
+                indiaNow.getMonth() + 1
+            ).padStart(2, "0")}-${String(
+                indiaNow.getDate()
+            ).padStart(2, "0")}`;
+
+
+        // ==========================================
+        // SELECTED DATE
+        // ==========================================
+
+        const selectedDate =
+            date || today;
+
+
+        console.log(
+            "======================================"
+        );
+
+        console.log(
+            "TRIP HISTORY"
+        );
+
+        console.log(
+            "Driver:",
+            driverId
+        );
+
+        console.log(
+            "Selected Date:",
+            selectedDate
+        );
+
+
+        // ==========================================
+        // GET COMPLETED TRIPS
+        // FOR SELECTED DATE
         // ==========================================
 
         const trips =
             await Trip.find({
 
-                driverId:
-                    req.user.id,
+                driverId,
+
+                schoolId,
+
+                tripDate:
+                    selectedDate,
+
+                status:
+                    "COMPLETED",
 
             })
 
@@ -2307,11 +2377,12 @@ exports.tripHistory = async (
 
             .populate(
                 "busId",
-                "busNumber"
+                "busNumber vehicleNumber"
             )
 
             .sort({
-                createdAt: -1,
+                startTime:
+                    -1,
             });
 
 
@@ -2343,7 +2414,8 @@ exports.tripHistory = async (
                         // TOTAL STUDENTS FOR THIS TRIP
                         // ==================================
 
-                        let totalStudents;
+                        let totalStudents =
+                            0;
 
 
                         if (
@@ -2358,14 +2430,17 @@ exports.tripHistory = async (
                                         trip.schoolId,
 
                                     pickupBusId:
-                                        trip.busId._id,
+                                        trip.busId?._id,
 
                                     pickupRouteId:
-                                        trip.routeId._id,
+                                        trip.routeId?._id,
 
                                 });
 
-                        } else if (
+                        }
+
+
+                        else if (
                             trip.tripType ===
                             "DROP"
                         ) {
@@ -2377,19 +2452,26 @@ exports.tripHistory = async (
                                         trip.schoolId,
 
                                     dropBusId:
-                                        trip.busId._id,
+                                        trip.busId?._id,
 
                                     dropRouteId:
-                                        trip.routeId._id,
+                                        trip.routeId?._id,
 
                                 });
 
-                        } else {
-
-                            totalStudents =
-                                0;
-
                         }
+
+
+                        // ==================================
+                        // ABSENT
+                        // ==================================
+
+                        const absent =
+                            Math.max(
+                                0,
+                                totalStudents -
+                                boarded
+                            );
 
 
                         // ==================================
@@ -2406,25 +2488,51 @@ exports.tripHistory = async (
 
                             routeName:
                                 trip.routeId
-                                    ?.routeName,
+                                    ?.routeName ||
+                                "-",
 
                             busNumber:
                                 trip.busId
-                                    ?.busNumber,
+                                    ?.busNumber ||
+                                "-",
 
-                            date:
-                                trip.createdAt,
+                            vehicleNumber:
+                                trip.busId
+                                    ?.vehicleNumber ||
+                                "-",
+
+                            // --------------------------------
+                            // DATE
+                            // --------------------------------
+
+                            tripDate:
+                                trip.tripDate,
+
+                            // --------------------------------
+                            // START / END TIME
+                            // --------------------------------
+
+                            startTime:
+                                trip.startTime ||
+                                null,
+
+                            endTime:
+                                trip.endTime ||
+                                null,
+
+                            // --------------------------------
+                            // STUDENTS
+                            // --------------------------------
 
                             boarded,
 
-                            absent:
-                                Math.max(
-                                    0,
-                                    totalStudents -
-                                    boarded
-                                ),
+                            absent,
 
                             totalStudents,
+
+                            // --------------------------------
+                            // STATUS
+                            // --------------------------------
 
                             status:
                                 trip.status,
@@ -2437,13 +2545,30 @@ exports.tripHistory = async (
             );
 
 
+        console.log(
+            "Completed Trips:",
+            history.length
+        );
+
+        console.log(
+            "======================================"
+        );
+
+
         // ==========================================
         // RESPONSE
         // ==========================================
 
         return res.status(200).json({
 
-            success: true,
+            success:
+                true,
+
+            date:
+                selectedDate,
+
+            total:
+                history.length,
 
             history,
 
@@ -2460,7 +2585,8 @@ exports.tripHistory = async (
 
         return res.status(500).json({
 
-            success: false,
+            success:
+                false,
 
             message:
                 error.message,

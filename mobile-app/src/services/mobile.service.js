@@ -166,14 +166,50 @@ export const getTripSummary =
 
   };
 
-export const getTripHistory =
-  async () => {
+export const getTripHistory = async (date) => {
 
-    return apiRequest(
-      `${BASE_URL}/trip-history`
+  try {
+
+    const token =
+      await AsyncStorage.getItem("token");
+
+    let url =
+      `${API_URL}/api/mobile/trip-history`;
+
+    if (date) {
+      url += `?date=${date}`;
+    }
+
+    const response =
+      await fetch(url, {
+        method: "GET",
+
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+
+          "Content-Type":
+            "application/json",
+        },
+      });
+
+    return await response.json();
+
+  } catch (error) {
+
+    console.log(
+      "GET TRIP HISTORY ERROR:",
+      error
     );
 
-  };
+    return {
+      success: false,
+      history: [],
+    };
+
+  }
+
+};
 
 export const dutyOn =
   async () => {
