@@ -354,57 +354,60 @@ export const savePushToken =
 // redirect loop before the user is even logged in)
 // ==========================================
 
-export const sendForgotPasswordOTP =
-  async (email) => {
+export const sendForgotPasswordOTP = async (email) => {
+  const response = await fetch(
+    `${BASE_URL}/send-forgot-password-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+      }),
+    }
+  );
 
-    return apiRequest(
-      `${BASE_URL}/send-forgot-password-otp`,
-      {
-        method: "POST",
-
-        body: JSON.stringify({
-          email,
-        }),
-      }
-    );
-
-  };
-
-
-export const verifyForgotPasswordOTP =
-  async (email, otp) => {
-
-    return apiRequest(
-      `${BASE_URL}/verify-forgot-password-otp`,
-      {
-        method: "POST",
-
-        body: JSON.stringify({
-          email,
-          otp,
-        }),
-      }
-    );
-
-  };
+  return await response.json();
+};
 
 
-export const resetPassword =
-  async (
-    email,
-    newPassword
-  ) => {
+export const verifyForgotPasswordOTP = async (email, otp) => {
+  const response = await fetch(
+    `${BASE_URL}/verify-forgot-password-otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+      }),
+    }
+  );
 
-    return apiRequest(
-      `${BASE_URL}/reset-password`,
-      {
-        method: "POST",
+  return await response.json();
+};
 
-        body: JSON.stringify({
-          email,
-          newPassword,
-        }),
-      }
-    );
 
-  };
+export const resetPassword = async (
+  email,
+  newPassword
+) => {
+  const response = await fetch(
+    `${BASE_URL}/reset-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        newPassword,
+      }),
+    }
+  );
+
+  return await response.json();
+};

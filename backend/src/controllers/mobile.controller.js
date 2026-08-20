@@ -4467,6 +4467,7 @@ async (req, res) => {
       email,
     } = req.body;
 
+
     // ==========================================
     // VALIDATE EMAIL
     // ==========================================
@@ -4483,6 +4484,7 @@ async (req, res) => {
       });
 
     }
+
 
     const normalizedEmail =
       email.trim().toLowerCase();
@@ -4540,25 +4542,25 @@ async (req, res) => {
 
 
     // ==========================================
-    // REMOVE OLD OTP
+    // DELETE OLD OTP
     // ==========================================
 
     await Otp.deleteMany({
 
-      phone:
-        user.phone,
+      email:
+        normalizedEmail,
 
     });
 
 
     // ==========================================
-    // SAVE OTP
+    // SAVE NEW OTP
     // ==========================================
 
     await Otp.create({
 
-      phone:
-        user.phone,
+      email:
+        normalizedEmail,
 
       otp,
 
@@ -4587,11 +4589,11 @@ async (req, res) => {
 
     if (!emailSent) {
 
-      // Remove OTP if email could not be sent
+      // Remove OTP if email failed
       await Otp.deleteMany({
 
-        phone:
-          user.phone,
+        email:
+          normalizedEmail,
 
       });
 
@@ -4642,390 +4644,346 @@ async (req, res) => {
 
 };
 
-exports.verifyForgotPasswordOTP = 
-async (
-    req,
-    res
-) => {
+exports.verifyForgotPasswordOTP =
+async (req, res) => {
 
-    try {
+  try {
 
-        const {
-            email,
-            otp,
-        } = req.body;
+    const {
+      email,
+      otp,
+    } = req.body;
 
 
-        // ==========================================
-        // VALIDATION
-        // ==========================================
+    // ==========================================
+    // VALIDATE
+    // ==========================================
 
-        if (
-            !email ||
-            !otp
-        ) {
+    if (!email || !otp) {
 
-            return res.status(400).json({
+      return res.status(400).json({
 
-                success: false,
+        success: false,
 
-                message:
-                    "Email and OTP are required",
+        message:
+          "Email and OTP are required",
 
-            });
-
-        }
-
-
-        const normalizedEmail =
-            email.trim().toLowerCase();
-
-
-        // ==========================================
-        // FIND USER
-        // ==========================================
-
-        const user =
-            await User.findOne({
-
-                email:
-                    normalizedEmail,
-
-                role: {
-                    $in: [
-                        "PARENT",
-                        "DRIVER",
-                    ],
-                },
-
-            });
-
-
-        if (!user) {
-
-            return res.status(404).json({
-
-                success: false,
-
-                message:
-                    "User not found",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK OTP
-        // ==========================================
-
-        if (
-            user.resetPasswordOTP !==
-            otp
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Invalid OTP",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK OTP EXPIRY
-        // ==========================================
-
-        if (
-            !user.resetPasswordOTPExpires ||
-            user.resetPasswordOTPExpires <
-            new Date()
-        ) {
-
-            user.resetPasswordOTP =
-                null;
-
-            user.resetPasswordOTPExpires =
-                null;
-
-            user.resetPasswordOTPVerified =
-                false;
-
-            await user.save();
-
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "OTP expired. Please request a new OTP.",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // MARK OTP VERIFIED
-        //
-        // We don't need another database field.
-        // The frontend will only allow password
-        // reset after this successful response.
-        // ==========================================
-
-        user.resetPasswordOTPVerified =
-        true;
-
-        return res.status(200).json({
-
-            success: true,
-
-            message:
-                "OTP verified successfully",
-
-        });
-
-
-    } catch (error) {
-
-        console.log(
-            "VERIFY FORGOT PASSWORD OTP ERROR:",
-            error
-        );
-
-
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                error.message,
-
-        });
+      });
 
     }
+
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+
+    // ==========================================
+    // FIND OTP
+    // ==========================================
+
+    const otpDoc =
+      await Otp.findOne({
+
+        email:
+          normalizedEmail,
+
+        otp,
+
+      });
+
+
+    if (!otpDoc) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Invalid OTP",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // CHECK EXPIRY
+    // ==========================================
+
+    if (
+      otpDoc.expiresAt <
+      new Date()
+    ) {
+
+      await Otp.deleteOne({
+        _id:
+          otpDoc._id,
+      });
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "OTP expired",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // VERIFY
+    // ==========================================
+
+    otpDoc.verified =
+      true;
+
+    await otpDoc.save();
+
+
+    return res.status(200).json({
+
+      success: true,
+
+      message:
+        "OTP verified",
+
+    });
+
+
+  } catch (error) {
+
+    console.log(
+      "VERIFY FORGOT PASSWORD OTP ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message,
+
+    });
+
+  }
 
 };
 
-exports.resetPassword = 
-async (
-    req,
-    res
-) => {
+exports.resetPassword =
+async (req, res) => {
 
-    try {
+  try {
 
-        const {
-            email,
-            newPassword,
-        } = req.body;
+    const {
+      email,
+      newPassword,
+    } = req.body;
 
 
-        // ==========================================
-        // VALIDATION
-        // ==========================================
+    // ==========================================
+    // VALIDATE
+    // ==========================================
 
-        if (
-            !email ||
-            !newPassword
-        ) {
+    if (
+      !email ||
+      !newPassword
+    ) {
 
-            return res.status(400).json({
+      return res.status(400).json({
 
-                success: false,
+        success: false,
 
-                message:
-                    "Email and new password are required",
+        message:
+          "Email and new password are required",
 
-            });
-
-        }
-
-
-        if (
-            newPassword.length < 6
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Password must be at least 6 characters",
-
-            });
-
-        }
-
-
-        const normalizedEmail =
-            email.trim().toLowerCase();
-
-
-        // ==========================================
-        // FIND USER
-        // ==========================================
-
-        const user =
-            await User.findOne({
-
-                email:
-                    normalizedEmail,
-
-                role: {
-                    $in: [
-                        "PARENT",
-                        "DRIVER",
-                    ],
-                },
-
-            });
-
-
-        if (!user) {
-
-            return res.status(404).json({
-
-                success: false,
-
-                message:
-                    "User not found",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK OTP WAS VERIFIED
-        // ==========================================
-
-        if (
-            !user.resetPasswordOTPVerified
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "OTP verification required",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK OTP EXPIRY
-        // ==========================================
-
-        if (
-            !user.resetPasswordOTPExpires ||
-            user.resetPasswordOTPExpires <
-            new Date()
-        ) {
-
-            user.resetPasswordOTP =
-                null;
-
-            user.resetPasswordOTPExpires =
-                null;
-
-            user.resetPasswordOTPVerified =
-                false;
-
-            await user.save();
-
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "OTP expired. Please request a new OTP.",
-
-            });
-
-        }
-
-
-        // ==========================================
-        // HASH PASSWORD
-        // ==========================================
-
-        const hashedPassword =
-            await bcrypt.hash(
-                newPassword,
-                10
-            );
-
-
-        // ==========================================
-        // UPDATE PASSWORD
-        // ==========================================
-
-        user.password =
-            hashedPassword;
-
-        user.isFirstLogin =
-            false;
-
-
-        // ==========================================
-        // CLEAR OTP
-        // ==========================================
-
-        user.resetPasswordOTP =
-            null;
-
-        user.resetPasswordOTPExpires =
-            null;
-
-        user.resetPasswordOTPVerified =
-            false;
-
-
-        await user.save();
-
-
-        // ==========================================
-        // RESPONSE
-        // ==========================================
-
-        return res.status(200).json({
-
-            success: true,
-
-            message:
-                "Password updated successfully",
-
-        });
-
-
-    } catch (error) {
-
-        console.log(
-            "RESET PASSWORD ERROR:",
-            error
-        );
-
-
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                error.message,
-
-        });
+      });
 
     }
+
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+
+    // ==========================================
+    // FIND USER
+    // ==========================================
+
+    const user =
+      await User.findOne({
+
+        email:
+          normalizedEmail,
+
+        role: {
+          $in: [
+            "PARENT",
+            "DRIVER",
+          ],
+        },
+
+      });
+
+
+    if (!user) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "User not found",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // CHECK VERIFIED OTP
+    // ==========================================
+
+    const otpDoc =
+      await Otp.findOne({
+
+        email:
+          normalizedEmail,
+
+        verified:
+          true,
+
+      });
+
+
+    if (!otpDoc) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "OTP verification required",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // CHECK OTP EXPIRY
+    // ==========================================
+
+    if (
+      otpDoc.expiresAt <
+      new Date()
+    ) {
+
+      await Otp.deleteOne({
+        _id:
+          otpDoc._id,
+      });
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "OTP expired",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // VALIDATE PASSWORD
+    // ==========================================
+
+    if (
+      newPassword.length < 6
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Password must be at least 6 characters",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // HASH PASSWORD
+    // ==========================================
+
+    const hashedPassword =
+      await bcrypt.hash(
+        newPassword,
+        10
+      );
+
+
+    // ==========================================
+    // UPDATE PASSWORD
+    // ==========================================
+
+    user.password =
+      hashedPassword;
+
+    await user.save();
+
+
+    // ==========================================
+    // DELETE USED OTP
+    // ==========================================
+
+    await Otp.deleteOne({
+
+      _id:
+        otpDoc._id,
+
+    });
+
+
+    // ==========================================
+    // SUCCESS
+    // ==========================================
+
+    return res.status(200).json({
+
+      success: true,
+
+      message:
+        "Password updated successfully",
+
+    });
+
+
+  } catch (error) {
+
+    console.log(
+      "RESET PASSWORD ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message,
+
+    });
+
+  }
 
 };
 
