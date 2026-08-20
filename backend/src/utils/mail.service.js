@@ -2,44 +2,72 @@ const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
 
-    service: "gmail",
+    host: "smtp.gmail.com",
+
+    port: 587,
+
+    secure: false,
+
+    family: 4,
 
     auth: {
-
         user: process.env.EMAIL_USER,
-
         pass: process.env.EMAIL_PASS,
-
     },
 
-      tls: {
+    requireTLS: true,
 
-        rejectUnauthorized: false,
+    connectionTimeout: 30000,
 
-    },
+    greetingTimeout: 30000,
+
+    socketTimeout: 60000,
 
 });
 
 exports.sendMail = async (
-
     to,
-
     subject,
-
     html
-
 ) => {
 
-    await transporter.sendMail({
+    try {
 
-        from: `"School Bus Management" <${process.env.EMAIL_USER}>`,
+        console.log(
+            "Sending email to:",
+            to
+        );
 
-        to,
+        const info =
+            await transporter.sendMail({
 
-        subject,
+                from:
+                    `"School Bus Management" <${process.env.EMAIL_USER}>`,
 
-        html,
+                to,
 
-    });
+                subject,
+
+                html,
+
+            });
+
+        console.log(
+            "EMAIL SENT:",
+            info.messageId
+        );
+
+        return info;
+
+    } catch (error) {
+
+        console.error(
+            "SEND MAIL ERROR:",
+            error
+        );
+
+        throw error;
+
+    }
 
 };
