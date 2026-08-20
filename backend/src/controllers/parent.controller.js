@@ -13,6 +13,7 @@ exports.createParent = async (req, res) => {
 
         const {
             name,
+            email,
             phone,
             password,
         } = req.body;
@@ -32,6 +33,24 @@ exports.createParent = async (req, res) => {
 
         }
 
+        if (email) {
+
+    const existingEmail =
+        await User.findOne({
+            email: email.toLowerCase(),
+        });
+
+    if (existingEmail) {
+
+        return res.status(400).json({
+            success: false,
+            message:
+                "Another user already has the same email",
+        });
+
+    }
+}
+
         const hashedPassword =
             await bcrypt.hash(
                 password,
@@ -41,6 +60,7 @@ exports.createParent = async (req, res) => {
         const parent =
             await User.create({
                 name,
+                email,
                 phone,
                 password:
                     hashedPassword,
@@ -243,12 +263,38 @@ exports.updateParent = async (req, res) => {
 
         }
 
+        // Check duplicate email
+if (req.body.email) {
+
+    const existingEmail =
+        await User.findOne({
+            email:
+                req.body.email.toLowerCase(),
+
+            _id: {
+                $ne: req.params.id,
+            },
+        });
+
+    if (existingEmail) {
+
+        return res.status(400).json({
+            success: false,
+            message:
+                "Another user already has the same email",
+        });
+
+    }
+}
+
         const updatedParent =
             await User.findByIdAndUpdate(
                 req.params.id,
                 {
                     name:
                         req.body.name,
+                     email:
+                        req.body.email,    
                     phone:
                         req.body.phone,
                 },

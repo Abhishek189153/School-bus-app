@@ -465,7 +465,7 @@ useEffect(() => {
             },
           ]}
         >
-          {dashboard?.driverName}
+           {dashboard?.driverName?.trim().split(/\s+/)[0] || ""}
         </Animated.Text>
 
 

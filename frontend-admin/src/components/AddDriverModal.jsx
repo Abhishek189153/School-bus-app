@@ -18,6 +18,7 @@ import {
 
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
 import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
+import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import LockOutlined from "@mui/icons-material/LockOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
@@ -45,6 +46,7 @@ const AddDriverModal = ({
 
   const initialFormData = {
     name: "",
+    email: "",
     phone: "",
     password: "",
   };
@@ -135,6 +137,25 @@ const AddDriverModal = ({
     ) {
       newErrors.name =
         "Please enter a valid name";
+    }
+
+
+    // Email
+
+    if (!formData.email.trim()) {
+
+      newErrors.email =
+        "Driver email is required";
+
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        formData.email.trim()
+      )
+    ) {
+
+      newErrors.email =
+        "Enter a valid email address";
+
     }
 
 
@@ -631,6 +652,67 @@ const AddDriverModal = ({
                 },
               }}
             />
+
+
+            {/* =================================================
+    EMAIL
+================================================== */}
+
+<TextField
+  fullWidth
+  required
+
+  label="Email"
+
+  name="email"
+
+  value={
+    formData.email
+  }
+
+  onChange={
+    handleChange
+  }
+
+  placeholder="Enter driver's email address"
+
+  type="email"
+
+  size="small"
+
+  error={
+    Boolean(errors.email)
+  }
+
+  helperText={
+    errors.email ||
+    "Required for password recovery"
+  }
+
+  sx={fieldSx}
+
+  slotProps={{
+    input: {
+
+      startAdornment: (
+        <InputAdornment
+          position="start"
+        >
+
+          <EmailOutlined
+            sx={{
+              color: "#7b8794",
+              fontSize: 20,
+            }}
+          />
+
+        </InputAdornment>
+      ),
+
+    },
+  }}
+
+/>
 
 
             {/* =================================================

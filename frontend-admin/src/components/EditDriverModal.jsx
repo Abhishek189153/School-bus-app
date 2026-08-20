@@ -18,6 +18,7 @@ import {
 
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
 import PhoneOutlined from "@mui/icons-material/PhoneOutlined";
+import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
@@ -43,6 +44,7 @@ const EditDriverModal = ({
 
   const initialFormData = {
     name: "",
+    email: "",
     phone: "",
   };
 
@@ -75,6 +77,7 @@ const EditDriverModal = ({
 
       setFormData({
         name: driver.name || "",
+        email: driver.email || "",
         phone: driver.phone || "",
       });
 
@@ -164,6 +167,24 @@ const EditDriverModal = ({
 
     }
 
+
+    // EMAIL
+
+      if (!formData.email.trim()) {
+
+        newErrors.email =
+          "Driver email is required";
+
+      } else if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          formData.email.trim()
+        )
+      ) {
+
+        newErrors.email =
+          "Enter a valid email address";
+
+      }
 
     /*
      * PHONE
@@ -753,6 +774,67 @@ const EditDriverModal = ({
               }}
 
             />
+
+
+            {/* =================================================
+    EMAIL
+================================================== */}
+
+<TextField
+  fullWidth
+  required
+
+  label="Email"
+
+  name="email"
+
+  value={
+    formData.email
+  }
+
+  onChange={
+    handleChange
+  }
+
+  placeholder="Enter driver's email address"
+
+  type="email"
+
+  size="small"
+
+  error={
+    Boolean(errors.email)
+  }
+
+  helperText={
+    errors.email ||
+    "Required for password recovery"
+  }
+
+  sx={fieldSx}
+
+  slotProps={{
+    input: {
+
+      startAdornment: (
+        <InputAdornment
+          position="start"
+        >
+
+          <EmailOutlined
+            sx={{
+              color: "#7b8794",
+              fontSize: 20,
+            }}
+          />
+
+        </InputAdornment>
+      ),
+
+    },
+  }}
+
+/>
 
 
             {/* =================================================

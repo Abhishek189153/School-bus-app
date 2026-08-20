@@ -265,7 +265,7 @@ const Parents = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 600 }}>
+          <Table sx={{ minWidth: 850 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -276,6 +276,9 @@ const Parents = () => {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Phone
+                </TableCell>
+                <TableCell sx={{fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px",}}>
+                  Email
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Student
@@ -308,6 +311,9 @@ const Parents = () => {
 
                     <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
                       {parent.phone}
+                    </TableCell>
+                    <TableCell sx={{ color: "#475569", fontWeight: 500, }}>
+                      {parent.email || "-"}
                     </TableCell>
 
                     <TableCell>
@@ -361,7 +367,7 @@ const Parents = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: "#64748b" }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">No matching parent records found.</Typography>
                   </TableCell>
                 </TableRow>

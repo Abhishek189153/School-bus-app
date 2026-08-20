@@ -166,50 +166,27 @@ export const getTripSummary =
 
   };
 
-export const getTripHistory = async (date) => {
-
-  try {
-
-    const token =
-      await AsyncStorage.getItem("token");
+export const getTripHistory =
+  async (date = "") => {
 
     let url =
-      `${API_URL}/api/mobile/trip-history`;
+      `${BASE_URL}/trip-history`;
 
     if (date) {
-      url += `?date=${date}`;
+
+      url +=
+        `?date=${encodeURIComponent(date)}`;
+
     }
 
-    const response =
-      await fetch(url, {
-        method: "GET",
-
-        headers: {
-          Authorization:
-            `Bearer ${token}`,
-
-          "Content-Type":
-            "application/json",
-        },
-      });
-
-    return await response.json();
-
-  } catch (error) {
-
     console.log(
-      "GET TRIP HISTORY ERROR:",
-      error
+      "TRIP HISTORY API:",
+      url
     );
 
-    return {
-      success: false,
-      history: [],
-    };
+    return apiRequest(url);
 
-  }
-
-};
+  };
 
 export const dutyOn =
   async () => {
@@ -378,69 +355,56 @@ export const savePushToken =
 // ==========================================
 
 export const sendForgotPasswordOTP =
-  async (phone) => {
+  async (email) => {
 
-    const response =
-      await fetch(
-        `${BASE_URL}/send-forgot-password-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            phone,
-          }),
-        }
-      );
+    return apiRequest(
+      `${BASE_URL}/send-forgot-password-otp`,
+      {
+        method: "POST",
 
-    return await response.json();
+        body: JSON.stringify({
+          email,
+        }),
+      }
+    );
 
   };
+
 
 export const verifyForgotPasswordOTP =
-  async (phone, otp) => {
+  async (email, otp) => {
 
-    const response =
-      await fetch(
-        `${BASE_URL}/verify-forgot-password-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            phone,
-            otp,
-          }),
-        }
-      );
+    return apiRequest(
+      `${BASE_URL}/verify-forgot-password-otp`,
+      {
+        method: "POST",
 
-    return await response.json();
+        body: JSON.stringify({
+          email,
+          otp,
+        }),
+      }
+    );
 
   };
 
+
 export const resetPassword =
-  async (phone, newPassword) => {
+  async (
+    email,
+    newPassword
+  ) => {
 
-    const response =
-      await fetch(
-        `${BASE_URL}/reset-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            phone,
-            newPassword,
-          }),
-        }
-      );
+    return apiRequest(
+      `${BASE_URL}/reset-password`,
+      {
+        method: "POST",
 
-    return await response.json();
+        body: JSON.stringify({
+          email,
+          newPassword,
+        }),
+      }
+    );
 
   };

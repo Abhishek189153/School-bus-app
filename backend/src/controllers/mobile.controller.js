@@ -14,6 +14,9 @@ const bcrypt = require("bcryptjs");
 const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
 const WorkingDay = require("../models/workingDay.model");
+const {
+  sendOTPEmail,
+} = require("../services/email.service");
 
 
 
@@ -4458,251 +4461,537 @@ console.log("STEP 3");
 };
 
 exports.sendForgotPasswordOTP =
-async (req, res) => {
+ async (req, res) => {
 
-  try {
+    try {
 
-    const { phone } =
-      req.body;
+        const { email } = req.body;
 
-    const user =
-      await User.findOne({
-        phone,
-        role: {
-          $in: [
-            "PARENT",
-            "DRIVER",
-          ],
-        },
-      });
+        // ==========================================
+        // VALIDATE EMAIL
+        // ==========================================
 
-    if (!user) {
+        if (!email) {
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Phone number not found",
-      });
+            return res.status(400).json({
+                success: false,
+                message: "Email is required",
+            });
+
+        }
+
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+
+        // ==========================================
+        // FIND PARENT OR DRIVER
+        // ==========================================
+
+        const user =
+            await User.findOne({
+                email: normalizedEmail,
+                role: {
+                    $in: [
+                        "PARENT",
+                        "DRIVER",
+                    ],
+                },
+            });
+
+
+        if (!user) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    "No Parent or Driver account found with this email",
+            });
+
+        }
+
+
+        // ==========================================
+        // GENERATE RANDOM 6-DIGIT OTP
+        // ==========================================
+
+        const otp =
+            Math.floor(
+                100000 +
+                Math.random() * 900000
+            ).toString();
+
+
+        // ==========================================
+        // OTP EXPIRY = 5 MINUTES
+        // ==========================================
+
+        const expiresAt =
+            new Date(
+                Date.now() +
+                5 * 60 * 1000
+            );
+
+
+        // ==========================================
+        // SAVE OTP IN USER
+        // ==========================================
+
+        user.resetPasswordOTP =
+            otp;
+
+        user.resetPasswordOTPExpires =
+            expiresAt;
+
+        await user.save();
+
+
+        // ==========================================
+        // SEND OTP EMAIL
+        // ==========================================
+
+        const emailSent =
+            await sendOTPEmail(
+                normalizedEmail,
+                otp
+            );
+
+
+        if (!emailSent) {
+
+            // Remove OTP if email failed
+
+            user.resetPasswordOTP =
+                null;
+
+            user.resetPasswordOTPExpires =
+                null;
+
+            await user.save();
+
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to send OTP email",
+            });
+
+        }
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+                "OTP sent successfully to your email",
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "SEND FORGOT PASSWORD OTP ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-
-   const otp =
-  process.env.OTP_MODE === "DEV"
-    ? "123456"
-    : Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
-
-    await Otp.deleteMany({
-      phone,
-    });
-
-    await Otp.create({
-      phone,
-      otp,
-      expiresAt:
-        new Date(
-          Date.now() +
-          5 *
-          60 *
-          1000
-        ),
-      verified: false,
-    });
-
-  if (
-  process.env.OTP_MODE === "DEV"
-) {
-
-  console.log(
-    "Forgot Password OTP:",
-    otp
-  );
-
-  return res.json({
-    success: true,
-    message:
-      "OTP sent successfully",
-    otp,
-  });
-
-}
-
-const smsSent =
-  await sendOTP(
-    phone,
-    otp
-  );
-
-if (!smsSent) {
-
-  return res.status(500).json({
-    success: false,
-    message:
-      "Failed to send OTP",
-  });
-
-}
-
-res.json({
-  success: true,
-  message:
-    "OTP sent successfully",
-});
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 
 };
 
-exports.verifyForgotPasswordOTP =
-async (req, res) => {
+exports.verifyForgotPasswordOTP = 
+async (
+    req,
+    res
+) => {
 
-  try {
+    try {
 
-    const {
-      phone,
-      otp,
-    } = req.body;
+        const {
+            email,
+            otp,
+        } = req.body;
 
-    const otpDoc =
-      await Otp.findOne({
-        phone,
-        otp,
-      });
 
-    if (!otpDoc) {
+        // ==========================================
+        // VALIDATION
+        // ==========================================
 
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid OTP",
-      });
+        if (
+            !email ||
+            !otp
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Email and OTP are required",
+
+            });
+
+        }
+
+
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+
+        // ==========================================
+        // FIND USER
+        // ==========================================
+
+        const user =
+            await User.findOne({
+
+                email:
+                    normalizedEmail,
+
+                role: {
+                    $in: [
+                        "PARENT",
+                        "DRIVER",
+                    ],
+                },
+
+            });
+
+
+        if (!user) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "User not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK OTP
+        // ==========================================
+
+        if (
+            user.resetPasswordOTP !==
+            otp
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid OTP",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK OTP EXPIRY
+        // ==========================================
+
+        if (
+            !user.resetPasswordOTPExpires ||
+            user.resetPasswordOTPExpires <
+            new Date()
+        ) {
+
+            user.resetPasswordOTP =
+                null;
+
+            user.resetPasswordOTPExpires =
+                null;
+
+            await user.save();
+
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "OTP expired. Please request a new OTP.",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // MARK OTP VERIFIED
+        //
+        // We don't need another database field.
+        // The frontend will only allow password
+        // reset after this successful response.
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+                "OTP verified successfully",
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "VERIFY FORGOT PASSWORD OTP ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-
-    if (
-      otpDoc.expiresAt <
-      new Date()
-    ) {
-
-      return res.status(400).json({
-        success: false,
-        message:
-          "OTP expired",
-      });
-
-    }
-
-    otpDoc.verified =
-      true;
-
-    await otpDoc.save();
-
-    res.json({
-      success: true,
-      message:
-        "OTP verified",
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 
 };
 
-exports.resetPassword =
-async (req, res) => {
+exports.resetPassword = 
+async (
+    req,
+    res
+) => {
 
-  try {
+    try {
 
-    const {
-      phone,
-      newPassword,
-    } = req.body;
+        const {
+            email,
+            newPassword,
+        } = req.body;
 
-    const user =
-      await User.findOne({
-        phone,
-      });
 
-    if (!user) {
+        // ==========================================
+        // VALIDATION
+        // ==========================================
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "User not found",
-      });
+        if (
+            !email ||
+            !newPassword
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Email and new password are required",
+
+            });
+
+        }
+
+
+        if (
+            newPassword.length < 6
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Password must be at least 6 characters",
+
+            });
+
+        }
+
+
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+
+        // ==========================================
+        // FIND USER
+        // ==========================================
+
+        const user =
+            await User.findOne({
+
+                email:
+                    normalizedEmail,
+
+                role: {
+                    $in: [
+                        "PARENT",
+                        "DRIVER",
+                    ],
+                },
+
+            });
+
+
+        if (!user) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "User not found",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK OTP WAS VERIFIED
+        // ==========================================
+
+        if (
+            !user.resetPasswordOTPVerified
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "OTP verification required",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK OTP EXPIRY
+        // ==========================================
+
+        if (
+            !user.resetPasswordOTPExpires ||
+            user.resetPasswordOTPExpires <
+            new Date()
+        ) {
+
+            user.resetPasswordOTP =
+                null;
+
+            user.resetPasswordOTPExpires =
+                null;
+
+            user.resetPasswordOTPVerified =
+                false;
+
+            await user.save();
+
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "OTP expired. Please request a new OTP.",
+
+            });
+
+        }
+
+
+        // ==========================================
+        // HASH PASSWORD
+        // ==========================================
+
+        const hashedPassword =
+            await bcrypt.hash(
+                newPassword,
+                10
+            );
+
+
+        // ==========================================
+        // UPDATE PASSWORD
+        // ==========================================
+
+        user.password =
+            hashedPassword;
+
+        user.isFirstLogin =
+            false;
+
+
+        // ==========================================
+        // CLEAR OTP
+        // ==========================================
+
+        user.resetPasswordOTP =
+            null;
+
+        user.resetPasswordOTPExpires =
+            null;
+
+        user.resetPasswordOTPVerified =
+            false;
+
+
+        await user.save();
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+                "Password updated successfully",
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "RESET PASSWORD ERROR:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message,
+
+        });
 
     }
-
-    const otpDoc =
-      await Otp.findOne({
-        phone,
-        verified: true,
-      });
-
-    if (!otpDoc) {
-
-      return res.status(400).json({
-        success: false,
-        message:
-          "OTP verification required",
-      });
-
-    }
-
-  const hashedPassword =
-  await bcrypt.hash(
-    newPassword,
-    10
-  );
-
-await User.updateOne(
-  {
-    _id: user._id,
-  },
-  {
-    $set: {
-      password:
-        hashedPassword,
-    },
-  }
-);
-
-    await Otp.deleteMany({
-      phone,
-    });
-
-    res.json({
-      success: true,
-      message:
-        "Password updated successfully",
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-
-  }
 
 };
 

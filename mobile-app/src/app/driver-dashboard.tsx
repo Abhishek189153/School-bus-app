@@ -150,11 +150,6 @@ export default function DriverDashboard() {
     const data =
       await getDriverDashboard();
 
-    console.log(
-      "DRIVER DASHBOARD RESPONSE:",
-      data
-    );
-
     if (data.success) {
 
       setBus(
@@ -273,7 +268,11 @@ export default function DriverDashboard() {
   const heroHeight = Math.min(Math.max(height * 0.3, 220), 300);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 + insets.bottom }}
+    >
       {/* Top Header Hero Card */}
       <View style={[styles.heroCard, { height: heroHeight }]}>
         <Image
@@ -282,12 +281,14 @@ export default function DriverDashboard() {
           resizeMode="cover"
         />
 
-        {/* Badges now sit in a flex row under the status bar instead of hardcoded
-            absolute coordinates, so they line up correctly on any screen width */}
+        {/* Badges sit in a flex row anchored to both screen edges with EQUAL
+            padding on each side — previously the left side had only 4px of
+            padding vs 16px on the right, which is what made "Bus-3" look
+            pushed against the edge compared to the vehicle number. */}
         <View
           style={[
             styles.badgeRow,
-            { top: insets.top + 18, paddingHorizontal: 16, left: 0, right: 0, paddingLeft: 4, paddingRight: 16 },
+            { top: insets.top + 18, left: 0, right: 0, paddingHorizontal: 16 },
           ]}
         >
           <View style={styles.busBadge}>
@@ -307,7 +308,7 @@ export default function DriverDashboard() {
               Hello,
             </Animated.Text>
             <Animated.Text style={[styles.driverName, { opacity: nameOpacity }]}>
-              {bus?.driverId?.name || "Driver"}
+               {bus?.driverId?.name?.trim().split(/\s+/)[0] || "Driver"}
             </Animated.Text>
             <Text style={styles.safeTrip}>Have a safe trip!</Text>
           </View>
@@ -512,9 +513,12 @@ export default function DriverDashboard() {
           <Text style={styles.chevronRightGrey}>❯</Text>
         </PressableScale>
 
-        {/* Logout Card Row */}
+        {/* Logout Card Row — spacing below now comes from the ScrollView's
+            safe-area-aware contentContainerStyle instead of a fixed
+            marginBottom, so it doesn't leave an oversized gap above the
+            gesture-nav bar on devices with no physical home button. */}
         <PressableScale
-          style={[styles.listCardRow, { marginTop: 15, marginBottom: 40 }]}
+          style={[styles.listCardRow, { marginTop: 15 }]}
           hitSlop={8}
           onPress={() =>
             Alert.alert(
@@ -540,6 +544,17 @@ export default function DriverDashboard() {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
         </PressableScale>
+
+            <View style={styles.versionContainer}>
+  <Text style={styles.versionText}>
+    Version 1.1.0
+  </Text>
+
+    <Text style={styles.taglineText}>
+    Student's Safety, Our Priority
+  </Text>
+</View>
+
       </View>
     </ScrollView>
   );
@@ -771,4 +786,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
   },
+    versionContainer: {
+  flexGrow: 1,
+  justifyContent: "flex-end",
+  alignItems: "center",
+  paddingTop: 80,
+  paddingBottom: 8,
+},
+
+versionText: {
+  fontSize: 12,
+  color: "#9CA3AF",
+  textAlign: "center",
+},
+taglineText: {
+  fontSize: 11,
+  fontWeight: "500",
+  color: "#020914",
+  textAlign: "center",
+  marginTop: 4,
+},
 });

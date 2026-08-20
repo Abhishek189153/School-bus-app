@@ -8,9 +8,31 @@ exports.createDriver = async (req, res) => {
 
         const {
             name,
+            email,
             phone,
             password,
         } = req.body;
+
+        // ==========================================
+        // EMAIL REQUIRED
+        // ==========================================
+
+        if (!email) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Email is required",
+            });
+
+        }
+
+        const normalizedEmail =
+            email.trim().toLowerCase();
+
+
+        // ==========================================
+        // CHECK DUPLICATE PHONE
+        // ==========================================
 
         const existingUser =
             await User.findOne({
@@ -27,33 +49,86 @@ exports.createDriver = async (req, res) => {
 
         }
 
+
+        // ==========================================
+        // CHECK DUPLICATE EMAIL
+        // ==========================================
+
+        const existingEmail =
+            await User.findOne({
+                email:
+                    normalizedEmail,
+            });
+
+        if (existingEmail) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Another user already has the same email",
+            });
+
+        }
+
+
+        // ==========================================
+        // HASH PASSWORD
+        // ==========================================
+
         const hashedPassword =
             await bcrypt.hash(
                 password,
                 10
             );
 
+
+        // ==========================================
+        // CREATE DRIVER
+        // ==========================================
+
         const driver =
             await User.create({
+
                 name,
+
+                email:
+                    normalizedEmail,
+
                 phone,
+
                 password:
                     hashedPassword,
+
                 role:
                     "DRIVER",
+
                 schoolId:
                     req.user.schoolId,
+
             });
+
+
+        // ==========================================
+        // REMOVE PASSWORD FROM RESPONSE
+        // ==========================================
 
         const driverResponse =
             driver.toObject();
 
         delete driverResponse.password;
 
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
         res.status(201).json({
+
             success: true,
+
             driver:
                 driverResponse,
+
         });
 
     } catch (error) {
@@ -63,23 +138,31 @@ exports.createDriver = async (req, res) => {
             error
         );
 
-        // Safety for duplicate key errors
+
+        // Duplicate key safety
         if (
             error.code === 11000
         ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
-                    "Another user already has the same number",
+                    "Another user already has the same email or number",
+
             });
 
         }
 
+
         res.status(500).json({
+
             success: false,
+
             message:
                 error.message,
+
         });
 
     }
@@ -189,14 +272,28 @@ exports.updateDriver = async (req, res) => {
                 req.params.id
             );
 
+
+        // ==========================================
+        // DRIVER CHECK
+        // ==========================================
+
         if (!driver) {
 
             return res.status(404).json({
+
                 success: false,
-                message: "Driver not found",
+
+                message:
+                    "Driver not found",
+
             });
 
         }
+
+
+        // ==========================================
+        // SCHOOL ACCESS CHECK
+        // ==========================================
 
         if (
             driver.schoolId.toString() !==
@@ -204,51 +301,152 @@ exports.updateDriver = async (req, res) => {
         ) {
 
             return res.status(403).json({
+
                 success: false,
-                message: "Access denied",
+
+                message:
+                    "Access denied",
+
             });
 
         }
 
-        // Check if phone already exists for another user
+
+        // ==========================================
+        // CHECK DUPLICATE PHONE
+        // ==========================================
+
         if (req.body.phone) {
 
             const existingUser =
                 await User.findOne({
-                    phone: req.body.phone,
+
+                    phone:
+                        req.body.phone,
+
                     _id: {
-                        $ne: req.params.id,
+                        $ne:
+                            req.params.id,
                     },
+
                 });
+
 
             if (existingUser) {
 
                 return res.status(400).json({
+
                     success: false,
+
                     message:
                         "Another user already has the same number",
+
                 });
 
             }
 
         }
 
+
+        // ==========================================
+        // CHECK DUPLICATE EMAIL
+        // ==========================================
+
+        let normalizedEmail =
+            undefined;
+
+
+        if (req.body.email) {
+
+            normalizedEmail =
+                req.body.email
+                    .trim()
+                    .toLowerCase();
+
+
+            const existingEmail =
+                await User.findOne({
+
+                    email:
+                        normalizedEmail,
+
+                    _id: {
+                        $ne:
+                            req.params.id,
+                    },
+
+                });
+
+
+            if (existingEmail) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Another user already has the same email",
+
+                });
+
+            }
+
+        }
+
+
+        // ==========================================
+        // UPDATE DRIVER
+        // ==========================================
+
+        const updateData = {
+
+            name:
+                req.body.name,
+
+            phone:
+                req.body.phone,
+
+        };
+
+
+        // Only update email when provided
+        if (
+            normalizedEmail !==
+            undefined
+        ) {
+
+            updateData.email =
+                normalizedEmail;
+
+        }
+
+
         const updatedDriver =
             await User.findByIdAndUpdate(
+
                 req.params.id,
-                {
-                    name: req.body.name,
-                    phone: req.body.phone,
-                },
+
+                updateData,
+
                 {
                     new: true,
                     runValidators: true,
                 }
+
             ).select("-password");
 
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
         res.status(200).json({
+
             success: true,
-            driver: updatedDriver,
+
+            driver:
+                updatedDriver,
+
         });
 
     } catch (error) {
@@ -258,20 +456,31 @@ exports.updateDriver = async (req, res) => {
             error
         );
 
-        // Mongo duplicate key safety check
-        if (error.code === 11000) {
+
+        // Mongo duplicate key safety
+        if (
+            error.code === 11000
+        ) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
-                    "Another user already has the same number",
+                    "Another user already has the same email or number",
+
             });
 
         }
 
+
         res.status(500).json({
+
             success: false,
-            message: error.message,
+
+            message:
+                error.message,
+
         });
 
     }

@@ -264,7 +264,7 @@ const Drivers = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 600 }}>
+          <Table sx={{ minWidth: 850 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -275,6 +275,9 @@ const Drivers = () => {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Phone
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px",}}>
+                  Email
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Status
@@ -307,6 +310,10 @@ const Drivers = () => {
 
                     <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
                       {driver.phone}
+                    </TableCell>
+
+                    <TableCell sx={{ color: "#475569", fontWeight: 500,}}>
+                      {driver.email || "-"}
                     </TableCell>
 
                     <TableCell>
@@ -367,7 +374,7 @@ const Drivers = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: "#64748b" }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">No matching driver records found.</Typography>
                   </TableCell>
                 </TableRow>

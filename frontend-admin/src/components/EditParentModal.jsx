@@ -16,6 +16,7 @@ import {
   updateParent,
 } from "../services/parent.service";
 
+
 const EditParentModal = ({
   open,
   handleClose,
@@ -26,34 +27,126 @@ const EditParentModal = ({
   const [formData, setFormData] =
     useState({
       name: "",
+      email: "",
       phone: "",
     });
+
+
+  // ==========================================
+  // LOAD PARENT DATA
+  // ==========================================
 
   useEffect(() => {
 
     if (parent) {
 
       setFormData({
-        name: parent.name || "",
-        phone: parent.phone || "",
+
+        name:
+          parent.name || "",
+
+        email:
+          parent.email || "",
+
+        phone:
+          parent.phone || "",
+
       });
 
     }
 
   }, [parent]);
 
+
+  // ==========================================
+  // HANDLE CHANGE
+  // ==========================================
+
   const handleChange = (e) => {
 
-    setFormData({
-      ...formData,
-      [e.target.name]:
-        e.target.value,
-    });
+    const {
+      name,
+      value,
+    } = e.target;
+
+    setFormData((prev) => ({
+
+      ...prev,
+
+      [name]:
+        name === "email"
+          ? value.toLowerCase()
+          : value,
+
+    }));
 
   };
 
+
+  // ==========================================
+  // SUBMIT
+  // ==========================================
+
   const handleSubmit =
     async () => {
+
+      // Basic validation
+
+      if (
+        !formData.name.trim()
+      ) {
+
+        alert(
+          "Parent name is required"
+        );
+
+        return;
+
+      }
+
+
+      if (
+        !formData.email.trim()
+      ) {
+
+        alert(
+          "Email is required"
+        );
+
+        return;
+
+      }
+
+
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          formData.email.trim()
+        )
+      ) {
+
+        alert(
+          "Enter a valid email address"
+        );
+
+        return;
+
+      }
+
+
+      if (
+        !/^\d{10}$/.test(
+          formData.phone.trim()
+        )
+      ) {
+
+        alert(
+          "Enter a valid 10-digit phone number"
+        );
+
+        return;
+
+      }
+
 
       try {
 
@@ -69,26 +162,32 @@ const EditParentModal = ({
       } catch (error) {
 
         alert(
-    error.response?.data?.message ||
-    "Operation failed"
-  );
-
+          error.response?.data?.message ||
+          "Operation failed"
+        );
 
       }
+
     };
 
+
   return (
+
     <Dialog
       open={open}
       onClose={handleClose}
       fullWidth
+      maxWidth="xs"
     >
 
       <DialogTitle>
         Edit Parent
       </DialogTitle>
 
+
       <DialogContent>
+
+        {/* NAME */}
 
         <TextField
           fullWidth
@@ -99,6 +198,23 @@ const EditParentModal = ({
           onChange={handleChange}
         />
 
+
+        {/* EMAIL */}
+
+        <TextField
+          fullWidth
+          type="email"
+          label="Email"
+          name="email"
+          margin="normal"
+          value={formData.email}
+          onChange={handleChange}
+          helperText="Used for password recovery"
+        />
+
+
+        {/* PHONE */}
+
         <TextField
           fullWidth
           label="Phone"
@@ -106,9 +222,14 @@ const EditParentModal = ({
           margin="normal"
           value={formData.phone}
           onChange={handleChange}
+          inputProps={{
+            maxLength: 10,
+            inputMode: "numeric",
+          }}
         />
 
       </DialogContent>
+
 
       <DialogActions>
 
@@ -128,7 +249,10 @@ const EditParentModal = ({
       </DialogActions>
 
     </Dialog>
+
   );
+
 };
+
 
 export default EditParentModal;

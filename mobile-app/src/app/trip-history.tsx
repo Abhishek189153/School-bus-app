@@ -9,12 +9,15 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import DateTimePicker
   from "@react-native-community/datetimepicker";
+
+import PressableScale from "../components/PressableScale";
 
 import {
   getTripHistory,
@@ -22,6 +25,8 @@ import {
 
 
 export default function TripHistory() {
+
+  const insets = useSafeAreaInsets();
 
   const [
     history,
@@ -64,6 +69,34 @@ export default function TripHistory() {
         `${String(
           date.getDate()
         ).padStart(2, "0")}`
+      );
+
+    };
+
+
+  // ==========================================
+  // FORMAT DATE FOR DISPLAY (more readable than raw YYYY-MM-DD)
+  // ==========================================
+
+  const formatDisplayDate =
+    (date: Date) => {
+
+      const today = new Date();
+
+      const isToday =
+        formatDate(date) === formatDate(today);
+
+      if (isToday) {
+        return "Today";
+      }
+
+      return date.toLocaleDateString(
+        "en-IN",
+        {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }
       );
 
     };
@@ -116,12 +149,6 @@ export default function TripHistory() {
             await getTripHistory(
               date
             );
-
-
-          console.log(
-            "TRIP HISTORY RESPONSE:",
-            data
-          );
 
 
           if (
@@ -233,12 +260,14 @@ export default function TripHistory() {
           }
         >
 
-          <View>
+          <View style={styles.headerTextGroup}>
 
             <Text
               style={
                 styles.routeName
               }
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {item.routeName}
             </Text>
@@ -298,6 +327,7 @@ export default function TripHistory() {
             style={
               styles.value
             }
+            numberOfLines={1}
           >
             {item.busNumber}
           </Text>
@@ -333,6 +363,8 @@ export default function TripHistory() {
               style={
                 styles.startTime
               }
+              numberOfLines={1}
+              adjustsFontSizeToFit
             >
               {formatTime(
                 item.startTime
@@ -347,7 +379,7 @@ export default function TripHistory() {
               styles.timeDivider
             }
           >
-            <Text>
+            <Text style={styles.timeDividerArrow}>
               →
             </Text>
           </View>
@@ -371,6 +403,8 @@ export default function TripHistory() {
               style={
                 styles.endTime
               }
+              numberOfLines={1}
+              adjustsFontSizeToFit
             >
               {formatTime(
                 item.endTime
@@ -417,6 +451,9 @@ export default function TripHistory() {
           </View>
 
 
+          <View style={styles.statDivider} />
+
+
           <View
             style={
               styles.stat
@@ -424,9 +461,10 @@ export default function TripHistory() {
           >
 
             <Text
-              style={
-                styles.statNumber
-              }
+              style={[
+                styles.statNumber,
+                { color: "#DC2626" },
+              ]}
             >
               {item.absent}
             </Text>
@@ -451,9 +489,13 @@ export default function TripHistory() {
   return (
 
     <View
-      style={
-        styles.container
-      }
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
 
       {/* ================================== */}
@@ -473,10 +515,11 @@ export default function TripHistory() {
       {/* DATE PICKER BUTTON */}
       {/* ================================== */}
 
-      <TouchableOpacity
+      <PressableScale
         style={
           styles.dateButton
         }
+        scaleTo={0.98}
         onPress={() =>
           setShowPicker(true)
         }
@@ -488,12 +531,12 @@ export default function TripHistory() {
           }
         >
           📅{" "}
-          {formatDate(
+          {formatDisplayDate(
             selectedDate
           )}
         </Text>
 
-      </TouchableOpacity>
+      </PressableScale>
 
 
       {/* ================================== */}
@@ -508,6 +551,7 @@ export default function TripHistory() {
               selectedDate
             }
             mode="date"
+            maximumDate={new Date()}
             onChange={
               handleDateChange
             }
@@ -515,6 +559,20 @@ export default function TripHistory() {
 
         )
       }
+
+
+      {/* ================================== */}
+      {/* RESULT COUNT */}
+      {/* ================================== */}
+
+      {!loading && history.length > 0 && (
+
+        <Text style={styles.resultCount}>
+          {history.length}{" "}
+          {history.length === 1 ? "trip" : "trips"} found
+        </Text>
+
+      )}
 
 
       {/* ================================== */}
@@ -532,6 +590,7 @@ export default function TripHistory() {
 
             <ActivityIndicator
               size="large"
+              color="#1565C0"
             />
 
             <Text
@@ -565,22 +624,36 @@ export default function TripHistory() {
               false
             }
 
-            contentContainerStyle={
+            removeClippedSubviews
+
+            maxToRenderPerBatch={8}
+
+            windowSize={7}
+
+            initialNumToRender={8}
+
+            contentContainerStyle={[
               history.length === 0
                 ? styles.emptyContainer
-                : styles.list
-            }
+                : styles.list,
+              { paddingBottom: 30 + insets.bottom },
+            ]}
 
             ListEmptyComponent={
 
-              <Text
-                style={
-                  styles.emptyText
-                }
-              >
-                No completed trips
-                for this date.
-              </Text>
+              <View style={styles.emptyState}>
+
+                <Text style={styles.emptyIcon}>🗓️</Text>
+
+                <Text
+                  style={
+                    styles.emptyText
+                  }
+                >
+                  No completed trips{"\n"}for this date.
+                </Text>
+
+              </View>
 
             }
 
@@ -601,18 +674,19 @@ const styles =
 
     container: {
       flex: 1,
-      padding: 20,
+      paddingHorizontal: 20,
       backgroundColor:
         "#EEF4FF",
     },
 
 
     title: {
-      fontSize: 28,
+      fontSize: 26,
       fontWeight: "bold",
       marginBottom: 18,
       textAlign: "center",
       color: "#0F4C81",
+      letterSpacing: 0.3,
     },
 
 
@@ -621,8 +695,12 @@ const styles =
         "#FFFFFF",
       borderRadius: 14,
       padding: 15,
-      marginBottom: 18,
+      marginBottom: 8,
       elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
     },
 
 
@@ -631,6 +709,15 @@ const styles =
       fontSize: 16,
       fontWeight: "600",
       color: "#1565C0",
+    },
+
+
+    resultCount: {
+      textAlign: "center",
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#64748B",
+      marginBottom: 10,
     },
 
 
@@ -646,6 +733,10 @@ const styles =
       borderRadius: 18,
       marginBottom: 15,
       elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
     },
 
 
@@ -656,6 +747,13 @@ const styles =
       alignItems:
         "flex-start",
       marginBottom: 15,
+    },
+
+
+    headerTextGroup: {
+      flex: 1,
+      flexShrink: 1,
+      marginRight: 10,
     },
 
 
@@ -680,6 +778,7 @@ const styles =
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 10,
+      flexShrink: 0,
     },
 
 
@@ -708,6 +807,9 @@ const styles =
       color: "#111827",
       fontSize: 14,
       fontWeight: "600",
+      flexShrink: 1,
+      marginLeft: 10,
+      textAlign: "right",
     },
 
 
@@ -724,6 +826,7 @@ const styles =
 
     timeBox: {
       flex: 1,
+      minWidth: 0,
     },
 
 
@@ -753,9 +856,15 @@ const styles =
       paddingHorizontal: 10,
     },
 
+    timeDividerArrow: {
+      color: "#94A3B8",
+      fontWeight: "bold",
+    },
+
 
     statsRow: {
       flexDirection: "row",
+      alignItems: "center",
       borderTopWidth: 1,
       borderTopColor:
         "#E2E8F0",
@@ -767,6 +876,12 @@ const styles =
       flex: 1,
       alignItems:
         "center",
+    },
+
+    statDivider: {
+      width: 1,
+      height: 28,
+      backgroundColor: "#E2E8F0",
     },
 
 
@@ -807,11 +922,21 @@ const styles =
         "center",
     },
 
+    emptyState: {
+      alignItems: "center",
+    },
+
+    emptyIcon: {
+      fontSize: 40,
+      marginBottom: 10,
+    },
+
 
     emptyText: {
       textAlign: "center",
       color: "#64748B",
       fontSize: 15,
+      lineHeight: 22,
     },
 
   });

@@ -14,9 +14,25 @@ const userSchema = new mongoose.Schema(
 
         email: {
         type: String,
-        required: false,
         trim: true,
         lowercase: true,
+        unique: true,
+        sparse: true,
+        },
+
+        resetPasswordOTP: {
+            type: String,
+            default: null,
+        },
+
+        resetPasswordOTPExpires: {
+            type: Date,
+            default: null,
+        },
+
+        resetPasswordOTPVerified: {
+            type: Boolean,
+            default: false,
         },
 
         phone: {
