@@ -1,14 +1,15 @@
+const dns = require("dns");
 const nodemailer = require("nodemailer");
 
+// IMPORTANT:
+// Force Node.js to prefer IPv4 over IPv6.
+// Render is currently unable to reach Gmail's IPv6 SMTP address.
+dns.setDefaultResultOrder("ipv4first");
+
 const transporter = nodemailer.createTransport({
-
     host: "smtp.gmail.com",
-
     port: 587,
-
     secure: false,
-
-    family: 4,
 
     auth: {
         user: process.env.EMAIL_USER,
@@ -18,11 +19,8 @@ const transporter = nodemailer.createTransport({
     requireTLS: true,
 
     connectionTimeout: 30000,
-
     greetingTimeout: 30000,
-
     socketTimeout: 60000,
-
 });
 
 exports.sendMail = async (
@@ -40,20 +38,15 @@ exports.sendMail = async (
 
         const info =
             await transporter.sendMail({
-
                 from:
                     `"School Bus Management" <${process.env.EMAIL_USER}>`,
-
                 to,
-
                 subject,
-
                 html,
-
             });
 
         console.log(
-            "EMAIL SENT:",
+            "EMAIL SENT SUCCESSFULLY:",
             info.messageId
         );
 
@@ -67,7 +60,5 @@ exports.sendMail = async (
         );
 
         throw error;
-
     }
-
 };
