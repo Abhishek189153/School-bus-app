@@ -14,9 +14,7 @@ const bcrypt = require("bcryptjs");
 const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
 const WorkingDay = require("../models/workingDay.model");
-const {
-  sendOTPEmail,
-} = require("../services/email.service");
+const {sendOTPEmail} = require("../services/email.service");
 
 
 
@@ -4461,162 +4459,186 @@ console.log("STEP 3");
 };
 
 exports.sendForgotPasswordOTP =
- async (req, res) => {
+async (req, res) => {
 
-    try {
+  try {
 
-        const { email } = req.body;
+    const {
+      email,
+    } = req.body;
 
-        // ==========================================
-        // VALIDATE EMAIL
-        // ==========================================
+    // ==========================================
+    // VALIDATE EMAIL
+    // ==========================================
 
-        if (!email) {
+    if (!email) {
 
-            return res.status(400).json({
-                success: false,
-                message: "Email is required",
-            });
+      return res.status(400).json({
 
-        }
+        success: false,
 
-        const normalizedEmail =
-            email.trim().toLowerCase();
+        message:
+          "Email is required",
 
-
-        // ==========================================
-        // FIND PARENT OR DRIVER
-        // ==========================================
-
-        const user =
-            await User.findOne({
-                email: normalizedEmail,
-                role: {
-                    $in: [
-                        "PARENT",
-                        "DRIVER",
-                    ],
-                },
-            });
-
-
-        if (!user) {
-
-            return res.status(404).json({
-                success: false,
-                message:
-                    "No Parent or Driver account found with this email",
-            });
-
-        }
-
-
-        // ==========================================
-        // GENERATE RANDOM 6-DIGIT OTP
-        // ==========================================
-
-        const otp =
-            Math.floor(
-                100000 +
-                Math.random() * 900000
-            ).toString();
-
-
-        // ==========================================
-        // OTP EXPIRY = 5 MINUTES
-        // ==========================================
-
-        const expiresAt =
-            new Date(
-                Date.now() +
-                5 * 60 * 1000
-            );
-
-
-        // ==========================================
-        // SAVE OTP IN USER
-        // ==========================================
-
-        user.resetPasswordOTP =
-            otp;
-
-        user.resetPasswordOTPExpires =
-            expiresAt;
-
-        user.resetPasswordOTPVerified =
-            false;
-
-        await user.save();
-
-
-        // ==========================================
-        // SEND OTP EMAIL
-        // ==========================================
-
-        const emailSent =
-            await sendOTPEmail(
-                normalizedEmail,
-                otp
-            );
-
-
-        if (!emailSent) {
-
-            // Remove OTP if email failed
-
-            user.resetPasswordOTP =
-                null;
-
-            user.resetPasswordOTPExpires =
-                null;
-
-            user.resetPasswordOTPVerified =
-                false;
-
-            await user.save();
-
-
-            return res.status(500).json({
-                success: false,
-                message:
-                    "Failed to send OTP email",
-            });
-
-        }
-
-
-        // ==========================================
-        // RESPONSE
-        // ==========================================
-
-        return res.status(200).json({
-
-            success: true,
-
-            message:
-                "OTP sent successfully to your email",
-
-        });
-
-
-    } catch (error) {
-
-        console.log(
-            "SEND FORGOT PASSWORD OTP ERROR:",
-            error
-        );
-
-
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                error.message,
-
-        });
+      });
 
     }
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+
+    // ==========================================
+    // FIND PARENT / DRIVER
+    // ==========================================
+
+    const user =
+      await User.findOne({
+
+        email:
+          normalizedEmail,
+
+        role: {
+          $in: [
+            "PARENT",
+            "DRIVER",
+          ],
+        },
+
+      });
+
+
+    if (!user) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "Email address not found",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // GENERATE RANDOM 6 DIGIT OTP
+    // ==========================================
+
+    const otp =
+      Math.floor(
+        100000 +
+        Math.random() * 900000
+      ).toString();
+
+
+    console.log(
+      "GENERATED OTP FOR:",
+      normalizedEmail
+    );
+
+
+    // ==========================================
+    // REMOVE OLD OTP
+    // ==========================================
+
+    await Otp.deleteMany({
+
+      phone:
+        user.phone,
+
+    });
+
+
+    // ==========================================
+    // SAVE OTP
+    // ==========================================
+
+    await Otp.create({
+
+      phone:
+        user.phone,
+
+      otp,
+
+      expiresAt:
+        new Date(
+          Date.now() +
+          5 * 60 * 1000
+        ),
+
+      verified:
+        false,
+
+    });
+
+
+    // ==========================================
+    // SEND EMAIL
+    // ==========================================
+
+    const emailSent =
+      await sendOTPEmail(
+        normalizedEmail,
+        otp
+      );
+
+
+    if (!emailSent) {
+
+      // Remove OTP if email could not be sent
+      await Otp.deleteMany({
+
+        phone:
+          user.phone,
+
+      });
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Failed to send OTP email",
+
+      });
+
+    }
+
+
+    // ==========================================
+    // SUCCESS
+    // ==========================================
+
+    return res.status(200).json({
+
+      success: true,
+
+      message:
+        "OTP sent successfully",
+
+    });
+
+
+  } catch (error) {
+
+    console.log(
+      "SEND FORGOT PASSWORD OTP ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message,
+
+    });
+
+  }
 
 };
 
