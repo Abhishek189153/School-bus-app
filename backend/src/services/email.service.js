@@ -9,107 +9,91 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-exports.sendOTPEmail = async (
-    email,
-    otp
-) => {
+exports.sendOTPEmail = async (email, otp) => {
 
     try {
 
-        await transporter.sendMail({
+        console.log("EMAIL USER:", process.env.EMAIL_USER);
+        console.log(
+            "EMAIL PASSWORD EXISTS:",
+            !!process.env.EMAIL_PASS
+        );
 
-            from:
-                `"School Bus Management" <${process.env.EMAIL_USER}>`,
+        await transporter.verify();
 
-            to:
-                email,
+        console.log(
+            "GMAIL SMTP CONNECTION SUCCESS"
+        );
 
-            subject:
-                "Password Reset OTP - School Bus Management",
+        const info =
+            await transporter.sendMail({
 
-            html: `
-                <div style="
-                    font-family: Arial, sans-serif;
-                    max-width: 500px;
-                    margin: auto;
-                    padding: 25px;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 12px;
-                ">
+                from:
+                    `"School Bus Management" <${process.env.EMAIL_USER}>`,
 
-                    <h2 style="
-                        color: #0F172A;
-                        margin-bottom: 10px;
-                    ">
-                        Password Reset
-                    </h2>
+                to:
+                    email,
 
-                    <p style="
-                        color: #475569;
-                        font-size: 15px;
-                    ">
-                        We received a request to reset your
-                        School Bus Management account password.
-                    </p>
+                subject:
+                    "Password Reset OTP - School Bus Management",
 
-                    <p style="
-                        color: #475569;
-                        font-size: 15px;
-                    ">
-                        Your One-Time Password (OTP) is:
-                    </p>
-
+                html: `
                     <div style="
-                        font-size: 32px;
-                        font-weight: bold;
-                        letter-spacing: 8px;
-                        color: #2563EB;
-                        background: #EFF6FF;
-                        padding: 15px;
-                        text-align: center;
-                        border-radius: 10px;
-                        margin: 20px 0;
+                        font-family: Arial, sans-serif;
+                        max-width: 500px;
+                        margin: auto;
+                        padding: 25px;
                     ">
-                        ${otp}
+
+                        <h2 style="color:#0F172A;">
+                            Password Reset
+                        </h2>
+
+                        <p>
+                            Your password reset OTP is:
+                        </p>
+
+                        <div style="
+                            font-size:32px;
+                            font-weight:bold;
+                            letter-spacing:8px;
+                            color:#2563EB;
+                            background:#EFF6FF;
+                            padding:15px;
+                            text-align:center;
+                            border-radius:10px;
+                            margin:20px 0;
+                        ">
+                            ${otp}
+                        </div>
+
+                        <p>
+                            This OTP is valid for
+                            <strong>5 minutes</strong>.
+                        </p>
+
+                        <p>
+                            If you did not request a password
+                            reset, please ignore this email.
+                        </p>
+
+                        <hr />
+
+                        <p style="
+                            color:#94A3B8;
+                            text-align:center;
+                            font-size:12px;
+                        ">
+                            Student's Safety, Our Priority
+                        </p>
+
                     </div>
-
-                    <p style="
-                        color: #64748B;
-                        font-size: 14px;
-                    ">
-                        This OTP is valid for <strong>5 minutes</strong>.
-                    </p>
-
-                    <p style="
-                        color: #64748B;
-                        font-size: 14px;
-                    ">
-                        If you did not request a password reset,
-                        please ignore this email.
-                    </p>
-
-                    <hr style="
-                        border: none;
-                        border-top: 1px solid #e2e8f0;
-                        margin: 25px 0;
-                    ">
-
-                    <p style="
-                        color: #94A3B8;
-                        font-size: 12px;
-                        text-align: center;
-                    ">
-                        Student's Safety, Our Priority
-                    </p>
-
-                </div>
-            `,
-
-        });
+                `,
+            });
 
         console.log(
             "OTP EMAIL SENT:",
-            email
+            info.messageId
         );
 
         return true;
@@ -117,12 +101,25 @@ exports.sendOTPEmail = async (
     } catch (error) {
 
         console.log(
-            "SEND OTP EMAIL ERROR:",
-            error
+            "SEND OTP EMAIL ERROR:"
+        );
+
+        console.log(
+            "CODE:",
+            error.code
+        );
+
+        console.log(
+            "MESSAGE:",
+            error.message
+        );
+
+        console.log(
+            "RESPONSE:",
+            error.response
         );
 
         return false;
 
     }
-
 };
