@@ -9,12 +9,11 @@ const transporter =
         process.env.EMAIL_USER,
 
       pass:
-        process.env.EMAIL_APP_PASSWORD,
+        process.env.EMAIL_PASS,
     },
   });
 
-
-const sendOTPEmail =
+const sendPasswordResetOTP =
   async (email, otp) => {
 
     try {
@@ -33,21 +32,19 @@ const sendOTPEmail =
         html: `
           <div style="
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 500px;
             margin: auto;
-            padding: 30px;
-            border: 1px solid #E2E8F0;
+            padding: 25px;
+            border: 1px solid #e5e7eb;
             border-radius: 12px;
           ">
 
-            <h2 style="
-              color: #0F172A;
-            ">
+            <h2>
               Password Reset
             </h2>
 
             <p>
-              We received a request to reset your
+              You requested to reset your
               School Bus Management password.
             </p>
 
@@ -59,38 +56,28 @@ const sendOTPEmail =
               font-size: 32px;
               font-weight: bold;
               letter-spacing: 8px;
-              color: #2563EB;
-              margin: 25px 0;
+              margin: 20px 0;
             ">
               ${otp}
             </div>
 
             <p>
-              This OTP will expire in
+              This OTP is valid for
               <strong>5 minutes</strong>.
             </p>
 
-            <p style="
-              color: #64748B;
-            ">
-              If you did not request a password reset,
-              please ignore this email.
-            </p>
-
-            <p style="
-              color: #94A3B8;
-              font-size: 12px;
-              margin-top: 30px;
-            ">
-              School Bus Management System
+            <p>
+              If you did not request this,
+              you can safely ignore this email.
             </p>
 
           </div>
         `,
+
       });
 
       console.log(
-        "OTP EMAIL SENT:",
+        "PASSWORD RESET OTP SENT:",
         email
       );
 
@@ -99,7 +86,7 @@ const sendOTPEmail =
     } catch (error) {
 
       console.log(
-        "OTP EMAIL ERROR:",
+        "SEND PASSWORD RESET EMAIL ERROR:",
         error
       );
 
@@ -109,7 +96,6 @@ const sendOTPEmail =
 
   };
 
-
 module.exports = {
-  sendOTPEmail,
+  sendPasswordResetOTP,
 };

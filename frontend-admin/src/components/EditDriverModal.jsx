@@ -276,6 +276,7 @@ const EditDriverModal = ({
         driver._id,
         {
           name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           phone: formData.phone.trim(),
         }
       );

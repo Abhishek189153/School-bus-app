@@ -4543,6 +4543,9 @@ exports.sendForgotPasswordOTP =
         user.resetPasswordOTPExpires =
             expiresAt;
 
+        user.resetPasswordOTPVerified =
+            false;
+
         await user.save();
 
 
@@ -4566,6 +4569,9 @@ exports.sendForgotPasswordOTP =
 
             user.resetPasswordOTPExpires =
                 null;
+
+            user.resetPasswordOTPVerified =
+                false;
 
             await user.save();
 
@@ -4724,6 +4730,9 @@ async (
             user.resetPasswordOTPExpires =
                 null;
 
+            user.resetPasswordOTPVerified =
+                false;
+
             await user.save();
 
 
@@ -4746,6 +4755,9 @@ async (
         // The frontend will only allow password
         // reset after this successful response.
         // ==========================================
+
+        user.resetPasswordOTPVerified =
+        true;
 
         return res.status(200).json({
 

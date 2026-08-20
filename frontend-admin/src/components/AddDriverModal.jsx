@@ -239,6 +239,7 @@ const AddDriverModal = ({
 
       await createDriver({
         name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
         password: formData.password,
       });
