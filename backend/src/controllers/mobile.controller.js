@@ -14,8 +14,7 @@ const bcrypt = require("bcryptjs");
 const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
 const WorkingDay = require("../models/workingDay.model");
-const {sendOTPEmail} = require("../services/email.service");
-
+const { sendMail } = require("../utils/mail.service");
 
 
 
