@@ -4,6 +4,11 @@ const Bus = require("../models/bus.model");
 const BusRoute = require("../models/busRoute.model");
 
 
+// Kept as a constant so createStudent/updateStudent validate against the
+// exact same list the frontend dropdown offers.
+const VALID_GENDERS = ["Male", "Female", "Other"];
+
+
 // =====================================================
 // HELPER
 // Check whether a bus is assigned to a route
@@ -56,6 +61,7 @@ exports.createStudent = async (req, res) => {
             name,
             className,
             admissionNumber,
+            gender,
             parentId,
 
             pickupRouteId,
@@ -79,6 +85,33 @@ exports.createStudent = async (req, res) => {
                 success: false,
                 message:
                     "Student name is required",
+            });
+
+        }
+
+
+        // ==========================================
+        // GENDER VALIDATION
+        // ==========================================
+
+        if (!gender) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Gender is required",
+            });
+
+        }
+
+
+        if (!VALID_GENDERS.includes(gender)) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Gender must be one of: " +
+                    VALID_GENDERS.join(", "),
             });
 
         }
@@ -311,6 +344,8 @@ exports.createStudent = async (req, res) => {
                 className,
 
                 admissionNumber,
+
+                gender,
 
                 parentId,
 
@@ -593,6 +628,8 @@ exports.updateStudent = async (
 
 
         const {
+            gender,
+
             pickupRouteId,
             pickupBusId,
 
@@ -600,6 +637,30 @@ exports.updateStudent = async (
             dropBusId,
 
         } = req.body;
+
+
+        // ==========================================
+        // VALIDATE GENDER
+        // (optional on update — only checked if the
+        // request is actually changing it)
+        // ==========================================
+
+        if (
+            gender !== undefined &&
+            !VALID_GENDERS.includes(gender)
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Gender must be one of: " +
+                    VALID_GENDERS.join(", "),
+
+            });
+
+        }
 
 
         // ==========================================

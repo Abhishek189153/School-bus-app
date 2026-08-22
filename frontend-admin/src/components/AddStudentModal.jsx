@@ -15,6 +15,11 @@ import {
   CircularProgress,
   Paper,
   Skeleton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
 } from "@mui/material";
 
 // MUI v9 individual icon imports
@@ -28,6 +33,7 @@ import LocationOnOutlined from "@mui/icons-material/LocationOnOutlined";
 import SaveOutlined from "@mui/icons-material/SaveOutlined";
 import CloseOutlined from "@mui/icons-material/CloseOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import WcOutlined from "@mui/icons-material/WcOutlined";
 
 import { getParents } from "../services/parent.service";
 import { createStudent } from "../services/student.service";
@@ -54,6 +60,9 @@ let dataCache = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// Kept outside the component so the array isn't recreated every render.
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
+
 
 const AddStudentModal = ({
   open,
@@ -70,6 +79,7 @@ const AddStudentModal = ({
   admissionNumber: "",
   name: "",
   className: "",
+  gender: "",
   parentId: "",
 
   // Pickup
@@ -632,6 +642,10 @@ const handleDropStopChange = (_, value) => {
       newErrors.className = "Class is required";
     }
 
+    if (!formData.gender) {
+      newErrors.gender = "Please select gender";
+    }
+
     if (!formData.parentId) {
       newErrors.parentId = "Please select a parent";
     }
@@ -1089,6 +1103,38 @@ const selectedDropStop =
                   },
                 }}
               />
+
+              {/* GENDER */}
+              <FormControl
+                fullWidth
+                required
+                size="small"
+                error={Boolean(errors.gender)}
+                sx={fieldSx}
+              >
+                <InputLabel id="gender-select-label">Gender</InputLabel>
+                <Select
+                  labelId="gender-select-label"
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <WcOutlined sx={{ color: "#7b8794", fontSize: 20 }} />
+                    </InputAdornment>
+                  }
+                >
+                  {GENDER_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.gender && (
+                  <FormHelperText>{errors.gender}</FormHelperText>
+                )}
+              </FormControl>
 
               {/* PARENT — skeleton only while parents are loading */}
               {loading && parents.length === 0 ? (

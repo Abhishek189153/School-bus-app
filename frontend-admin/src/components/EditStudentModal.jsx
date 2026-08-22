@@ -25,6 +25,9 @@ import { getBusesByRoute } from "../services/assignment.service";
 import { updateStudent } from "../services/student.service";
 import { getRoutes } from "../services/route.service";
 
+// Kept outside the component so the array isn't recreated every render.
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
+
 const EditStudentModal = ({
   open,
   handleClose,
@@ -49,6 +52,7 @@ const EditStudentModal = ({
     admissionNumber: "",
     name: "",
     className: "",
+    gender: "",
     parentId: "",
 
     // Pickup
@@ -137,6 +141,7 @@ const EditStudentModal = ({
           admissionNumber: student.admissionNumber || "",
           name: student.name || "",
           className: student.className || "",
+          gender: student.gender || "",
           parentId,
 
           pickupRouteId,
@@ -643,6 +648,32 @@ const dropRoutes =
                   onChange={handleChange}
                   size="small"
                 />
+
+                <TextField
+                  select
+                  fullWidth
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  size="small"
+                  SelectProps={{
+                    displayEmpty: true,
+                  }}
+                >
+                  <MenuItem value="">
+                    Select gender
+                  </MenuItem>
+
+                  {GENDER_OPTIONS.map((option) => (
+                    <MenuItem
+                      key={option}
+                      value={option}
+                    >
+                      {option}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
                 <TextField
                   select

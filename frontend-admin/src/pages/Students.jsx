@@ -43,6 +43,14 @@ import EditStudentModal from "../components/EditStudentModal";
 // blocking the whole page behind a spinner every single time.
 const STUDENTS_CACHE_KEY = "studentsPageCache";
 
+// Gender chip color map — kept outside the component so it isn't
+// recreated on every render.
+const GENDER_STYLES = {
+  Male: { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" },
+  Female: { backgroundColor: "#fdf2f8", color: "#be185d", border: "1px solid #fbcfe8" },
+  Other: { backgroundColor: "#faf5ff", color: "#7e22ce", border: "1px solid #e9d5ff" },
+};
+
 const Students = () => {
   const [students, setStudents] = useState(() => {
     try {
@@ -63,6 +71,7 @@ const Students = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [busFilter, setBusFilter] = useState("all");
   const [routeFilter, setRouteFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -146,6 +155,11 @@ const Students = () => {
     setPage(0);
   };
 
+  const handleGenderFilterChange = (e) => {
+    setGenderFilter(e.target.value);
+    setPage(0);
+  };
+
   // Unique option lists derived from the full student set (not the
   // filtered one) so the dropdown options stay stable as filters change.
   const busOptions = [
@@ -176,6 +190,7 @@ const Students = () => {
       student.name,
       student.parentId?.name,
       student.className,
+      student.gender,
       student.pickupRouteId?.routeName,
       student.pickupBusId?.busNumber,
       student.pickupStop,
@@ -200,7 +215,10 @@ const Students = () => {
       student.pickupRouteId?.routeName === routeFilter ||
       student.dropRouteId?.routeName === routeFilter;
 
-    return matchesSearch && matchesBus && matchesRoute;
+    const matchesGender =
+      genderFilter === "all" || student.gender === genderFilter;
+
+    return matchesSearch && matchesBus && matchesRoute && matchesGender;
   });
 
   const paginatedStudents = filteredStudents.slice(
@@ -212,11 +230,24 @@ const Students = () => {
     setSearchTerm("");
     setBusFilter("all");
     setRouteFilter("all");
+    setGenderFilter("all");
     setPage(0);
   };
 
   const hasActiveFilters =
-    searchTerm !== "" || busFilter !== "all" || routeFilter !== "all";
+    searchTerm !== "" || busFilter !== "all" || routeFilter !== "all" || genderFilter !== "all";
+
+  // Gender counts always reflect the full dataset, not the filtered
+  // view — so the badges read as a stable summary, not a shifting one.
+  const genderCounts = students.reduce(
+    (acc, s) => {
+      if (s.gender === "Male") acc.male += 1;
+      else if (s.gender === "Female") acc.female += 1;
+      else if (s.gender === "Other") acc.other += 1;
+      return acc;
+    },
+    { male: 0, female: 0, other: 0 }
+  );
 
   if (loading) {
     return (
@@ -276,9 +307,9 @@ const Students = () => {
             gap: 2,
           }}
         >
-          {/* Title & Count Badge */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a" }}>
+          {/* Title & Count Badges */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a", mr: 0.5 }}>
               Students
             </Typography>
             <Chip
@@ -291,6 +322,38 @@ const Students = () => {
                 borderRadius: "8px",
               }}
             />
+            <Chip
+              label={`Male: ${genderCounts.male}`}
+              size="small"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                borderRadius: "8px",
+              }}
+            />
+            <Chip
+              label={`Female: ${genderCounts.female}`}
+              size="small"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#fdf2f8",
+                color: "#be185d",
+                borderRadius: "8px",
+              }}
+            />
+            {genderCounts.other > 0 && (
+              <Chip
+                label={`Others: ${genderCounts.other}`}
+                size="small"
+                sx={{
+                  fontWeight: 600,
+                  backgroundColor: "#faf5ff",
+                  color: "#7e22ce",
+                  borderRadius: "8px",
+                }}
+              />
+            )}
           </Box>
 
           {/* Filters, Search Bar & Action Button */}
@@ -341,6 +404,20 @@ const Students = () => {
                 </Select>
               </FormControl>
 
+              <FormControl size="small" sx={selectSx}>
+                <InputLabel>Gender</InputLabel>
+                <Select
+                  value={genderFilter}
+                  label="Gender"
+                  onChange={handleGenderFilterChange}
+                >
+                  <MenuItem value="all">All Genders</MenuItem>
+                  <MenuItem value="Male">Male</MenuItem>
+                  <MenuItem value="Female">Female</MenuItem>
+                  <MenuItem value="Other">Others</MenuItem>
+                </Select>
+              </FormControl>
+
               {hasActiveFilters && (
                 <Tooltip title="Clear filters">
                   <IconButton
@@ -361,7 +438,7 @@ const Students = () => {
             <Box sx={{ width: "1px", height: 32, backgroundColor: "#e2e8f0" }} />
 
             <TextField
-              placeholder="Search student, class, bus..."
+              placeholder="Search student, class, gender, bus..."
               value={searchTerm}
               onChange={handleSearchChange}
               size="small"
@@ -373,7 +450,7 @@ const Students = () => {
                 ),
               }}
               sx={{
-                width: { xs: "100%", sm: 260 },
+                width: { xs: "100%", sm: 280 },
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "10px",
                   backgroundColor: "#ffffff",
@@ -417,7 +494,7 @@ const Students = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 900 }}>
+          <Table sx={{ minWidth: 950 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -428,6 +505,9 @@ const Students = () => {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Name
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Gender
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Parent
@@ -474,6 +554,25 @@ const Students = () => {
 
                     <TableCell sx={{ fontWeight: 600, color: "#0f172a" }}>
                       {student.name}
+                    </TableCell>
+
+                    <TableCell>
+                      {student.gender ? (
+                        <Chip
+                          label={student.gender}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            borderRadius: "7px",
+                            ...(GENDER_STYLES[student.gender] || {
+                              backgroundColor: "#f1f5f9",
+                              color: "#334155",
+                            }),
+                          }}
+                        />
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
 
                     <TableCell sx={{ color: "#475569" }}>
@@ -564,7 +663,7 @@ const Students = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748b" }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">No matching student records found.</Typography>
                   </TableCell>
                 </TableRow>
