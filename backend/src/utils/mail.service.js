@@ -1,59 +1,30 @@
-const dns = require("dns");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-// IMPORTANT:
-// Force Node.js to prefer IPv4 over IPv6.
-// Render is currently unable to reach Gmail's IPv6 SMTP address.
-dns.setDefaultResultOrder("ipv4first");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-
-    requireTLS: true,
-
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 60000,
-});
-
-exports.sendMail = async (
-    to,
-    subject,
-    html
-) => {
-
+exports.sendMail = async (to, subject, html) => {
     try {
+        console.log("Sending email to:", to);
 
-        console.log(
-            "Sending email to:",
-            to
-        );
+        const { data, error } = await resend.emails.send({
+            from: "School Bus Management <noreply@schoolbusmanagement.online>",
+            to: [to],
+            subject,
+            html,
+        });
 
-        const info =
-            await transporter.sendMail({
-                from:
-                    `"School Bus Management" <${process.env.EMAIL_USER}>`,
-                to,
-                subject,
-                html,
-            });
+        if (error) {
+            console.error("RESEND EMAIL ERROR:", error);
+            throw error;
+        }
 
         console.log(
             "EMAIL SENT SUCCESSFULLY:",
-            info.messageId
+            data?.id
         );
 
-        return info;
-
+        return data;
     } catch (error) {
-
         console.error(
             "SEND MAIL ERROR:",
             error
