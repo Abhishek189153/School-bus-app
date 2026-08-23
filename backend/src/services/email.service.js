@@ -8,9 +8,7 @@ exports.sendOTPEmail = async (
   email,
   otp
 ) => {
-
   try {
-
     console.log(
       "SENDING OTP EMAIL TO:",
       email
@@ -18,15 +16,11 @@ exports.sendOTPEmail = async (
 
     const { data, error } =
       await resend.emails.send({
-
         from:
-          "School Bus Management <onboarding@resend.dev>",
-
+          "School Bus Management <noreply@schoolbusmanagement.online>",
         to: [email],
-
         subject:
           "School Bus Management - Password Reset OTP",
-
         html: `
           <div style="
             font-family: Arial, sans-serif;
@@ -34,7 +28,6 @@ exports.sendOTPEmail = async (
             margin: auto;
             padding: 20px;
           ">
-
             <h2 style="color:#0F172A;">
               Password Reset
             </h2>
@@ -76,21 +69,16 @@ exports.sendOTPEmail = async (
             ">
               Student's Safety, Our Priority
             </p>
-
           </div>
         `,
-
       });
 
     if (error) {
-
       console.log(
         "RESEND EMAIL ERROR:",
         error
       );
-
       return false;
-
     }
 
     console.log(
@@ -101,14 +89,11 @@ exports.sendOTPEmail = async (
     return true;
 
   } catch (error) {
-
     console.log(
       "SEND OTP EMAIL ERROR:",
       error
     );
 
     return false;
-
   }
-
 };

@@ -38,6 +38,14 @@ import { getAttendanceHistory } from "../services/attendance.service";
 import { getBuses } from "../services/bus.service";
 import { getRoutes } from "../services/route.service";
 
+// Gender chip color map — same palette used on the Students page so
+// gender reads consistently across the app.
+const GENDER_STYLES = {
+  Male: { backgroundColor: "#eff6ff", color: "#1d4ed8" },
+  Female: { backgroundColor: "#fdf2f8", color: "#be185d" },
+  Other: { backgroundColor: "#faf5ff", color: "#7e22ce" },
+};
+
 // Small reusable debounce hook so we don't hammer the API on every keystroke.
 function useDebouncedValue(value, delayMs) {
   const [debounced, setDebounced] = useState(value);
@@ -57,6 +65,7 @@ export default function StudentAttendance() {
   const [search, setSearch] = useState("");
   const [routeId, setRouteId] = useState("");
   const [tripType, setTripType] = useState("");
+  const [gender, setGender] = useState("");
 
   // Debounce only the free-text search so dropdown/date changes stay instant
   // while typing doesn't fire a request on every character.
@@ -161,6 +170,9 @@ export default function StudentAttendance() {
   }, [loadFilters]);
 
   // Refetch whenever filters or the debounced search term change.
+  // Gender is deliberately excluded here — it's filtered client-side below
+  // (same as the free-text search fallback), since it lives on the student
+  // record, not the attendance record the backend query is built around.
   useEffect(() => {
     loadAttendance();
     setPage(0); // Reset pagination to first page on filter/search change
@@ -169,6 +181,11 @@ export default function StudentAttendance() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, busId, routeId, tripType, debouncedSearch]);
+
+  // Reset pagination when the gender filter changes too, same as the other filters.
+  useEffect(() => {
+    setPage(0);
+  }, [gender]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -183,17 +200,23 @@ export default function StudentAttendance() {
     setBusId("");
     setRouteId("");
     setTripType("");
+    setGender("");
     setSearch("");
   };
 
   // Client-side fallback filter across all visible columns — covers the
-  // gap between "search term typed" and "debounced value sent to backend".
+  // gap between "search term typed" and "debounced value sent to backend",
+  // and also applies the gender filter (backend query isn't gender-aware).
   const filteredAttendance = attendance.filter((item) => {
+    const matchesGender = !gender || item.studentId?.gender === gender;
+    if (!matchesGender) return false;
+
     if (!search.trim()) return true;
 
     const query = search.toLowerCase();
     const studentName = (item.studentId?.name || "").toLowerCase();
     const admissionNo = String(item.studentId?.admissionNumber || "").toLowerCase();
+    const studentGender = (item.studentId?.gender || "").toLowerCase();
     const busNo = (item.busId?.busNumber || "").toLowerCase();
     const routeName = (item.routeId?.routeName || "").toLowerCase();
     const type = (item.tripType || "").toLowerCase();
@@ -205,6 +228,7 @@ export default function StudentAttendance() {
     return (
       studentName.includes(query) ||
       admissionNo.includes(query) ||
+      studentGender.includes(query) ||
       busNo.includes(query) ||
       routeName.includes(query) ||
       type.includes(query) ||
@@ -219,6 +243,7 @@ export default function StudentAttendance() {
     const excelData = filteredAttendance.map((item) => ({
       Student: item.studentId?.name || "N/A",
       AdmissionNumber: item.studentId?.admissionNumber || "N/A",
+      Gender: item.studentId?.gender || "N/A",
       Bus: item.busId?.busNumber || "N/A",
       Route: item.routeId?.routeName || "N/A",
       TripType: item.tripType || "N/A",
@@ -439,8 +464,26 @@ export default function StudentAttendance() {
           </TextField>
 
           <TextField
+            select
+            label="Gender"
             size="small"
-            placeholder="Search by student, bus, route, status..."
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            sx={{
+              width: { xs: "100%", sm: "auto" },
+              minWidth: { sm: 130 },
+              "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+            }}
+          >
+            <MenuItem value="">All Genders</MenuItem>
+            <MenuItem value="Male">Male</MenuItem>
+            <MenuItem value="Female">Female</MenuItem>
+            <MenuItem value="Other">Others</MenuItem>
+          </TextField>
+
+          <TextField
+            size="small"
+            placeholder="Search by student, gender, bus, route, status..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -534,7 +577,7 @@ export default function StudentAttendance() {
         </Box>
 
         <TableContainer sx={{ maxWidth: "100%", overflowX: "auto" }}>
-          <Table sx={{ minWidth: 750 }}>
+          <Table sx={{ minWidth: 820 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f1f5f9" }}>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
@@ -545,6 +588,9 @@ export default function StudentAttendance() {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Admission
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
+                  Gender
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: "#475569", fontSize: "0.78rem", textTransform: "uppercase" }}>
                   Bus
@@ -568,7 +614,7 @@ export default function StudentAttendance() {
               {initialLoading ? (
                 skeletonRows.map((_, i) => (
                   <TableRow key={`skeleton-${i}`}>
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <TableCell key={j}>
                         <Skeleton variant="text" />
                       </TableCell>
@@ -578,6 +624,7 @@ export default function StudentAttendance() {
               ) : paginatedAttendance.length > 0 ? (
                 paginatedAttendance.map((item, index) => {
                   const isPresent = item.status === "PRESENT";
+                  const studentGender = item.studentId?.gender;
 
                   return (
                     <TableRow
@@ -606,6 +653,25 @@ export default function StudentAttendance() {
                             color: "#334155",
                           }}
                         />
+                      </TableCell>
+
+                      <TableCell>
+                        {studentGender ? (
+                          <Chip
+                            label={studentGender}
+                            size="small"
+                            sx={{
+                              fontWeight: 600,
+                              borderRadius: "6px",
+                              ...(GENDER_STYLES[studentGender] || {
+                                backgroundColor: "#f1f5f9",
+                                color: "#334155",
+                              }),
+                            }}
+                          />
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
 
                       <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
@@ -650,7 +716,7 @@ export default function StudentAttendance() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748b" }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: "#64748b" }}>
                     <Typography variant="body2">
                       {error ? "Couldn't load records." : "No matching attendance records found."}
                     </Typography>
