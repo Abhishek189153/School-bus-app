@@ -1,5 +1,4 @@
 import {
-  Grid,
   Typography,
   Box,
   Paper,
@@ -11,8 +10,9 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Chip,
-  Divider,
+  TextField,
+  InputAdornment,
+  CircularProgress,
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
@@ -22,247 +22,291 @@ import { getDashboard } from "../services/dashboard.service";
 import SchoolIcon from "@mui/icons-material/School";
 import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import GroupsIcon from "@mui/icons-material/Groups";
-import PersonIcon from "@mui/icons-material/Person";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 
-import StatCard from "../components/StatCard";
 import PageContainer from "../components/PageContainer";
 
 export default function Dashboard() {
+  // =========================================================
+  // DASHBOARD DATA
+  // =========================================================
+
   const [dashboard, setDashboard] = useState({
     totalSchools: 0,
     totalAdmins: 0,
     totalStudents: 0,
     totalBuses: 0,
     schools: [],
+    pagination: {
+      page: 1,
+      limit: 5,
+      totalSchools: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    },
   });
 
-  // Pagination
+  // =========================================================
+  // SEARCH
+  // =========================================================
+
+  const [searchInput, setSearchInput] = useState("");
+
+  const [search, setSearch] = useState("");
+
+  // =========================================================
+  // LOADING
+  // =========================================================
+
+  const [loading, setLoading] = useState(false);
+
+  // =========================================================
+  // CURRENT PAGE
+  // =========================================================
+
   const [page, setPage] = useState(0);
+
+  // MUI TablePagination uses 0-based page
+  // Backend uses 1-based page
+
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // =========================================================
+  // DEBOUNCE SEARCH
+  // =========================================================
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+
+      // Whenever search changes,
+      // start from first page.
+      setPage(0);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // =========================================================
+  // LOAD DASHBOARD
+  // =========================================================
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [page, rowsPerPage, search]);
+
+  // =========================================================
+  // API CALL
+  // =========================================================
 
   const loadDashboard = async () => {
     try {
-      const data = await getDashboard();
+      setLoading(true);
 
-      setDashboard({
-        totalSchools: data.totalSchools || 0,
-        totalAdmins: data.totalAdmins || 0,
-        totalStudents: data.totalStudents || 0,
-        totalBuses: data.totalBuses || 0,
-        schools: data.schools || [],
-      });
+      const data = await getDashboard(
+        page + 1,
+        rowsPerPage,
+        search
+      );
+
+      setDashboard(data);
     } catch (err) {
-      console.log(err);
+      console.error(
+        "Dashboard loading error:",
+        err
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle page change
-  const handleChangePage = (event, newPage) => {
+  // =========================================================
+  // PAGINATION - PAGE CHANGE
+  // =========================================================
+
+  const handleChangePage = (
+    event,
+    newPage
+  ) => {
     setPage(newPage);
   };
 
-  // Handle rows per page change
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+  // =========================================================
+  // PAGINATION - ROWS PER PAGE
+  // =========================================================
+
+  const handleChangeRowsPerPage = (
+    event
+  ) => {
+    const newLimit = parseInt(
+      event.target.value,
+      10
+    );
+
+    setRowsPerPage(newLimit);
     setPage(0);
   };
 
-  // Schools displayed on current page
-  const paginatedSchools = dashboard.schools.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // =========================================================
+  // SAFE USER DATA
+  // =========================================================
+
+  let userName = "Admin";
+
+  try {
+    const user = JSON.parse(
+      sessionStorage.getItem("user")
+    );
+
+    userName = user?.name || "Admin";
+  } catch (error) {
+    console.error(
+      "Unable to read user:",
+      error
+    );
+  }
+
+  // =========================================================
+  // RETURN
+  // =========================================================
 
   return (
     <PageContainer>
 
-      {/* =========================================================
-          WELCOME BANNER
-      ========================================================= */}
+      {/* =====================================================
+          TOP BANNER
+      ===================================================== */}
+
       <Paper
         elevation={0}
         sx={{
           borderRadius: 4,
-          p: { xs: 4, md: 5 },
+          p: {
+            xs: 3,
+            md: 5,
+          },
+
           background:
             "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+
           color: "#fff",
+
           mb: 4,
-          position: "relative",
-          overflow: "hidden",
-          boxShadow: "0 12px 30px rgba(37, 99, 235, 0.18)",
+
+          boxShadow:
+            "0 10px 25px rgba(37, 99, 235, 0.15)",
         }}
       >
-        {/* Decorative background */}
-        <Box
+        <Typography
+          variant="h4"
+          fontWeight="800"
           sx={{
-            position: "absolute",
-            width: 220,
-            height: 220,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.06)",
-            right: -70,
-            top: -90,
+            letterSpacing: "-0.5px",
           }}
-        />
+        >
+          Welcome {userName}
+        </Typography>
 
-        <Box
+        <Typography
+          mt={1}
           sx={{
-            position: "absolute",
-            width: 140,
-            height: 140,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.05)",
-            right: 100,
-            bottom: -90,
+            opacity: 0.9,
+            fontSize: "15px",
+            maxWidth: "600px",
+            lineHeight: 1.6,
           }}
-        />
+        >
+          Manage all schools, buses, parents and
+          school administrators from one central
+          dashboard view.
+        </Typography>
 
-        <Box sx={{ position: "relative", zIndex: 1 }}>
-          <Typography
-            variant="h4"
-            fontWeight="800"
-            sx={{
-              letterSpacing: "-0.5px",
-            }}
-          >
-            Welcome{" "}
-            {JSON.parse(sessionStorage.getItem("user"))?.name}
-          </Typography>
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          sx={{
+            mt: 3.5,
+            background: "#fff",
+            color: "#2563EB",
+            fontWeight: "700",
+            textTransform: "none",
+            borderRadius: "8px",
+            px: 3,
+            py: 1,
 
-          <Typography
-            mt={1}
-            sx={{
-              opacity: 0.9,
-              fontSize: "15px",
-              maxWidth: "600px",
-              lineHeight: 1.6,
-            }}
-          >
-            Manage all schools, buses, parents and school
-            administrators from one central dashboard view.
-          </Typography>
+            boxShadow:
+              "0 4px 12px rgba(255, 255, 255, 0.1)",
 
-          <Button
-            startIcon={<AddIcon />}
-            variant="contained"
-            sx={{
-              mt: 3.5,
-              background: "#fff",
-              color: "#2563EB",
-              fontWeight: "700",
-              textTransform: "none",
-              borderRadius: "8px",
-              px: 3,
-              py: 1,
+            "&:hover": {
+              background: "#f8fafc",
               boxShadow:
-                "0 4px 12px rgba(255, 255, 255, 0.1)",
-
-              "&:hover": {
-                background: "#f8fafc",
-                boxShadow:
-                  "0 6px 16px rgba(255, 255, 255, 0.2)",
-              },
-            }}
-          >
-            Add School
-          </Button>
-        </Box>
+                "0 6px 16px rgba(255, 255, 255, 0.2)",
+            },
+          }}
+        >
+          Add School
+        </Button>
       </Paper>
 
-      {/* =========================================================
-          STAT CARDS
-      ========================================================= */}
-      <Grid container spacing={3}>
+      {/* =====================================================
+          SCHOOLS SECTION
+      ===================================================== */}
 
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Schools"
-            value={dashboard.totalSchools}
-            color="#2563EB"
-            icon={<SchoolIcon />}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Admins"
-            value={dashboard.totalAdmins}
-            color="#7C3AED"
-            icon={<PersonIcon />}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Students"
-            value={dashboard.totalStudents}
-            color="#16A34A"
-            icon={<GroupsIcon />}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Buses"
-            value={dashboard.totalBuses}
-            color="#EA580C"
-            icon={<DirectionsBusIcon />}
-          />
-        </Grid>
-
-      </Grid>
-
-      {/* =========================================================
-          SCHOOLS TABLE
-      ========================================================= */}
       <Paper
         elevation={0}
         sx={{
-          mt: 4,
           borderRadius: 4,
-          border: "1px solid #e2e8f0",
-          overflow: "hidden",
-          background: "#ffffff",
+          border:
+            "1px solid #e2e8f0",
+
           boxShadow:
-            "0 8px 30px rgba(15, 23, 42, 0.05)",
+            "0 4px 18px rgba(15, 23, 42, 0.04)",
+
+          overflow: "hidden",
         }}
       >
 
-        {/* =====================================================
+        {/* ===================================================
             TABLE HEADER
-        ===================================================== */}
+        =================================================== */}
+
         <Box
           sx={{
-            px: { xs: 3, md: 4 },
-            pt: 3.5,
-            pb: 2.5,
+            px: {
+              xs: 2,
+              md: 3,
+            },
+
+            py: 2.5,
+
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: {
-              xs: "flex-start",
-              sm: "center",
-            },
-            flexDirection: {
-              xs: "column",
-              sm: "row",
-            },
-            gap: 1,
+
+            alignItems: "center",
+
+            justifyContent:
+              "space-between",
+
+            gap: 3,
+
+            flexWrap: "wrap",
+
+            borderBottom:
+              "1px solid #e2e8f0",
           }}
         >
-          <Box>
+
+          {/* LEFT SIDE */}
+          <Box
+            sx={{
+              minWidth: "200px",
+            }}
+          >
             <Typography
               variant="h5"
-              fontWeight="800"
+              fontWeight="700"
               color="#0f172a"
-              sx={{
-                letterSpacing: "-0.4px",
-              }}
             >
               Schools
             </Typography>
@@ -270,180 +314,393 @@ export default function Dashboard() {
             <Typography
               sx={{
                 mt: 0.5,
-                color: "#64748b",
                 fontSize: "13px",
+                color: "#64748b",
               }}
             >
-              Overview of registered schools and their
-              transport information
+              Overview of registered schools
+              and their transport information
             </Typography>
           </Box>
+
+          {/* SEARCH */}
+          <TextField
+            value={searchInput}
+            onChange={(e) =>
+              setSearchInput(e.target.value)
+            }
+            placeholder="Search School..."
+            size="small"
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "260px",
+                md: "300px",
+              },
+
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#f8fafc",
+
+                "& fieldset": {
+                  borderColor: "#e2e8f0",
+                },
+
+                "&:hover fieldset": {
+                  borderColor: "#cbd5e1",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#2563EB",
+                  borderWidth: "1px",
+                },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon
+                    sx={{
+                      fontSize: 20,
+                      color: "#64748b",
+                    }}
+                  />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* =================================================
+              SUMMARY BADGES
+          ================================================= */}
 
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1,
-              px: 1.5,
-              py: 0.8,
-              borderRadius: "10px",
-              background: "#eff6ff",
-              color: "#2563EB",
-              fontSize: "13px",
-              fontWeight: "700",
+
+              flexWrap: "wrap",
+
+              justifyContent: "flex-end",
             }}
           >
-            <SchoolIcon sx={{ fontSize: 18 }} />
 
-            {dashboard.totalSchools} Schools
+            {/* SCHOOLS */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.7,
+
+                px: 1.4,
+                py: 0.8,
+
+                borderRadius: "10px",
+
+                background: "#eff6ff",
+                color: "#2563eb",
+
+                fontSize: "13px",
+                fontWeight: "700",
+              }}
+            >
+              <SchoolIcon
+                sx={{
+                  fontSize: 17,
+                }}
+              />
+
+              {dashboard.totalSchools} Schools
+            </Box>
+
+            {/* STUDENTS */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.7,
+
+                px: 1.4,
+                py: 0.8,
+
+                borderRadius: "10px",
+
+                background: "#f0fdf4",
+                color: "#15803d",
+
+                fontSize: "13px",
+                fontWeight: "700",
+              }}
+            >
+              <GroupsIcon
+                sx={{
+                  fontSize: 17,
+                }}
+              />
+
+              {dashboard.totalStudents} Students
+            </Box>
+
+            {/* BUSES */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.7,
+
+                px: 1.4,
+                py: 0.8,
+
+                borderRadius: "10px",
+
+                background: "#fff7ed",
+                color: "#c2410c",
+
+                fontSize: "13px",
+                fontWeight: "700",
+              }}
+            >
+              <DirectionsBusIcon
+                sx={{
+                  fontSize: 17,
+                }}
+              />
+
+              {dashboard.totalBuses} Buses
+            </Box>
+
+            {/* LIVE SYNC */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.7,
+
+                px: 1.4,
+                py: 0.8,
+
+                borderRadius: "10px",
+
+                background: "#f8fafc",
+                color: "#475569",
+
+                border:
+                  "1px solid #e2e8f0",
+
+                fontSize: "13px",
+                fontWeight: "700",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  boxShadow:
+                    "0 0 0 3px rgba(34,197,94,0.12)",
+                }}
+              />
+
+              Live Sync
+            </Box>
           </Box>
         </Box>
 
-        <Divider />
-
-        {/* =====================================================
+        {/* ===================================================
             TABLE
-        ===================================================== */}
-        <Box sx={{ px: { xs: 2, md: 3 }, pt: 2 }}>
+        =================================================== */}
 
-          {dashboard.schools.length > 0 ? (
-            <>
-              <TableContainer
-                sx={{
-                  border: "1px solid #eef2f7",
-                  borderRadius: "14px",
-                  overflowX: "auto",
-                }}
-              >
-                <Table
+        <Box
+          sx={{
+            p: {
+              xs: 1.5,
+              md: 2,
+            },
+          }}
+        >
+
+          <TableContainer
+            sx={{
+              border:
+                "1px solid #e2e8f0",
+
+              borderRadius: "14px",
+
+              overflow: "hidden",
+            }}
+          >
+            <Table
+              sx={{
+                minWidth: 750,
+              }}
+            >
+
+              {/* =================================================
+                  TABLE HEAD
+              ================================================= */}
+
+              <TableHead>
+                <TableRow
                   sx={{
-                    minWidth: 750,
+                    background:
+                      "#f8fafc",
                   }}
                 >
+                  <TableCell
+                    sx={{
+                      fontWeight: "800",
+                      color: "#334155",
+                      fontSize: "12px",
+                      letterSpacing: "0.5px",
+                      py: 2,
+                    }}
+                  >
+                    SCHOOL
+                  </TableCell>
 
-                  {/* TABLE HEAD */}
-                  <TableHead>
-                    <TableRow
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "800",
+                      color: "#334155",
+                      fontSize: "12px",
+                      letterSpacing: "0.5px",
+                      py: 2,
+                    }}
+                  >
+                    TOTAL STUDENTS
+                  </TableCell>
+
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "800",
+                      color: "#334155",
+                      fontSize: "12px",
+                      letterSpacing: "0.5px",
+                      py: 2,
+                    }}
+                  >
+                    TOTAL BUSES
+                  </TableCell>
+
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "800",
+                      color: "#334155",
+                      fontSize: "12px",
+                      letterSpacing: "0.5px",
+                      py: 2,
+                    }}
+                  >
+                    STATUS
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+
+              {/* =================================================
+                  TABLE BODY
+              ================================================= */}
+
+              <TableBody>
+
+                {/* LOADING */}
+                {loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      align="center"
                       sx={{
-                        background:
-                          "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+                        py: 7,
                       }}
                     >
-                      <TableCell
+                      <CircularProgress
+                        size={28}
                         sx={{
-                          fontWeight: "800",
-                          color: "#475569",
-                          py: 2,
-                          fontSize: "12px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          borderBottom:
-                            "1px solid #e2e8f0",
+                          color: "#2563EB",
+                        }}
+                      />
+
+                      <Typography
+                        sx={{
+                          mt: 1.5,
+                          color: "#64748b",
+                          fontSize: "13px",
                         }}
                       >
-                        School
-                      </TableCell>
+                        Loading schools...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : dashboard.schools?.length >
+                  0 ? (
 
-                      <TableCell
-                        align="center"
-                        sx={{
-                          fontWeight: "800",
-                          color: "#475569",
-                          py: 2,
-                          fontSize: "12px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          borderBottom:
-                            "1px solid #e2e8f0",
-                        }}
-                      >
-                        Total Students
-                      </TableCell>
-
-                      <TableCell
-                        align="center"
-                        sx={{
-                          fontWeight: "800",
-                          color: "#475569",
-                          py: 2,
-                          fontSize: "12px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          borderBottom:
-                            "1px solid #e2e8f0",
-                        }}
-                      >
-                        Total Buses
-                      </TableCell>
-
-                      <TableCell
-                        align="center"
-                        sx={{
-                          fontWeight: "800",
-                          color: "#475569",
-                          py: 2,
-                          fontSize: "12px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          borderBottom:
-                            "1px solid #e2e8f0",
-                        }}
-                      >
-                        Status
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-
-                  {/* TABLE BODY */}
-                  <TableBody>
-                    {paginatedSchools.map((school) => (
+                  dashboard.schools.map(
+                    (school) => (
                       <TableRow
                         key={school._id}
                         sx={{
-                          "&:last-child td, &:last-child th": {
-                            border: 0,
-                          },
+                          "&:last-child td, &:last-child th":
+                            {
+                              border: 0,
+                            },
 
                           "&:hover": {
-                            background: "#f8fafc",
+                            background:
+                              "#f8fafc",
                           },
 
                           transition:
-                            "background-color 0.2s ease",
+                            "background-color 0.2s",
                         }}
                       >
 
                         {/* SCHOOL */}
                         <TableCell
                           sx={{
-                            py: 2.5,
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            py: 2.2,
                           }}
                         >
                           <Box
                             sx={{
                               display: "flex",
-                              alignItems: "center",
+                              alignItems:
+                                "center",
                               gap: 1.5,
                             }}
                           >
                             <Box
                               sx={{
-                                width: 38,
-                                height: 38,
-                                borderRadius: "10px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: "#eff6ff",
-                                color: "#2563EB",
+                                width: 36,
+                                height: 36,
+
+                                borderRadius:
+                                  "10px",
+
+                                display:
+                                  "flex",
+
+                                alignItems:
+                                  "center",
+
+                                justifyContent:
+                                  "center",
+
+                                background:
+                                  "#eff6ff",
+
+                                color:
+                                  "#2563EB",
+
                                 flexShrink: 0,
                               }}
                             >
                               <SchoolIcon
                                 sx={{
-                                  fontSize: 20,
+                                  fontSize: 19,
                                 }}
                               />
                             </Box>
@@ -451,9 +708,14 @@ export default function Dashboard() {
                             <Box>
                               <Typography
                                 sx={{
-                                  fontWeight: "700",
-                                  color: "#0f172a",
-                                  fontSize: "14px",
+                                  fontWeight:
+                                    "700",
+
+                                  color:
+                                    "#0f172a",
+
+                                  fontSize:
+                                    "14px",
                                 }}
                               >
                                 {school.schoolName ||
@@ -463,9 +725,13 @@ export default function Dashboard() {
 
                               <Typography
                                 sx={{
-                                  color: "#94a3b8",
-                                  fontSize: "11px",
-                                  mt: 0.2,
+                                  fontSize:
+                                    "11px",
+
+                                  color:
+                                    "#94a3b8",
+
+                                  mt: 0.3,
                                 }}
                               >
                                 School Institution
@@ -478,27 +744,43 @@ export default function Dashboard() {
                         <TableCell
                           align="center"
                           sx={{
-                            py: 2.5,
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            py: 2.2,
                           }}
                         >
                           <Box
                             sx={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              display:
+                                "inline-flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
+
                               minWidth: 48,
+
                               px: 1.5,
                               py: 0.8,
-                              borderRadius: "8px",
-                              background: "#f0fdf4",
-                              color: "#15803d",
-                              fontWeight: "800",
-                              fontSize: "14px",
+
+                              borderRadius:
+                                "8px",
+
+                              background:
+                                "#f0fdf4",
+
+                              color:
+                                "#15803d",
+
+                              fontSize:
+                                "13px",
+
+                              fontWeight:
+                                "800",
                             }}
                           >
-                            {school.totalStudents ?? 0}
+                            {school.totalStudents ??
+                              0}
                           </Box>
                         </TableCell>
 
@@ -506,27 +788,43 @@ export default function Dashboard() {
                         <TableCell
                           align="center"
                           sx={{
-                            py: 2.5,
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            py: 2.2,
                           }}
                         >
                           <Box
                             sx={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              display:
+                                "inline-flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
+
                               minWidth: 48,
+
                               px: 1.5,
                               py: 0.8,
-                              borderRadius: "8px",
-                              background: "#fff7ed",
-                              color: "#c2410c",
-                              fontWeight: "800",
-                              fontSize: "14px",
+
+                              borderRadius:
+                                "8px",
+
+                              background:
+                                "#fff7ed",
+
+                              color:
+                                "#c2410c",
+
+                              fontSize:
+                                "13px",
+
+                              fontWeight:
+                                "800",
                             }}
                           >
-                            {school.totalBuses ?? 0}
+                            {school.totalBuses ??
+                              0}
                           </Box>
                         </TableCell>
 
@@ -534,153 +832,156 @@ export default function Dashboard() {
                         <TableCell
                           align="center"
                           sx={{
-                            py: 2.5,
-                            borderBottom:
-                              "1px solid #f1f5f9",
+                            py: 2.2,
                           }}
                         >
-                          <Chip
-                            label={
-                              school.subscriptionStatus ===
-                              "ACTIVE"
-                                ? "Registered"
-                                : "Inactive"
-                            }
-                            size="small"
+                          <Box
+                            component="span"
                             sx={{
-                              fontWeight: "700",
-                              fontSize: "11px",
-                              borderRadius: "20px",
-                              px: 0.5,
+                              display:
+                                "inline-flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
 
                               background:
-                                school.subscriptionStatus ===
-                                "ACTIVE"
-                                  ? "#dcfce7"
-                                  : "#fee2e2",
+                                "#dcfce7",
 
                               color:
-                                school.subscriptionStatus ===
-                                "ACTIVE"
-                                  ? "#15803d"
-                                  : "#b91c1c",
+                                "#15803d",
+
+                              px: 1.8,
+                              py: 0.6,
+
+                              borderRadius:
+                                "20px",
+
+                              fontSize:
+                                "11px",
+
+                              fontWeight:
+                                "700",
 
                               border:
-                                school.subscriptionStatus ===
-                                "ACTIVE"
-                                  ? "1px solid #bbf7d0"
-                                  : "1px solid #fecaca",
+                                "1px solid #bbf7d0",
                             }}
-                          />
+                          >
+                            Registered
+                          </Box>
                         </TableCell>
-
                       </TableRow>
-                    ))}
-                  </TableBody>
+                    )
+                  )
 
-                </Table>
-              </TableContainer>
+                ) : (
 
-              {/* =================================================
-                  PAGINATION
-              ================================================= */}
-              <TablePagination
-                component="div"
-                count={dashboard.schools.length}
-                page={page}
-                onPageChange={handleChangePage}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={
-                  handleChangeRowsPerPage
-                }
-                rowsPerPageOptions={[5, 10, 25]}
-                labelRowsPerPage="Schools per page:"
-                sx={{
-                  mt: 1,
+                  /* NO RESULTS */
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      align="center"
+                      sx={{
+                        py: 6,
+                      }}
+                    >
+                      <SchoolIcon
+                        sx={{
+                          fontSize: 40,
+                          color: "#cbd5e1",
+                        }}
+                      />
 
-                  ".MuiTablePagination-toolbar": {
-                    minHeight: 58,
-                    px: 0,
-                  },
+                      <Typography
+                        sx={{
+                          mt: 1,
+                          fontWeight:
+                            "600",
+                          color:
+                            "#475569",
+                        }}
+                      >
+                        {search
+                          ? "No schools found"
+                          : "No schools available"}
+                      </Typography>
 
-                  ".MuiTablePagination-selectLabel": {
-                    color: "#64748b",
-                    fontSize: "13px",
-                  },
+                      {search && (
+                        <Typography
+                          sx={{
+                            mt: 0.5,
+                            fontSize:
+                              "13px",
+                            color:
+                              "#94a3b8",
+                          }}
+                        >
+                          Try searching with
+                          another school name.
+                        </Typography>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-                  ".MuiTablePagination-displayedRows": {
-                    color: "#64748b",
-                    fontSize: "13px",
-                  },
+          {/* ===================================================
+              PAGINATION
+          =================================================== */}
 
-                  ".MuiTablePagination-select": {
-                    fontWeight: "600",
-                  },
+          <TablePagination
+            component="div"
+            count={
+              dashboard.pagination
+                ?.totalSchools || 0
+            }
+            page={page}
+            onPageChange={
+              handleChangePage
+            }
+            rowsPerPage={
+              rowsPerPage
+            }
+            onRowsPerPageChange={
+              handleChangeRowsPerPage
+            }
+            rowsPerPageOptions={[
+              5,
+              10,
+              25,
+            ]}
+            labelRowsPerPage="Schools per page"
+            sx={{
+              border: "none",
 
-                  ".MuiIconButton-root": {
-                    borderRadius: "8px",
-                  },
-                }}
-              />
-            </>
-          ) : (
-            /* =================================================
-               EMPTY STATE
-            ================================================= */
-            <Box
-              sx={{
-                textAlign: "center",
-                py: 7,
-                px: 2,
-                background: "#f8fafc",
-                borderRadius: "14px",
-                border: "1px dashed #cbd5e1",
-                mb: 2,
-              }}
-            >
-              <Box
-                sx={{
-                  width: 60,
-                  height: 60,
-                  mx: "auto",
-                  mb: 2,
-                  borderRadius: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#eff6ff",
-                  color: "#2563EB",
-                }}
-              >
-                <SchoolIcon sx={{ fontSize: 30 }} />
-              </Box>
+              "& .MuiTablePagination-toolbar":
+                {
+                  minHeight: 58,
+                },
 
-              <Typography
-                color="#0f172a"
-                fontWeight="700"
-                fontSize="16px"
-              >
-                No Schools Found
-              </Typography>
+              "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
+                {
+                  fontSize: "12px",
+                  color: "#64748b",
+                },
 
-              <Typography
-                color="#64748b"
-                fontSize="13px"
-                sx={{ mt: 0.5 }}
-              >
-                Schools will appear here once they are
-                registered.
-              </Typography>
-            </Box>
-          )}
+              "& .MuiTablePagination-select":
+                {
+                  fontWeight: "600",
+                },
 
+              "& .MuiIconButton-root":
+                {
+                  borderRadius: "8px",
+                },
+            }}
+          />
         </Box>
-
-        {/* Bottom spacing */}
-        <Box sx={{ height: 12 }} />
-
       </Paper>
-
     </PageContainer>
   );
 }

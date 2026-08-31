@@ -9,14 +9,35 @@ exports.getDashboard = async (req, res) => {
     // PAGINATION
     // =========================================================
 
-    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const page = Math.max(
+      parseInt(req.query.page, 10) || 1,
+      1
+    );
 
     const limit = Math.min(
-      Math.max(parseInt(req.query.limit, 10) || 5, 1),
+      Math.max(
+        parseInt(req.query.limit, 10) || 5,
+        1
+      ),
       50
     );
 
     const skip = (page - 1) * limit;
+
+    // =========================================================
+    // SEARCH
+    // =========================================================
+
+    const search = (req.query.search || "").trim();
+
+    const schoolMatch = {};
+
+    if (search) {
+      schoolMatch.schoolName = {
+        $regex: search,
+        $options: "i",
+      };
+    }
 
     // =========================================================
     // DASHBOARD TOTALS + PAGINATED SCHOOLS
@@ -29,31 +50,60 @@ exports.getDashboard = async (req, res) => {
       totalBuses,
       schools,
     ] = await Promise.all([
+      // -------------------------------------------------------
       // Total schools
+      // -------------------------------------------------------
+
       School.countDocuments(),
 
+      // -------------------------------------------------------
       // Total school administrators
+      // -------------------------------------------------------
+
       User.countDocuments({
         role: "SCHOOL_ADMIN",
       }),
 
+      // -------------------------------------------------------
       // Total students
+      // -------------------------------------------------------
+
       Student.countDocuments(),
 
+      // -------------------------------------------------------
       // Total buses
+      // -------------------------------------------------------
+
       Bus.countDocuments(),
 
-      // =======================================================
-      // GET ONLY THE SCHOOLS FOR THE CURRENT PAGE
-      // =======================================================
+      // -------------------------------------------------------
+      // Schools
+      // Search + pagination + student/bus counts
+      // -------------------------------------------------------
 
       School.aggregate([
+        // =====================================================
+        // SEARCH
+        // =====================================================
+
+        {
+          $match: schoolMatch,
+        },
+
+        // =====================================================
+        // SORT
+        // =====================================================
+
         {
           $sort: {
             createdAt: -1,
             _id: -1,
           },
         },
+
+        // =====================================================
+        // PAGINATION
+        // =====================================================
 
         {
           $skip: skip,
@@ -70,21 +120,28 @@ exports.getDashboard = async (req, res) => {
         {
           $lookup: {
             from: "students",
+
             let: {
               schoolId: "$_id",
             },
+
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $eq: ["$schoolId", "$$schoolId"],
+                    $eq: [
+                      "$schoolId",
+                      "$$schoolId",
+                    ],
                   },
                 },
               },
+
               {
                 $count: "count",
               },
             ],
+
             as: "studentStats",
           },
         },
@@ -96,21 +153,28 @@ exports.getDashboard = async (req, res) => {
         {
           $lookup: {
             from: "buses",
+
             let: {
               schoolId: "$_id",
             },
+
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $eq: ["$schoolId", "$$schoolId"],
+                    $eq: [
+                      "$schoolId",
+                      "$$schoolId",
+                    ],
                   },
                 },
               },
+
               {
                 $count: "count",
               },
             ],
+
             as: "busStats",
           },
         },
@@ -124,7 +188,10 @@ exports.getDashboard = async (req, res) => {
             totalStudents: {
               $ifNull: [
                 {
-                  $arrayElemAt: ["$studentStats.count", 0],
+                  $arrayElemAt: [
+                    "$studentStats.count",
+                    0,
+                  ],
                 },
                 0,
               ],
@@ -133,7 +200,10 @@ exports.getDashboard = async (req, res) => {
             totalBuses: {
               $ifNull: [
                 {
-                  $arrayElemAt: ["$busStats.count", 0],
+                  $arrayElemAt: [
+                    "$busStats.count",
+                    0,
+                  ],
                 },
                 0,
               ],
@@ -155,10 +225,20 @@ exports.getDashboard = async (req, res) => {
     ]);
 
     // =========================================================
+    // SEARCH RESULT COUNT
+    // =========================================================
+
+    const filteredSchools = await School.countDocuments(
+      schoolMatch
+    );
+
+    // =========================================================
     // TOTAL NUMBER OF PAGES
     // =========================================================
 
-    const totalPages = Math.ceil(totalSchools / limit);
+    const totalPages = Math.ceil(
+      filteredSchools / limit
+    );
 
     // =========================================================
     // RESPONSE
@@ -173,21 +253,31 @@ exports.getDashboard = async (req, res) => {
       totalStudents,
       totalBuses,
 
-      // Paginated school list
+      // Schools for current page
       schools,
 
-      // Pagination information
+      // Pagination
       pagination: {
         page,
         limit,
-        totalSchools,
+
+        // Total matching schools
+        totalSchools: filteredSchools,
+
         totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+
+        hasNextPage:
+          page < totalPages,
+
+        hasPreviousPage:
+          page > 1,
       },
     });
   } catch (err) {
-    console.error("Dashboard Error:", err);
+    console.error(
+      "Dashboard Error:",
+      err
+    );
 
     res.status(500).json({
       success: false,
