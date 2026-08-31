@@ -1,9 +1,9 @@
 import axios from "../api/axios";
 
-export const getDashboard = async () => {
+export const getDashboard = async (page = 1, limit = 5) => {
+  const res = await axios.get(
+    `/admin/dashboard?page=${page}&limit=${limit}`
+  );
 
-    const res = await axios.get("/admin/dashboard");
-
-    return res.data;
-
+  return res.data;
 };

@@ -80,5 +80,9 @@ boardedToday: {
     timestamps: true
 });
 
+
+// Index for faster dashboard school-wise student counts
+studentSchema.index({ schoolId: 1 });
+
 module.exports =
 mongoose.model("Student", studentSchema);

@@ -31,5 +31,8 @@ const busSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// Index for faster dashboard school-wise bus counts
+busSchema.index({ schoolId: 1 });
+
 module.exports =
 mongoose.model("Bus", busSchema);
