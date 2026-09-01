@@ -586,6 +586,23 @@ export default function Dashboard() {
                     TOTAL BUSES
                   </TableCell>
 
+
+                    {/* SUBSCRIPTION START DATE */}
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: "800",
+                      color: "#334155",
+                      fontSize: "12px",
+                      letterSpacing: "0.5px",
+                      py: 2,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    SUBSCRIPTION START
+                  </TableCell>
+
+
                   <TableCell
                     align="center"
                     sx={{
@@ -611,7 +628,7 @@ export default function Dashboard() {
                 {loading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       align="center"
                       sx={{
                         py: 7,
@@ -828,6 +845,34 @@ export default function Dashboard() {
                           </Box>
                         </TableCell>
 
+
+                        {/* SUBSCRIPTION START DATE */}
+                            <TableCell
+                              align="center"
+                              sx={{
+                                py: 2.2,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontSize: "13px",
+                                  fontWeight: "600",
+                                  color: "#475569",
+                                }}
+                              >
+                                {school.subscriptionStartDate
+                                  ? new Date(
+                                      school.subscriptionStartDate
+                                    ).toLocaleDateString("en-IN", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "—"}
+                              </Typography>
+                            </TableCell>
+
                         {/* STATUS */}
                         <TableCell
                           align="center"
@@ -881,7 +926,7 @@ export default function Dashboard() {
                   /* NO RESULTS */
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       align="center"
                       sx={{
                         py: 6,

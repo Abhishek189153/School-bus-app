@@ -7,6 +7,11 @@ const schoolSchema = new mongoose.Schema(
             required: true,
         },
 
+        subscriptionStartDate: {
+        type: Date,
+        default: Date.now,
+        },
+
         address: {
             type: String,
         },

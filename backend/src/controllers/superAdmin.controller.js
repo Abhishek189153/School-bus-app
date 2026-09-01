@@ -50,6 +50,7 @@ exports.getDashboard = async (req, res) => {
       totalBuses,
       schools,
     ] = await Promise.all([
+
       // -------------------------------------------------------
       // Total schools
       // -------------------------------------------------------
@@ -82,6 +83,7 @@ exports.getDashboard = async (req, res) => {
       // -------------------------------------------------------
 
       School.aggregate([
+
         // =====================================================
         // SEARCH
         // =====================================================
@@ -213,12 +215,16 @@ exports.getDashboard = async (req, res) => {
 
         // =====================================================
         // REMOVE INTERNAL LOOKUP ARRAYS
+        // KEEP subscriptionStartDate FROM SCHOOL DOCUMENT
         // =====================================================
 
         {
           $project: {
             studentStats: 0,
             busStats: 0,
+
+            // subscriptionStartDate is intentionally
+            // kept in the response.
           },
         },
       ]),
@@ -228,9 +234,8 @@ exports.getDashboard = async (req, res) => {
     // SEARCH RESULT COUNT
     // =========================================================
 
-    const filteredSchools = await School.countDocuments(
-      schoolMatch
-    );
+    const filteredSchools =
+      await School.countDocuments(schoolMatch);
 
     // =========================================================
     // TOTAL NUMBER OF PAGES
@@ -273,6 +278,7 @@ exports.getDashboard = async (req, res) => {
           page > 1,
       },
     });
+
   } catch (err) {
     console.error(
       "Dashboard Error:",
