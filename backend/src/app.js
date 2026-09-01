@@ -68,6 +68,7 @@ app.get("/", (req, res) => {
 
 // Health Check Route
 app.get("/api/health", (req, res) => {
+     console.log("🔥 HEALTH CHECK HIT:", new Date().toISOString());
     res.status(200).json({
         success: true,
         message: "Backend is healthy",
