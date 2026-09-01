@@ -66,4 +66,13 @@ app.get("/", (req, res) => {
     res.send("School Bus Management Backend Running");
 });
 
+// Health Check Route
+app.get("/api/health", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Backend is healthy",
+        timestamp: new Date().toISOString(),
+    });
+});
+
 module.exports = app;

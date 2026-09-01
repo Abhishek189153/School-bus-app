@@ -861,15 +861,13 @@ export default function Dashboard() {
                                   color: "#475569",
                                 }}
                               >
-                                {school.subscriptionStartDate
-                                  ? new Date(
-                                      school.subscriptionStartDate
-                                    ).toLocaleDateString("en-IN", {
-                                      day: "2-digit",
-                                      month: "short",
-                                      year: "numeric",
-                                    })
-                                  : "—"}
+                               {school.createdAt
+                                ? new Date(school.createdAt).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "—"}
                               </Typography>
                             </TableCell>
 

@@ -214,6 +214,16 @@ exports.getDashboard = async (req, res) => {
         },
 
         // =====================================================
+// ADD SUBSCRIPTION START DATE
+// Use school registration date (createdAt)
+// =====================================================
+{
+  $addFields: {
+    subscriptionStartDate: "$createdAt",
+  },
+},
+
+        // =====================================================
         // REMOVE INTERNAL LOOKUP ARRAYS
         // KEEP subscriptionStartDate FROM SCHOOL DOCUMENT
         // =====================================================
@@ -222,6 +232,7 @@ exports.getDashboard = async (req, res) => {
           $project: {
             studentStats: 0,
             busStats: 0,
+
 
             // subscriptionStartDate is intentionally
             // kept in the response.
