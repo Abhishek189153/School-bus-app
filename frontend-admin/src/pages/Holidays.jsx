@@ -22,6 +22,11 @@ import {
   CircularProgress,
   ToggleButton,
   ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 
 import SearchIcon from "@mui/icons-material/Search";
@@ -29,6 +34,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import CelebrationIcon from "@mui/icons-material/Celebration";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import AddHolidayModal from "../components/AddHolidayModal";
 
 import {
@@ -78,6 +84,13 @@ const Holidays = () => {
 
   const [open, setOpen] = useState(false);
 
+  // Holiday pending deletion — holds the row's data (not just the id)
+  // so the confirmation dialog can show its title. Replaces the
+  // browser's window.confirm with a styled dialog, matching the other
+  // admin pages.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -111,20 +124,26 @@ const Holidays = () => {
 
   }, []);
 
-  const handleDelete = async (id) => {
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (holiday) => {
+    setDeleteTarget(holiday);
+  };
 
-    const confirmDelete =
-      window.confirm(
-        "Delete Holiday?"
-      );
+  const handleCancelDelete = () => {
+    if (deleting) return; // don't let it be dismissed mid-request
+    setDeleteTarget(null);
+  };
 
-    if (!confirmDelete)
-      return;
+  const handleConfirmDelete = async () => {
+
+    if (!deleteTarget) return;
+
+    setDeleting(true);
 
     try {
 
       const response =
-        await deleteHoliday(id);
+        await deleteHoliday(deleteTarget._id);
 
       setSnackbar({
 
@@ -138,6 +157,7 @@ const Holidays = () => {
 
       });
 
+      setDeleteTarget(null);
       fetchHolidays();
 
     } catch (error) {
@@ -154,6 +174,10 @@ const Holidays = () => {
           "error",
 
       });
+
+    } finally {
+
+      setDeleting(false);
 
     }
 
@@ -649,8 +673,8 @@ const Holidays = () => {
                           <IconButton
                             color="error"
                             onClick={() =>
-                              handleDelete(
-                                holiday._id
+                              handleDeleteClick(
+                                holiday
                               )
                             }
                           >
@@ -744,6 +768,90 @@ const Holidays = () => {
   handleClose={() => setOpen(false)}
   refreshHolidays={fetchHolidays}
 />
+
+      {/* Delete confirmation dialog — replaces window.confirm with a
+          styled dialog matching the rest of the app. */}
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={handleCancelDelete}
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            width: 400,
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, pb: 1 }}>
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: "10px",
+              backgroundColor: "#fee2e2",
+              color: "#dc2626",
+              display: "flex",
+            }}
+          >
+            <WarningAmberRoundedIcon />
+          </Box>
+          <Typography sx={{ fontWeight: 700, color: "#0f172a" }}>
+            Delete Holiday?
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent>
+          <DialogContentText sx={{ color: "#64748b" }}>
+            {deleteTarget ? (
+              <>
+                This will permanently remove{" "}
+                <Typography component="span" sx={{ fontWeight: 700, color: "#0f172a" }}>
+                  {deleteTarget.title}
+                </Typography>{" "}
+                ({deleteTarget.formattedDate}) from the holiday calendar. This
+                action cannot be undone.
+              </>
+            ) : (
+              "This action cannot be undone."
+            )}
+          </DialogContentText>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={handleCancelDelete}
+            disabled={deleting}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "10px",
+              color: "#475569",
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deleting}
+            startIcon={
+              deleting ? (
+                <CircularProgress size={16} sx={{ color: "#fff" }} />
+              ) : (
+                <DeleteOutlinedIcon />
+              )
+            }
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "10px",
+              backgroundColor: "#dc2626",
+              "&:hover": { backgroundColor: "#b91c1c" },
+            }}
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}
