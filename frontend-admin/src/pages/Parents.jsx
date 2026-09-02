@@ -31,6 +31,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import { getParents, deleteParent } from "../services/parent.service";
 import AddParentModal from "../components/AddParentModal";
 import EditParentModal from "../components/EditParentModal";
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 
 // Stale-while-revalidate cache — same pattern used across the other
 // admin pages. Shows last-known parents instantly on repeat visits
@@ -67,6 +68,10 @@ const Parents = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedParent, setSelectedParent] = useState(null);
 
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [parentToDelete, setParentToDelete] = useState(null);
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -88,12 +93,18 @@ const Parents = () => {
     fetchParents();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Delete parent?");
-    if (!confirmDelete) return;
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (parent) => {
+    setParentToDelete(parent);
+    setDeleteOpen(true);
+  };
 
+  // Runs only after the user confirms in the dialog. Keeps the same
+  // snackbar feedback (success + the "unassign first" backend error)
+  // your original handleDelete had.
+  const confirmDeleteParent = async () => {
     try {
-      const response = await deleteParent(id);
+      const response = await deleteParent(parentToDelete._id);
 
       setSnackbar({
         open: true,
@@ -101,6 +112,8 @@ const Parents = () => {
         severity: "success",
       });
 
+      setDeleteOpen(false);
+      setParentToDelete(null);
       fetchParents();
     } catch (error) {
       setSnackbar({
@@ -110,6 +123,8 @@ const Parents = () => {
           "Assigned parent cannot be deleted, unassign first",
         severity: "error",
       });
+
+      setDeleteOpen(false);
     }
   };
 
@@ -353,7 +368,7 @@ const Parents = () => {
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(parent._id)}
+                          onClick={() => handleDeleteClick(parent)}
                           sx={{
                             color: "#ef4444",
                             "&:hover": { backgroundColor: "#fef2f2" },
@@ -407,6 +422,14 @@ const Parents = () => {
         handleClose={() => setEditOpen(false)}
         parent={selectedParent}
         refreshParents={fetchParents}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteParent}
+        entityLabel="parent"
+        itemName={parentToDelete?.name}
       />
 
       {/* Alert Snackbar */}

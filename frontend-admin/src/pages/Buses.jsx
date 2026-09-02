@@ -29,6 +29,7 @@ import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import { getBuses, deleteBus } from "../services/bus.service";
 import AddBusModal from "../components/AddBusModal";
 import EditBusModal from "../components/EditBusModal";
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 
 // Stale-while-revalidate cache — same pattern used across the other
 // admin pages. Shows last-known buses instantly on repeat visits
@@ -58,6 +59,10 @@ const Buses = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedBus, setSelectedBus] = useState(null);
 
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [busToDelete, setBusToDelete] = useState(null);
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -79,12 +84,18 @@ const Buses = () => {
     fetchBuses();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this bus?");
-    if (!confirmDelete) return;
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (bus) => {
+    setBusToDelete(bus);
+    setDeleteOpen(true);
+  };
 
+  // Runs only after the user confirms in the dialog.
+  const confirmDeleteBus = async () => {
     try {
-      await deleteBus(id);
+      await deleteBus(busToDelete._id);
+      setDeleteOpen(false);
+      setBusToDelete(null);
       fetchBuses();
     } catch (error) {
       console.log(error);
@@ -311,7 +322,7 @@ const Buses = () => {
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(bus._id)}
+                          onClick={() => handleDeleteClick(bus)}
                           sx={{
                             color: "#ef4444",
                             "&:hover": { backgroundColor: "#fef2f2" },
@@ -365,6 +376,14 @@ const Buses = () => {
         handleClose={() => setEditOpen(false)}
         bus={selectedBus}
         refreshBuses={fetchBuses}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteBus}
+        entityLabel="bus"
+        itemName={busToDelete?.busNumber}
       />
     </Box>
   );

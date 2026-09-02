@@ -36,6 +36,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { getStudents, deleteStudent } from "../services/student.service";
 import AddStudentModal from "../components/AddStudentModal";
 import EditStudentModal from "../components/EditStudentModal";
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 
 // Stale-while-revalidate cache — same pattern used across the other
 // admin pages. Shows last-known students instantly on repeat visits
@@ -76,6 +77,10 @@ const Students = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState(null);
+
   // Transport details popover
   const [transportAnchor, setTransportAnchor] = useState(null);
   const [transportStudent, setTransportStudent] = useState(null);
@@ -114,12 +119,18 @@ const Students = () => {
     fetchStudents();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this student?");
-    if (!confirmDelete) return;
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (student) => {
+    setStudentToDelete(student);
+    setDeleteOpen(true);
+  };
 
+  // Runs only after the user confirms in the dialog.
+  const confirmDeleteStudent = async () => {
     try {
-      await deleteStudent(id);
+      await deleteStudent(studentToDelete._id);
+      setDeleteOpen(false);
+      setStudentToDelete(null);
       fetchStudents();
     } catch (error) {
       console.log(error);
@@ -649,7 +660,7 @@ const Students = () => {
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(student._id)}
+                          onClick={() => handleDeleteClick(student)}
                           sx={{
                             color: "#ef4444",
                             "&:hover": { backgroundColor: "#fef2f2" },
@@ -781,6 +792,14 @@ const Students = () => {
         handleClose={() => setEditOpen(false)}
         student={selectedStudent}
         refreshStudents={fetchStudents}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteStudent}
+        entityLabel="student"
+        itemName={studentToDelete?.name}
       />
     </Box>
   );

@@ -31,6 +31,7 @@ import AltRouteIcon from "@mui/icons-material/AltRoute";
 import { getRoutes, deleteRoute } from "../services/route.service";
 import AddRouteModal from "../components/AddRouteModal";
 import EditRouteModal from "../components/EditRouteModal";
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 
 // Stale-while-revalidate cache — same pattern used across the other
 // admin pages. Shows last-known routes instantly on repeat visits
@@ -67,6 +68,10 @@ const Routes = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
 
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState(null);
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -102,12 +107,18 @@ const Routes = () => {
     fetchRoutes();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Delete route?");
-    if (!confirmDelete) return;
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (route) => {
+    setRouteToDelete(route);
+    setDeleteOpen(true);
+  };
 
+  // Runs only after the user confirms in the dialog. Keeps the same
+  // snackbar feedback (success + the "unassign first" backend error)
+  // your original handleDelete had.
+  const confirmDeleteRoute = async () => {
     try {
-      const response = await deleteRoute(id);
+      const response = await deleteRoute(routeToDelete._id);
 
       setSnackbar({
         open: true,
@@ -115,6 +126,8 @@ const Routes = () => {
         severity: "success",
       });
 
+      setDeleteOpen(false);
+      setRouteToDelete(null);
       fetchRoutes();
     } catch (error) {
       setSnackbar({
@@ -124,6 +137,8 @@ const Routes = () => {
           "Assigned route cannot be deleted, unassign first",
         severity: "error",
       });
+
+      setDeleteOpen(false);
     }
   };
 
@@ -395,7 +410,7 @@ const Routes = () => {
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(route._id)}
+                          onClick={() => handleDeleteClick(route)}
                           sx={{
                             color: "#ef4444",
                             "&:hover": { backgroundColor: "#fef2f2" },
@@ -449,6 +464,14 @@ const Routes = () => {
         handleClose={() => setEditOpen(false)}
         route={selectedRoute}
         refreshRoutes={fetchRoutes}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteRoute}
+        entityLabel="route"
+        itemName={routeToDelete?.routeName}
       />
 
       {/* Snackbar Alert */}

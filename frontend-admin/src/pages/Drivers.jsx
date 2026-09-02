@@ -31,6 +31,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import { getDrivers, deleteDriver } from "../services/driver.service";
 import AddDriverModal from "../components/AddDriverModal";
 import EditDriverModal from "../components/EditDriverModal";
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 
 // Stale-while-revalidate cache — same pattern used across the other
 // admin pages. Shows last-known drivers instantly on repeat visits
@@ -67,6 +68,10 @@ const Drivers = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
 
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [driverToDelete, setDriverToDelete] = useState(null);
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -88,12 +93,18 @@ const Drivers = () => {
     fetchDrivers();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Delete driver?");
-    if (!confirmDelete) return;
+  // Opens the confirmation dialog instead of deleting immediately.
+  const handleDeleteClick = (driver) => {
+    setDriverToDelete(driver);
+    setDeleteOpen(true);
+  };
 
+  // Runs only after the user confirms in the dialog. Keeps the same
+  // snackbar feedback (success + the "unassign first" backend error)
+  // your original handleDelete had.
+  const confirmDeleteDriver = async () => {
     try {
-      const response = await deleteDriver(id);
+      const response = await deleteDriver(driverToDelete._id);
 
       setSnackbar({
         open: true,
@@ -101,6 +112,8 @@ const Drivers = () => {
         severity: "success",
       });
 
+      setDeleteOpen(false);
+      setDriverToDelete(null);
       fetchDrivers();
     } catch (error) {
       setSnackbar({
@@ -110,6 +123,10 @@ const Drivers = () => {
           "Assigned driver cannot be deleted, unassign first",
         severity: "error",
       });
+
+      // Keep the dialog open on failure so the user can see the error
+      // and try again, rather than silently closing on a failed delete.
+      setDeleteOpen(false);
     }
   };
 
@@ -360,7 +377,7 @@ const Drivers = () => {
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(driver._id)}
+                          onClick={() => handleDeleteClick(driver)}
                           sx={{
                             color: "#ef4444",
                             "&:hover": { backgroundColor: "#fef2f2" },
@@ -414,6 +431,14 @@ const Drivers = () => {
         handleClose={() => setEditOpen(false)}
         driver={selectedDriver}
         refreshDrivers={fetchDrivers}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteDriver}
+        entityLabel="driver"
+        itemName={driverToDelete?.name}
       />
 
       {/* Alert Snackbar */}

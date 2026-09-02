@@ -14,16 +14,25 @@ import {
 
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
-export default function ConfirmDelete({
-
+/**
+ * Shared delete-confirmation dialog — use this everywhere instead of
+ * window.confirm(...). One component, reused by Students, Parents,
+ * Drivers, Buses, Routes, etc.
+ *
+ * Props:
+ *  - open          : boolean
+ *  - onClose       : () => void            (Cancel / backdrop / Esc)
+ *  - onConfirm     : () => void | Promise   (called on Delete click)
+ *  - entityLabel   : string, e.g. "student", "driver", "bus", "route"
+ *  - itemName      : optional string to name the specific record,
+ *                     e.g. the student's name or the bus number
+ */
+export default function ConfirmDeleteDialog({
   open,
-
   onClose,
-
   onConfirm,
-
-  title,
-
+  entityLabel = "item",
+  itemName,
 }) {
 
   const [submitting, setSubmitting] = useState(false);
@@ -33,10 +42,10 @@ export default function ConfirmDelete({
     onClose();
   };
 
-  // onConfirm (deleteSchool / deleteAdmin, etc.) is async in every
-  // caller — await it here so the button can show a spinner and
-  // the dialog can't be double-submitted. Callers already handle
-  // their own error alerts, so no extra try/catch messaging here.
+  // onConfirm may be async (an axios.delete call) — await it here so
+  // the button can show a spinner and the dialog can't be
+  // double-submitted. Callers should keep their own error handling
+  // (try/catch + alert/toast) inside the onConfirm they pass in.
   const handleConfirm = async () => {
     try {
       setSubmitting(true);
@@ -58,12 +67,6 @@ export default function ConfirmDelete({
       }}
     >
 
-      {/* =====================================================
-          Centered warning badge instead of a plain title bar —
-          signals "destructive action" at a glance, distinct
-          from the blue header used on the create/edit dialogs.
-      ===================================================== */}
-
       <Box sx={{ px: 3, pt: 3.5, pb: 1, textAlign: "center" }}>
         <Box
           sx={{
@@ -82,7 +85,7 @@ export default function ConfirmDelete({
         </Box>
 
         <Typography sx={{ fontWeight: 800, fontSize: 18, color: "#0f172a" }}>
-          Confirm Deletion
+          Delete this {entityLabel}?
         </Typography>
       </Box>
 
@@ -90,11 +93,17 @@ export default function ConfirmDelete({
 
         <Typography sx={{ textAlign: "center", fontSize: 14, color: "#475569", lineHeight: 1.6 }}>
 
-          Are you sure you want to delete{" "}
-          <Box component="span" sx={{ fontWeight: 800, color: "#0f172a" }}>
-            {title}
-          </Box>
-          ? This action cannot be undone.
+          {itemName ? (
+            <>
+              Are you sure you want to delete{" "}
+              <Box component="span" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {itemName}
+              </Box>
+              ? This action cannot be undone.
+            </>
+          ) : (
+            <>This action cannot be undone.</>
+          )}
 
         </Typography>
 
@@ -105,7 +114,6 @@ export default function ConfirmDelete({
           px: 3,
           py: 2.5,
           gap: 1.5,
-          "& > :not(style) ~ :not(style)": { ml: 0 },
         }}
       >
 

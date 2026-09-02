@@ -11,7 +11,14 @@ import {
   ListItemText,
   Button,
   Box,
+  Dialog,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
+
+import {
+  useState,
+} from "react";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import SchoolIcon from "@mui/icons-material/School";
@@ -22,6 +29,7 @@ import RouteIcon from "@mui/icons-material/Route";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import MapIcon from "@mui/icons-material/Map";
 import EventIcon from "@mui/icons-material/Event";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 import { logout } from "../redux/slices/authSlice";
 
@@ -34,6 +42,8 @@ const AdminLayout = () => {
   const user = useSelector(
     (state) => state.auth.user
   );
+
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const menuItems = [
   {
@@ -88,7 +98,15 @@ const AdminLayout = () => {
 },
 ];
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setLogoutOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutOpen(false);
+  };
+
+  const handleLogoutConfirm = () => {
     dispatch(logout());
     window.location.href = "/login";
   };
@@ -114,8 +132,23 @@ const AdminLayout = () => {
           </Typography>
 
           <Button
-            color="inherit"
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
+            startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              background: "#DC2626",
+              color: "#fff",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "10px",
+              px: 2.2,
+              py: 0.7,
+              boxShadow: "0 3px 10px rgba(220,38,38,0.35)",
+
+              "&:hover": {
+                background: "#B91C1C",
+                boxShadow: "0 5px 14px rgba(220,38,38,0.45)",
+              },
+            }}
           >
             Logout
           </Button>
@@ -207,6 +240,101 @@ const AdminLayout = () => {
         <Toolbar />
         <Outlet />
       </Box>
+
+      {/* =====================================================
+          LOGOUT CONFIRMATION — centered-badge card, kept in
+          the same gradient/rounded visual language as the
+          rest of this layout (app bar + selected-item colors).
+      ===================================================== */}
+
+      <Dialog
+        open={logoutOpen}
+        onClose={handleLogoutCancel}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: "18px", overflow: "hidden" },
+        }}
+      >
+
+        <Box sx={{ px: 3, pt: 3.5, pb: 1, textAlign: "center" }}>
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: "#fef3c7",
+              color: "#b45309",
+              mx: "auto",
+              mb: 1.5,
+            }}
+          >
+            <LogoutIcon sx={{ fontSize: 24 }} />
+          </Box>
+
+          <Typography sx={{ fontWeight: 800, fontSize: 18, color: "#0f172a" }}>
+            Log out{user?.name ? `, ${user.name}` : ""}?
+          </Typography>
+        </Box>
+
+        <DialogContent sx={{ px: 3, pb: 1 }}>
+
+          <Typography sx={{ textAlign: "center", fontSize: 14, color: "#475569", lineHeight: 1.6 }}>
+            You'll need to sign in again to access School Bus Management.
+          </Typography>
+
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1.5,
+          }}
+        >
+
+          <Button
+            fullWidth
+            onClick={handleLogoutCancel}
+            sx={{
+              color: "#64748b",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              py: 1,
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleLogoutConfirm}
+            sx={{
+              background: "linear-gradient(135deg,#1976d2,#42a5f5)",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "10px",
+              py: 1,
+              boxShadow: "0 4px 12px rgba(25,118,210,0.25)",
+
+              "&:hover": {
+                background: "linear-gradient(135deg,#1565c0,#2196f3)",
+                boxShadow: "0 6px 16px rgba(25,118,210,0.32)",
+              },
+            }}
+          >
+            Logout
+          </Button>
+
+        </DialogActions>
+
+      </Dialog>
+
     </Box>
   );
 };

@@ -1,11 +1,16 @@
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   TextField,
   MenuItem,
+  Grid,
+  Box,
+  Typography,
+  IconButton,
+  InputAdornment,
+  CircularProgress,
 } from "@mui/material";
 
 import {
@@ -16,6 +21,31 @@ import {
 import {
   updateRoute,
 } from "../services/route.service";
+
+import CloseIcon from "@mui/icons-material/Close";
+import AltRouteIcon from "@mui/icons-material/AltRoute";
+import SwapVertOutlinedIcon from "@mui/icons-material/SwapVertOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import MyLocationOutlinedIcon from "@mui/icons-material/MyLocationOutlined";
+
+// Shared visual style for every text field — same rounded,
+// soft-bordered look used on the Students/Drivers/Routes tables.
+const fieldSx = {
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "10px",
+    backgroundColor: "#ffffff",
+    fontSize: "0.875rem",
+
+    "& fieldset": { borderColor: "#cbd5e1" },
+    "&:hover fieldset": { borderColor: "#94a3b8" },
+    "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+  },
+
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "#2563eb",
+  },
+};
 
 const EditRouteModal = ({
   open,
@@ -31,6 +61,9 @@ const EditRouteModal = ({
       scheduledTime: "",
       stops: [],
     });
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
 
@@ -94,10 +127,19 @@ const EditRouteModal = ({
 
 };
 
+  const handleDialogClose = () => {
+    if (submitting) return; // don't let it close mid-save
+    setError("");
+    handleClose();
+  };
+
   const handleSubmit =
     async () => {
 
       try {
+
+        setSubmitting(true);
+        setError("");
 
        const payload = {
 
@@ -138,26 +180,93 @@ const EditRouteModal = ({
 
       } catch (error) {
 
-        console.log(error);
+        setError(
+          error.response?.data?.message ||
+          "Unable to update route"
+        );
+
+      } finally {
+
+        setSubmitting(false);
 
       }
 
     };
 
+  if (!route) return null;
+
   return (
 
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       fullWidth
       maxWidth="md"
+      PaperProps={{
+        sx: { borderRadius: "16px", overflow: "hidden" },
+      }}
     >
 
-      <DialogTitle>
-        Edit Route
-      </DialogTitle>
+      {/* =====================================================
+          HEADER — brand gradient band with a route icon
+          badge, the route name as the subtitle, and a close
+          button. Replaces the plain DialogTitle.
+      ===================================================== */}
 
-      <DialogContent>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+          color: "#fff",
+          px: 3,
+          py: 2.5,
+          position: "relative",
+        }}
+      >
+        <IconButton
+          onClick={handleDialogClose}
+          disabled={submitting}
+          sx={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            color: "rgba(255,255,255,0.85)",
+            "&:hover": { background: "rgba(255,255,255,0.15)" },
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: "12px",
+              display: "grid",
+              placeItems: "center",
+              background: "rgba(255,255,255,0.15)",
+            }}
+          >
+            <AltRouteIcon sx={{ fontSize: 22 }} />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 19, letterSpacing: "-0.3px" }}>
+              Edit Route
+            </Typography>
+            <Typography noWrap sx={{ fontSize: 13, opacity: 0.9 }}>
+              Updating {route.routeName || "this route"}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <DialogContent sx={{ px: 3, py: 3 }}>
+
+        <Typography
+          sx={{ fontSize: 12.5, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.6px", mb: 1.5 }}
+        >
+          ROUTE DETAILS
+        </Typography>
 
         <TextField
           fullWidth
@@ -166,6 +275,14 @@ const EditRouteModal = ({
           margin="normal"
           value={formData.routeName}
           onChange={handleChange}
+          sx={fieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <AltRouteIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+              </InputAdornment>
+            ),
+          }}
         />
 
         <TextField
@@ -176,6 +293,14 @@ const EditRouteModal = ({
         margin="normal"
         value={formData.tripType}
         onChange={handleChange}
+        sx={fieldSx}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SwapVertOutlinedIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+            </InputAdornment>
+          ),
+        }}
       >
 
         <MenuItem value="PICKUP">
@@ -200,36 +325,47 @@ const EditRouteModal = ({
         InputLabelProps={{
           shrink: true,
         }}
+        sx={fieldSx}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <AccessTimeOutlinedIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+            </InputAdornment>
+          ),
+        }}
       />
 
-            
+        <Typography
+          sx={{ fontSize: 12.5, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.6px", mt: 3, mb: 1.5 }}
+        >
+          STOPS
+        </Typography>
 
         {formData.stops.map(
           (stop, index) => (
 
-            <div
+            <Box
               key={index}
-              style={{
-                border:
-                  "1px solid #ddd",
-
-                borderRadius:
-                  "8px",
-
-                padding:
-                  "15px",
-
-                marginTop:
-                  "15px",
+              sx={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                p: 2,
+                mb: 2,
+                backgroundColor: "#f8fafc",
               }}
             >
 
-             
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
+                <LocationOnOutlinedIcon sx={{ fontSize: 17, color: "#2563eb" }} />
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                  Stop {index + 1}
+                </Typography>
+              </Box>
 
               <TextField
                 fullWidth
                 label="Stop Name"
-                margin="normal"
+                margin="dense"
                 value={
                   stop.stopName || ""
                 }
@@ -240,53 +376,104 @@ const EditRouteModal = ({
                     e.target.value
                   )
                 }
+                sx={fieldSx}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LocationOnOutlinedIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+                    </InputAdornment>
+                  ),
+                }}
               />
 
-             <TextField
-            fullWidth
-            label="Latitude"
-            type="text"
-            margin="normal"
-            value={
-              stop.latitude ?? ""
-            }
-            onChange={(e) =>
-              handleStopChange(
-                index,
-                "latitude",
-                e.target.value
-              )
-            }
-          />
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Latitude"
+                    type="text"
+                    margin="dense"
+                    value={
+                      stop.latitude ?? ""
+                    }
+                    onChange={(e) =>
+                      handleStopChange(
+                        index,
+                        "latitude",
+                        e.target.value
+                      )
+                    }
+                    sx={fieldSx}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MyLocationOutlinedIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
 
-              <TextField
-                fullWidth
-                label="Longitude"
-                type="text"
-                margin="normal"
-                value={
-                  stop.longitude ?? ""
-                }
-                onChange={(e) =>
-                  handleStopChange(
-                    index,
-                    "longitude",
-                    e.target.value
-                  )
-                }
-              />
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Longitude"
+                    type="text"
+                    margin="dense"
+                    value={
+                      stop.longitude ?? ""
+                    }
+                    onChange={(e) =>
+                      handleStopChange(
+                        index,
+                        "longitude",
+                        e.target.value
+                      )
+                    }
+                    sx={fieldSx}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MyLocationOutlinedIcon sx={{ fontSize: 19, color: "#94a3b8" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              </Grid>
 
-            </div>
+            </Box>
 
           )
         )}
 
+        {error && (
+          <Typography sx={{ fontSize: 13, color: "#ef4444", mt: 1 }}>
+            {error}
+          </Typography>
+        )}
+
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2.5,
+          borderTop: "1px solid #e2e8f0",
+          gap: 1,
+        }}
+      >
 
         <Button
-          onClick={handleClose}
+          onClick={handleDialogClose}
+          disabled={submitting}
+          sx={{
+            color: "#64748b",
+            fontWeight: 700,
+            textTransform: "none",
+            borderRadius: "10px",
+            px: 2.5,
+          }}
         >
           Cancel
         </Button>
@@ -294,8 +481,28 @@ const EditRouteModal = ({
         <Button
           variant="contained"
           onClick={handleSubmit}
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : null}
+          sx={{
+            background: "#2563eb",
+            fontWeight: 700,
+            textTransform: "none",
+            borderRadius: "10px",
+            px: 3,
+            boxShadow: "0 4px 12px rgba(37,99,235,0.25)",
+
+            "&:hover": {
+              background: "#1d4ed8",
+              boxShadow: "0 6px 16px rgba(37,99,235,0.32)",
+            },
+
+            "&.Mui-disabled": {
+              background: "#93c5fd",
+              color: "#fff",
+            },
+          }}
         >
-          Update
+          {submitting ? "Updating..." : "Update"}
         </Button>
 
       </DialogActions>
