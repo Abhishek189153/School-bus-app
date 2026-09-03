@@ -16,6 +16,7 @@ async (req, res) => {
       routeId,
       search,
       tripType,
+      gender,
     } = req.query;
 
     const filter = {
@@ -54,7 +55,7 @@ await StudentAttendance.find(
 )
 .populate(
   "studentId",
-  "name admissionNumber"
+  "name admissionNumber gender"
 )
 .populate(
   "busId",
@@ -65,27 +66,50 @@ await StudentAttendance.find(
   "routeName"
 );
 
-    let filteredAttendance =
-attendance;
+//     let filteredAttendance =
+// attendance;
+
+// if (search) {
+
+//   filteredAttendance =
+//     attendance.filter(
+//       (item) =>
+//         item.studentId?.name
+//           ?.toLowerCase()
+//           .includes(
+//             search.toLowerCase()
+//           )
+
+//       ||
+
+//       item.studentId?.admissionNumber
+//         ?.toString()
+//         .includes(search)
+//     );
+
+// }
+
+
+let filteredAttendance = attendance;
 
 if (search) {
-
-  filteredAttendance =
-    attendance.filter(
-      (item) =>
-        item.studentId?.name
-          ?.toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
-
-      ||
-
+  filteredAttendance = filteredAttendance.filter(
+    (item) =>
+      item.studentId?.name
+        ?.toLowerCase()
+        .includes(search.toLowerCase()) ||
       item.studentId?.admissionNumber
         ?.toString()
         .includes(search)
-    );
+  );
+}
 
+if (gender) {
+  filteredAttendance = filteredAttendance.filter(
+    (item) =>
+      item.studentId?.gender?.toLowerCase() ===
+      gender.toLowerCase()
+  );
 }
 
      const presentCount =

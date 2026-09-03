@@ -154,79 +154,146 @@ const [errors, setErrors] =
    * =========================================================
    */
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (!open) {
+  //     return;
+  //   }
 
-    const isCacheFresh =
-      dataCache.parents &&
-      dataCache.routes &&
-      Date.now() - dataCache.timestamp < CACHE_TTL_MS;
+  //   const isCacheFresh =
+  //     dataCache.parents &&
+  //     dataCache.routes &&
+  //     Date.now() - dataCache.timestamp < CACHE_TTL_MS;
 
-    if (isCacheFresh) {
-      // Cache is warm: render instantly, no spinner, no network wait
-      setParents(dataCache.parents);
-      setRoutes(dataCache.routes);
-      setLoading(false);
-      return;
-    }
+  //   if (isCacheFresh) {
+  //     // Cache is warm: render instantly, no spinner, no network wait
+  //     setParents(dataCache.parents);
+  //     setRoutes(dataCache.routes);
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    // Cache is empty or stale: show cached data (if any) immediately
-    // while we revalidate in the background
-    if (dataCache.parents) setParents(dataCache.parents);
-    if (dataCache.routes) setRoutes(dataCache.routes);
+  //   // Cache is empty or stale: show cached data (if any) immediately
+  //   // while we revalidate in the background
+  //   if (dataCache.parents) setParents(dataCache.parents);
+  //   if (dataCache.routes) setRoutes(dataCache.routes);
 
-    const loadData = async () => {
-      setLoading(true);
+  //   const loadData = async () => {
+  //     setLoading(true);
 
-      try {
-        const [parentsResult, routesResult] =
-          await Promise.allSettled([
-            getParents(),
-            getRoutes(),
-          ]);
+  //     try {
+  //       const [parentsResult, routesResult] =
+  //         await Promise.allSettled([
+  //           getParents(),
+  //           getRoutes(),
+  //         ]);
 
-        const parentsData =
-          parentsResult.status === "fulfilled"
-            ? parentsResult.value?.parents || []
-            : dataCache.parents || [];
+  //       const parentsData =
+  //         parentsResult.status === "fulfilled"
+  //           ? parentsResult.value?.parents || []
+  //           : dataCache.parents || [];
 
-        const routesData =
-          routesResult.status === "fulfilled"
-            ? routesResult.value?.routes || []
-            : dataCache.routes || [];
+  //       const routesData =
+  //         routesResult.status === "fulfilled"
+  //           ? routesResult.value?.routes || []
+  //           : dataCache.routes || [];
 
-        setParents(parentsData);
-        setRoutes(routesData);
+  //       setParents(parentsData);
+  //       setRoutes(routesData);
 
-        dataCache = {
-          parents: parentsData,
-          routes: routesData,
-          timestamp: Date.now(),
-        };
+  //       dataCache = {
+  //         parents: parentsData,
+  //         routes: routesData,
+  //         timestamp: Date.now(),
+  //       };
 
-        if (parentsResult.status === "rejected") {
-          console.error(
-            "Error loading parents:",
-            parentsResult.reason
-          );
-        }
+  //       if (parentsResult.status === "rejected") {
+  //         console.error(
+  //           "Error loading parents:",
+  //           parentsResult.reason
+  //         );
+  //       }
 
-        if (routesResult.status === "rejected") {
-          console.error(
-            "Error loading routes:",
-            routesResult.reason
-          );
-        }
+  //       if (routesResult.status === "rejected") {
+  //         console.error(
+  //           "Error loading routes:",
+  //           routesResult.reason
+  //         );
+  //       }
 
-      } finally {
-        setLoading(false);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   loadData();
+  // }, [open]);
+
+useEffect(() => {
+  if (!open) {
+    return;
+  }
+
+  // Show cached data immediately if available
+  if (dataCache.parents) {
+    setParents(dataCache.parents);
+  }
+
+  if (dataCache.routes) {
+    setRoutes(dataCache.routes);
+  }
+
+  const loadData = async () => {
+    setLoading(true);
+
+    try {
+      const [parentsResult, routesResult] =
+        await Promise.allSettled([
+          getParents(),
+          getRoutes(),
+        ]);
+
+      const parentsData =
+        parentsResult.status === "fulfilled"
+          ? parentsResult.value?.parents || []
+          : dataCache.parents || [];
+
+      const routesData =
+        routesResult.status === "fulfilled"
+          ? routesResult.value?.routes || []
+          : dataCache.routes || [];
+
+      // Always update state with latest data
+      setParents(parentsData);
+      setRoutes(routesData);
+
+      // Update cache with latest data
+      dataCache = {
+        parents: parentsData,
+        routes: routesData,
+        timestamp: Date.now(),
+      };
+
+      if (parentsResult.status === "rejected") {
+        console.error(
+          "Error loading parents:",
+          parentsResult.reason
+        );
       }
-    };
 
-    loadData();
-  }, [open]);
+      if (routesResult.status === "rejected") {
+        console.error(
+          "Error loading routes:",
+          routesResult.reason
+        );
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, [open]);
 
 
   /*
