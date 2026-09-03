@@ -655,24 +655,22 @@ export default function StudentAttendance() {
                         />
                       </TableCell>
 
-                      <TableCell>
-                        {studentGender ? (
-                          <Chip
-                            label={studentGender}
-                            size="small"
-                            sx={{
-                              fontWeight: 600,
-                              borderRadius: "6px",
-                              ...(GENDER_STYLES[studentGender] || {
-                                backgroundColor: "#f1f5f9",
-                                color: "#334155",
-                              }),
-                            }}
-                          />
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
+                     <TableCell>
+  <Typography
+    sx={{
+      fontSize: "0.85rem",
+      fontWeight: 600,
+      color:
+        item.studentId?.gender === "Female"
+          ? "#db2777"
+          : item.studentId?.gender === "Male"
+          ? "#7c3aed"
+          : "#111827",
+    }}
+  >
+    {item.studentId?.gender || "-"}
+  </Typography>
+</TableCell>
 
                       <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
                         {item.busId?.busNumber || "-"}

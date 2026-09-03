@@ -98,6 +98,22 @@ const Students = () => {
     setTransportType(null);
   };
 
+  // Parent details popover
+const [parentAnchor, setParentAnchor] = useState(null);
+const [parentStudent, setParentStudent] = useState(null);
+
+const handleParentClick = (event, student) => {
+  if (!student.parentId) return;
+
+  setParentAnchor(event.currentTarget);
+  setParentStudent(student);
+};
+
+const handleParentClose = () => {
+  setParentAnchor(null);
+  setParentStudent(null);
+};
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -567,28 +583,76 @@ const Students = () => {
                       {student.name}
                     </TableCell>
 
-                    <TableCell>
+                    {/* <TableCell>
                       {student.gender ? (
-                        <Chip
-                          label={student.gender}
-                          size="small"
-                          sx={{
-                            fontWeight: 600,
-                            borderRadius: "7px",
-                            ...(GENDER_STYLES[student.gender] || {
-                              backgroundColor: "#f1f5f9",
-                              color: "#334155",
-                            }),
-                          }}
-                        />
+                       
+                       <TableCell>
+                          <Typography
+                            sx={{
+                              fontSize: "0.85rem",
+                              fontWeight: 600,
+                              color:
+                                student.gender === "Female"
+                                  ? "#db2777"       // Pink
+                                  : student.gender === "Male"
+                                  ? "#7c3aed"       // Purple
+                                  : "#111827",      // Black
+                            }}
+                          >
+                            {student.gender || "-"}
+                          </Typography>
+                        </TableCell>
                       ) : (
                         "-"
                       )}
-                    </TableCell>
+                    </TableCell> */}
 
-                    <TableCell sx={{ color: "#475569" }}>
+
+                    <TableCell>
+  <Typography
+    sx={{
+      fontSize: "0.85rem",
+      fontWeight: 600,
+      color:
+        student.gender === "Female"
+          ? "#db2777"
+          : student.gender === "Male"
+          ? "#7c3aed"
+          : "#111827",
+    }}
+  >
+    {student.gender || "-"}
+  </Typography>
+</TableCell>
+
+                    {/* <TableCell sx={{ color: "#475569" }}>
                       {student.parentId?.name || "-"}
-                    </TableCell>
+                    </TableCell> */}
+
+                    <TableCell>
+                        {student.parentId?.name ? (
+                          <Chip
+                            label={student.parentId.name}
+                            size="small"
+                            clickable
+                            onClick={(event) =>
+                              handleParentClick(event, student)
+                            }
+                            sx={{
+                              fontWeight: 600,
+                              borderRadius: "7px",
+                              backgroundColor: "#f8fafc",
+                              color: "#334155",
+                              border: "1px solid #cbd5e1",
+                              "&:hover": {
+                                backgroundColor: "#f1f5f9",
+                              },
+                            }}
+                          />
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
 
                     {/* Pickup Route */}
                     <TableCell>
@@ -778,7 +842,98 @@ const Students = () => {
             </Box>
           </Box>
         )}
+           </Popover>
+
+
+      {/* Parent Details Popover */}
+      <Popover
+        open={Boolean(parentAnchor)}
+        anchorEl={parentAnchor}
+        onClose={handleParentClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              p: 2,
+              width: 280,
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 10px 30px rgba(15, 23, 42, 0.12)",
+            },
+          },
+        }}
+      >
+        {parentStudent?.parentId && (
+          <Box>
+            <Typography
+              sx={{
+                fontWeight: 700,
+                color: "#2563eb",
+                mb: 1.5,
+              }}
+            >
+              👨‍👩‍👧 Parent Details
+            </Typography>
+
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+
+              {/* Parent Name */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#64748b",
+                    display: "block",
+                  }}
+                >
+                  Parent Name
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  {parentStudent.parentId.name || "-"}
+                </Typography>
+              </Box>
+
+              {/* Phone Number */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#64748b",
+                    display: "block",
+                  }}
+                >
+                  Phone Number
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  {parentStudent.parentId.phone || "-"}
+                </Typography>
+              </Box>
+
+            </Box>
+          </Box>
+        )}
       </Popover>
+
 
       {/* Modals */}
       <AddStudentModal
