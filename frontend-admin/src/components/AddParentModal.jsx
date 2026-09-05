@@ -329,6 +329,7 @@ const AddParentModal = ({
           margin="normal"
           value={formData.name}
           onChange={handleChange}
+          autoComplete="off"
           error={!!errors.name}
           helperText={errors.name}
           InputProps={{
@@ -363,7 +364,7 @@ const AddParentModal = ({
             errors.email ||
             "Required for password recovery"
           }
-          autoComplete="email"
+          autoComplete="off"
           InputProps={{
             startAdornment: (
               <InputAdornment
@@ -390,6 +391,7 @@ const AddParentModal = ({
           margin="normal"
           value={formData.phone}
           onChange={handleChange}
+          autoComplete="off"
           error={!!errors.phone}
           helperText={
             errors.phone ||
@@ -430,6 +432,7 @@ const AddParentModal = ({
           margin="normal"
           value={formData.password}
           onChange={handleChange}
+          autoComplete="new-password"
           error={!!errors.password}
           helperText={
             errors.password ||

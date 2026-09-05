@@ -611,6 +611,7 @@ const AddDriverModal = ({
               label="Driver Name"
 
               name="name"
+               autoComplete="off"
 
               value={
                 formData.name
@@ -666,6 +667,7 @@ const AddDriverModal = ({
   label="Email"
 
   name="email"
+   autoComplete="off"
 
   value={
     formData.email
@@ -727,6 +729,7 @@ const AddDriverModal = ({
               label="Phone Number"
 
               name="phone"
+              autoComplete="off"
 
               value={
                 formData.phone
@@ -789,6 +792,7 @@ const AddDriverModal = ({
               label="Password"
 
               name="password"
+              autoComplete="new-password"
 
               type={
                 showPassword
