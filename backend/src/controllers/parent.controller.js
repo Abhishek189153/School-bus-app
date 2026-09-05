@@ -21,6 +21,7 @@ exports.createParent = async (req, res) => {
         const existingUser =
             await User.findOne({
                 phone,
+                schoolId: req.user.schoolId,
             });
 
         if (existingUser) {
@@ -28,7 +29,7 @@ exports.createParent = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message:
-                    "Another user already has the same number",
+                    "Another user in this school already has the same number",
             });
 
         }
@@ -38,6 +39,7 @@ exports.createParent = async (req, res) => {
     const existingEmail =
         await User.findOne({
             email: email.toLowerCase(),
+            schoolId: req.user.schoolId,
         });
 
     if (existingEmail) {
@@ -45,7 +47,7 @@ exports.createParent = async (req, res) => {
         return res.status(400).json({
             success: false,
             message:
-                "Another user already has the same email",
+                "Another user in this school already has the same email",
         });
 
     }
@@ -88,17 +90,26 @@ exports.createParent = async (req, res) => {
             error
         );
 
-        if (
-            error.code === 11000
-        ) {
+        if (error.code === 11000) {
+    if (error.keyPattern?.phone) {
+        return res.status(400).json({
+            success: false,
+            message: "Another user already has the same number",
+        });
+    }
 
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Another user already has the same number",
-            });
+    if (error.keyPattern?.email) {
+        return res.status(400).json({
+            success: false,
+            message: "Another user already has the same email",
+        });
+    }
 
-        }
+    return res.status(400).json({
+        success: false,
+        message: "Duplicate phone or email",
+    });
+}
 
         res.status(500).json({
             success: false,
@@ -207,96 +218,74 @@ exports.getParentById = async (req, res) => {
 };
 
 exports.updateParent = async (req, res) => {
-
     try {
-
-        const parent =
-            await User.findById(
-                req.params.id
-            );
+        const parent = await User.findById(
+            req.params.id
+        );
 
         if (!parent) {
-
             return res.status(404).json({
                 success: false,
-                message:
-                    "Parent not found",
+                message: "Parent not found",
             });
-
         }
 
+        // Make sure parent belongs to logged-in admin's school
         if (
             parent.schoolId.toString() !==
             req.user.schoolId.toString()
         ) {
-
             return res.status(403).json({
                 success: false,
-                message:
-                    "Access denied",
+                message: "Access denied",
             });
-
         }
 
-        // Check duplicate phone
+        // Check duplicate phone within SAME SCHOOL
         if (req.body.phone) {
-
-            const existingUser =
-                await User.findOne({
-                    phone:
-                        req.body.phone,
-                    _id: {
-                        $ne:
-                            req.params.id,
-                    },
-                });
+            const existingUser = await User.findOne({
+                phone: req.body.phone,
+                schoolId: req.user.schoolId,
+                _id: {
+                    $ne: req.params.id,
+                },
+            });
 
             if (existingUser) {
-
                 return res.status(400).json({
                     success: false,
                     message:
-                        "Another user already has the same number",
+                        "Another user in this school already has the same number",
                 });
-
             }
-
         }
 
-        // Check duplicate email
-if (req.body.email) {
+        // Check duplicate email within SAME SCHOOL
+        if (req.body.email) {
+            const existingEmail = await User.findOne({
+                email: req.body.email.toLowerCase(),
+                schoolId: req.user.schoolId,
+                _id: {
+                    $ne: req.params.id,
+                },
+            });
 
-    const existingEmail =
-        await User.findOne({
-            email:
-                req.body.email.toLowerCase(),
-
-            _id: {
-                $ne: req.params.id,
-            },
-        });
-
-    if (existingEmail) {
-
-        return res.status(400).json({
-            success: false,
-            message:
-                "Another user already has the same email",
-        });
-
-    }
-}
+            if (existingEmail) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Another user in this school already has the same email",
+                });
+            }
+        }
 
         const updatedParent =
             await User.findByIdAndUpdate(
                 req.params.id,
                 {
-                    name:
-                        req.body.name,
-                     email:
-                        req.body.email,    
-                    phone:
-                        req.body.phone,
+                    name: req.body.name,
+                    email: req.body.email,
+                    phone: req.body.phone,
                 },
                 {
                     new: true,
@@ -306,8 +295,7 @@ if (req.body.email) {
 
         res.status(200).json({
             success: true,
-            parent:
-                updatedParent,
+            parent: updatedParent,
         });
 
     } catch (error) {
@@ -317,26 +305,37 @@ if (req.body.email) {
             error
         );
 
-        if (
-            error.code === 11000
-        ) {
+        // MongoDB duplicate-key protection
+        if (error.code === 11000) {
+
+            if (error.keyPattern?.phone) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Another user in this school already has the same number",
+                });
+            }
+
+            if (error.keyPattern?.email) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Another user in this school already has the same email",
+                });
+            }
 
             return res.status(400).json({
                 success: false,
                 message:
-                    "Another user already has the same number",
+                    "Duplicate phone or email",
             });
-
         }
 
         res.status(500).json({
             success: false,
-            message:
-                error.message,
+            message: error.message,
         });
-
     }
-
 };
 
 exports.deleteParent = async (req, res) => {
