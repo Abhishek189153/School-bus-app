@@ -34,41 +34,69 @@ exports.createDriver = async (req, res) => {
         // CHECK DUPLICATE PHONE
         // ==========================================
 
+        // const existingUser =
+        //     await User.findOne({
+        //         phone,
+        //     });
+
+        // if (existingUser) {
+
+        //     return res.status(400).json({
+        //         success: false,
+        //         message:
+        //             "Another user already has the same number",
+        //     });
+
+        // }
+
         const existingUser =
-            await User.findOne({
-                phone,
-            });
+    await User.findOne({
+        phone,
+        schoolId: req.user.schoolId,
+    });
 
-        if (existingUser) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Another user already has the same number",
-            });
-
-        }
+if (existingUser) {
+    return res.status(400).json({
+        success: false,
+        message:
+            "Another user in this school already has the same number",
+    });
+}
 
 
         // ==========================================
         // CHECK DUPLICATE EMAIL
         // ==========================================
 
+        // const existingEmail =
+        //     await User.findOne({
+        //         email:
+        //             normalizedEmail,
+        //     });
+
+        // if (existingEmail) {
+
+        //     return res.status(400).json({
+        //         success: false,
+        //         message:
+        //             "Another user already has the same email",
+        //     });
+
+        // }
+
         const existingEmail =
-            await User.findOne({
-                email:
-                    normalizedEmail,
-            });
+    await User.findOne({
+        email: normalizedEmail,
+        schoolId: req.user.schoolId,
+    });
 
-        if (existingEmail) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Another user already has the same email",
-            });
-
-        }
+if (existingEmail) {
+    return res.status(400).json({
+        success: false,
+        message:
+            "Another user in this school already has the same email",
+    });
+}
 
 
         // ==========================================
@@ -319,17 +347,13 @@ exports.updateDriver = async (req, res) => {
         if (req.body.phone) {
 
             const existingUser =
-                await User.findOne({
-
-                    phone:
-                        req.body.phone,
-
-                    _id: {
-                        $ne:
-                            req.params.id,
-                    },
-
-                });
+    await User.findOne({
+        phone: req.body.phone,
+        schoolId: req.user.schoolId,
+        _id: {
+            $ne: req.params.id,
+        },
+    });
 
 
             if (existingUser) {
@@ -364,18 +388,14 @@ exports.updateDriver = async (req, res) => {
                     .toLowerCase();
 
 
-            const existingEmail =
-                await User.findOne({
-
-                    email:
-                        normalizedEmail,
-
-                    _id: {
-                        $ne:
-                            req.params.id,
-                    },
-
-                });
+           const existingEmail =
+    await User.findOne({
+        email: normalizedEmail,
+        schoolId: req.user.schoolId,
+        _id: {
+            $ne: req.params.id,
+        },
+    });
 
 
             if (existingEmail) {

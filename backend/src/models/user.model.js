@@ -16,7 +16,6 @@ const userSchema = new mongoose.Schema(
         type: String,
         trim: true,
         lowercase: true,
-        unique: true,
         sparse: true,
         },
 
@@ -38,8 +37,7 @@ const userSchema = new mongoose.Schema(
         phone: {
             type: String,
             required: true,
-            unique: true,
-        },
+                    },
 
         password: {
             type: String,
@@ -93,6 +91,28 @@ const userSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+    }
+);
+
+userSchema.index(
+    { schoolId: 1, phone: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            schoolId: { $exists: true },
+            phone: { $exists: true },
+        },
+    }
+);
+
+userSchema.index(
+    { schoolId: 1, email: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            schoolId: { $exists: true },
+            email: { $exists: true },
+        },
     }
 );
 
