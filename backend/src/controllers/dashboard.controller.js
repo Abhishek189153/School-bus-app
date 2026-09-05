@@ -47,23 +47,27 @@ async (req, res) => {
             });
 
 
-        const studentsAssigned =
-        await Student.countDocuments({
-            schoolId: req.user.schoolId,
-            busId: {
-            $exists: true,
-            $ne: null,
+       const studentsAssigned =
+    await Student.countDocuments({
+        schoolId,
+        $or: [
+            {
+                pickupBusId: {
+                    $exists: true,
+                    $ne: null,
+                },
             },
-        });
+            {
+                dropBusId: {
+                    $exists: true,
+                    $ne: null,
+                },
+            },
+        ],
+    });
 
-        const studentsUnassigned =
-        await Student.countDocuments({
-            schoolId: req.user.schoolId,
-            $or: [
-            { busId: null },
-            { busId: { $exists: false } },
-            ],
-        });
+       const studentsUnassigned =
+    students - studentsAssigned;
 
         const driversAssigned =
         await Bus.countDocuments({
@@ -78,42 +82,51 @@ async (req, res) => {
         drivers - driversAssigned;
 
       const busesData =
-  await Bus.find({
-    schoolId: req.user.schoolId,
-  });
+    await Bus.find({
+        schoolId,
+    });
 
 let activeBuses = 0;
 
 for (const bus of busesData) {
 
-  const studentCount =
-    await Student.countDocuments({
-      busId: bus._id,
-    });
+    // Check whether bus has a route
+    const additionalRoutes =
+        await BusRoute.countDocuments({
+            busId: bus._id,
+        });
 
-  const additionalRoutes =
-    await BusRoute.countDocuments({
-      busId: bus._id,
-    });
+    const hasRoute =
+        Boolean(bus.routeId) ||
+        additionalRoutes > 0;
 
-  const hasRoute =
-    bus.routeId ||
-    additionalRoutes > 0;
+    // Check whether students are assigned
+    // to this bus for pickup OR drop
+    const studentCount =
+        await Student.countDocuments({
+            schoolId,
+            $or: [
+                {
+                    pickupBusId: bus._id,
+                },
+                {
+                    dropBusId: bus._id,
+                },
+            ],
+        });
 
-  const isActive =
-    bus.driverId &&
-    hasRoute &&
-    studentCount > 0;
+    const isActive =
+        Boolean(bus.driverId) &&
+        hasRoute &&
+        studentCount > 0;
 
-  if (isActive) {
-    activeBuses++;
-  }
-
+    if (isActive) {
+        activeBuses++;
+    }
 }
 
 const inactiveBuses =
-  busesData.length -
-  activeBuses;
+    busesData.length - activeBuses;
 
 
   // Today's Attendance (All PICKUP Trips)
@@ -142,14 +155,13 @@ await StudentAttendance.countDocuments({
 });
 
 // Total Students Assigned to Buses
-const totalAttendanceStudents =
-  await Student.countDocuments({
-    schoolId,
-    busId: {
-      $exists: true,
-      $ne: null,
-    },
-  });
+const totalAttendanceStudents = await Student.countDocuments({
+  schoolId,
+  pickupBusId: {
+    $exists: true,
+    $ne: null,
+  },
+});
 
 const attendancePercentage =
   totalAttendanceStudents > 0
