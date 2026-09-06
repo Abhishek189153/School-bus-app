@@ -28,37 +28,7 @@ exports.createBus = async (req, res) => {
     }
 };
 
-exports.getBuses = async (req, res) => {
 
-    try {
-
-        const buses =
-            await Bus.find({
-                schoolId: req.user.schoolId,
-            })
-            .populate(
-                "driverId",
-                "name phone"
-            )
-            .populate(
-                "routeId",
-                "routeName"
-            );
-
-        res.status(200).json({
-            success: true,
-            buses,
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
-};
 
 exports.getBusById = async (req, res) => {
 
@@ -160,87 +130,92 @@ exports.updateBus = async (req, res) => {
 };
 
 exports.deleteBus = async (req, res) => {
-
     try {
-
-        const bus =
-            await Bus.findById(
-                req.params.id
-            );
+        const bus = await Bus.findById(req.params.id);
 
         if (!bus) {
-
             return res.status(404).json({
                 success: false,
                 message: "Bus not found",
             });
-
         }
 
+        // Make sure the bus belongs to the logged-in school
         if (
             bus.schoolId.toString() !==
             req.user.schoolId.toString()
         ) {
-
             return res.status(403).json({
                 success: false,
                 message: "Access denied",
             });
-
         }
 
+        // Check if a driver is assigned
         if (bus.driverId) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Bus has a driver assigned. Unassign first.",
             });
-
         }
 
+        // Check if a primary route is assigned
         if (bus.routeId) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Bus has a route assigned. Unassign first.",
             });
-
         }
 
-        const assignedStudent =
-            await Student.findOne({
-                busId: req.params.id,
+        // Check if any additional route is assigned
+        const additionalRoute = await BusRoute.findOne({
+            busId: bus._id,
+        });
+
+        if (additionalRoute) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Bus has routes assigned. Unassign first.",
             });
+        }
+
+        // Check if any student is assigned to this bus
+        // through pickup or drop
+        const assignedStudent = await Student.findOne({
+            schoolId: req.user.schoolId,
+            $or: [
+                {
+                    pickupBusId: bus._id,
+                },
+                {
+                    dropBusId: bus._id,
+                },
+            ],
+        });
 
         if (assignedStudent) {
-
             return res.status(400).json({
                 success: false,
                 message:
                     "Students are assigned to this bus. Unassign first.",
             });
-
         }
 
-        await Bus.findByIdAndDelete(
-            req.params.id
-        );
+        // Delete the bus
+        await Bus.findByIdAndDelete(req.params.id);
 
         res.status(200).json({
             success: true,
-            message:
-                "Bus deleted successfully",
+            message: "Bus deleted successfully",
         });
-
     } catch (error) {
-
         res.status(500).json({
             success: false,
             message: error.message,
         });
-
     }
 };
 

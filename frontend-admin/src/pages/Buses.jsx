@@ -17,6 +17,10 @@ import {
   InputAdornment,
   TablePagination,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 
 // Direct file path imports to prevent Vite bundling/resolution errors
@@ -63,6 +67,9 @@ const Buses = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [busToDelete, setBusToDelete] = useState(null);
 
+  // Warning when bus still has driver or route assigned
+const [assignmentWarningOpen, setAssignmentWarningOpen] = useState(false);
+
   // Pagination states
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -84,11 +91,22 @@ const Buses = () => {
     fetchBuses();
   }, []);
 
-  // Opens the confirmation dialog instead of deleting immediately.
-  const handleDeleteClick = (bus) => {
-    setBusToDelete(bus);
-    setDeleteOpen(true);
-  };
+  // Opens the appropriate dialog depending on bus assignments.
+const handleDeleteClick = (bus) => {
+  const hasDriver = Boolean(bus.driverId);
+  const hasRoute = Boolean(bus.routeId);
+
+  // Bus cannot be deleted if either driver or route is assigned.
+  if (hasDriver || hasRoute) {
+    setAssignmentWarningOpen(true);
+    return;
+  }
+
+  // Only buses with no driver and no route
+  // open the normal delete confirmation.
+  setBusToDelete(bus);
+  setDeleteOpen(true);
+};
 
   // Runs only after the user confirms in the dialog.
   const confirmDeleteBus = async () => {
@@ -385,6 +403,73 @@ const Buses = () => {
         entityLabel="bus"
         itemName={busToDelete?.busNumber}
       />
+
+      <Dialog
+  open={assignmentWarningOpen}
+  onClose={() => setAssignmentWarningOpen(false)}
+  maxWidth="xs"
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: "18px",
+      overflow: "hidden",
+    },
+  }}
+>
+  <DialogTitle
+    sx={{
+      px: 3,
+      pt: 3,
+      pb: 1,
+      textAlign: "center",
+      fontWeight: 800,
+      fontSize: 18,
+      color: "#0f172a",
+    }}
+  >
+    Cannot Delete Bus
+  </DialogTitle>
+
+  <DialogContent
+    sx={{
+      px: 3,
+      pb: 1,
+    }}
+  >
+    <Typography
+      sx={{
+        textAlign: "center",
+        fontSize: 14,
+        color: "#475569",
+        lineHeight: 1.6,
+      }}
+    >
+      Unassign driver and routes before deleting bus.
+    </Typography>
+  </DialogContent>
+
+  <DialogActions
+    sx={{
+      px: 3,
+      py: 2.5,
+    }}
+  >
+    <Button
+      fullWidth
+      variant="contained"
+      onClick={() => setAssignmentWarningOpen(false)}
+      sx={{
+        fontWeight: 700,
+        textTransform: "none",
+        borderRadius: "10px",
+        py: 1,
+      }}
+    >
+      OK
+    </Button>
+  </DialogActions>
+</Dialog>
+
     </Box>
   );
 };
