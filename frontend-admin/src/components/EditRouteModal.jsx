@@ -29,6 +29,9 @@ import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import MyLocationOutlinedIcon from "@mui/icons-material/MyLocationOutlined";
 
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+
 // Shared visual style for every text field — same rounded,
 // soft-bordered look used on the Students/Drivers/Routes tables.
 const fieldSx = {
@@ -64,6 +67,20 @@ const EditRouteModal = ({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // =====================================================
+// ADD STOP
+// =====================================================
+
+const [addStopOpen, setAddStopOpen] = useState(false);
+
+const [newStop, setNewStop] = useState({
+  stopName: "",
+  latitude: "",
+  longitude: "",
+});
+
+const [insertPosition, setInsertPosition] = useState("end");
 
   useEffect(() => {
 
@@ -127,6 +144,97 @@ const EditRouteModal = ({
 
 };
 
+
+// =====================================================
+// ADD STOP HANDLERS
+// =====================================================
+
+const handleNewStopChange = (e) => {
+  const { name, value } = e.target;
+
+  setNewStop((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+};
+
+const openAddStopDialog = () => {
+  setNewStop({
+    stopName: "",
+    latitude: "",
+    longitude: "",
+  });
+
+  setInsertPosition("end");
+  setAddStopOpen(true);
+};
+
+const closeAddStopDialog = () => {
+  if (submitting) return;
+
+  setAddStopOpen(false);
+
+  setNewStop({
+    stopName: "",
+    latitude: "",
+    longitude: "",
+  });
+
+  setInsertPosition("end");
+};
+
+const handleAddStop = () => {
+  if (!newStop.stopName.trim()) {
+    return;
+  }
+
+  const stopToAdd = {
+    stopName: newStop.stopName.trim(),
+    latitude:
+      newStop.latitude === ""
+        ? ""
+        : Number(newStop.latitude),
+    longitude:
+      newStop.longitude === ""
+        ? ""
+        : Number(newStop.longitude),
+  };
+
+  const updatedStops = [...formData.stops];
+
+  if (insertPosition === "beginning") {
+    updatedStops.unshift(stopToAdd);
+  } else if (insertPosition === "end") {
+    updatedStops.push(stopToAdd);
+  } else {
+    const afterIndex = Number(insertPosition);
+
+    updatedStops.splice(
+      afterIndex + 1,
+      0,
+      stopToAdd
+    );
+  }
+
+  setFormData((previous) => ({
+    ...previous,
+    stops: updatedStops,
+  }));
+
+  closeAddStopDialog();
+};
+
+const handleDeleteStop = (index) => {
+  const updatedStops = formData.stops.filter(
+    (_, stopIndex) => stopIndex !== index
+  );
+
+  setFormData((previous) => ({
+    ...previous,
+    stops: updatedStops,
+  }));
+};
+
   const handleDialogClose = () => {
     if (submitting) return; // don't let it close mid-save
     setError("");
@@ -152,20 +260,34 @@ const EditRouteModal = ({
           scheduledTime:
             formData.scheduledTime,
 
-          stops:
-            formData.stops.map(
-              (stop) => ({
+          // stops:
+          //   formData.stops.map(
+          //     (stop) => ({
 
-                ...stop,
+          //       ...stop,
 
-                latitude:
-                  Number(stop.latitude),
+          //       latitude:
+          //         Number(stop.latitude),
 
-                longitude:
-                  Number(stop.longitude),
+          //       longitude:
+          //         Number(stop.longitude),
 
-              })
-            ),
+          //     })
+          //   ),
+
+          stops: formData.stops.map((stop) => ({
+  stopName: stop.stopName.trim(),
+  ...(stop.latitude !== "" &&
+  stop.latitude !== null &&
+  stop.latitude !== undefined
+    ? { latitude: Number(stop.latitude) }
+    : {}),
+  ...(stop.longitude !== "" &&
+  stop.longitude !== null &&
+  stop.longitude !== undefined
+    ? { longitude: Number(stop.longitude) }
+    : {}),
+})),
 
         };
 
@@ -335,11 +457,48 @@ const EditRouteModal = ({
         }}
       />
 
-        <Typography
-          sx={{ fontSize: 12.5, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.6px", mt: 3, mb: 1.5 }}
-        >
-          STOPS
-        </Typography>
+      <Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    mt: 3,
+    mb: 1.5,
+  }}
+>
+  <Typography
+    sx={{
+      fontSize: 12.5,
+      fontWeight: 800,
+      color: "#94a3b8",
+      letterSpacing: "0.6px",
+    }}
+  >
+    STOPS
+  </Typography>
+
+  <Button
+    variant="outlined"
+    size="small"
+    startIcon={<AddOutlinedIcon />}
+    onClick={openAddStopDialog}
+    disabled={submitting}
+    sx={{
+      borderColor: "#2563eb",
+      color: "#2563eb",
+      fontWeight: 700,
+      textTransform: "none",
+      borderRadius: "9px",
+      px: 1.5,
+      "&:hover": {
+        borderColor: "#1d4ed8",
+        backgroundColor: "#eff6ff",
+      },
+    }}
+  >
+    Add Stop
+  </Button>
+</Box>
 
         {formData.stops.map(
           (stop, index) => (
@@ -355,12 +514,53 @@ const EditRouteModal = ({
               }}
             >
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
-                <LocationOnOutlinedIcon sx={{ fontSize: 17, color: "#2563eb" }} />
-                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
-                  Stop {index + 1}
-                </Typography>
-              </Box>
+              <Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    mb: 0.5,
+  }}
+>
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: 0.75,
+    }}
+  >
+    <LocationOnOutlinedIcon
+      sx={{
+        fontSize: 17,
+        color: "#2563eb",
+      }}
+    />
+
+    <Typography
+      sx={{
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#334155",
+      }}
+    >
+      Stop {index + 1}
+    </Typography>
+  </Box>
+
+  <IconButton
+    size="small"
+    onClick={() => handleDeleteStop(index)}
+    disabled={submitting}
+    sx={{
+      color: "#ef4444",
+      "&:hover": {
+        backgroundColor: "#fef2f2",
+      },
+    }}
+  >
+    <DeleteOutlineOutlinedIcon fontSize="small" />
+  </IconButton>
+</Box>
 
               <TextField
                 fullWidth
@@ -506,6 +706,246 @@ const EditRouteModal = ({
         </Button>
 
       </DialogActions>
+
+      {/* =====================================================
+    ADD STOP DIALOG
+===================================================== */}
+
+<Dialog
+  open={addStopOpen}
+  onClose={closeAddStopDialog}
+  fullWidth
+  maxWidth="sm"
+  PaperProps={{
+    sx: {
+      borderRadius: "16px",
+      overflow: "hidden",
+    },
+  }}
+>
+  <Box
+    sx={{
+      background:
+        "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+      color: "#fff",
+      px: 3,
+      py: 2.5,
+      position: "relative",
+    }}
+  >
+    <IconButton
+      onClick={closeAddStopDialog}
+      sx={{
+        position: "absolute",
+        top: 10,
+        right: 10,
+        color: "rgba(255,255,255,0.85)",
+        "&:hover": {
+          background: "rgba(255,255,255,0.15)",
+        },
+      }}
+    >
+      <CloseIcon fontSize="small" />
+    </IconButton>
+
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+      }}
+    >
+      <Box
+        sx={{
+          width: 42,
+          height: 42,
+          borderRadius: "12px",
+          display: "grid",
+          placeItems: "center",
+          background: "rgba(255,255,255,0.15)",
+        }}
+      >
+        <LocationOnOutlinedIcon />
+      </Box>
+
+      <Box>
+        <Typography
+          sx={{
+            fontWeight: 800,
+            fontSize: 19,
+          }}
+        >
+          Add Stop
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 13,
+            opacity: 0.9,
+          }}
+        >
+          Choose where this stop should be placed
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
+
+  <DialogContent sx={{ px: 3, py: 3 }}>
+    <TextField
+      fullWidth
+      label="Stop Name"
+      name="stopName"
+      margin="normal"
+      value={newStop.stopName}
+      onChange={handleNewStopChange}
+      sx={fieldSx}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <LocationOnOutlinedIcon
+              sx={{
+                fontSize: 19,
+                color: "#94a3b8",
+              }}
+            />
+          </InputAdornment>
+        ),
+      }}
+    />
+
+    <Grid container spacing={1.5}>
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Latitude"
+          name="latitude"
+          type="number"
+          margin="normal"
+          value={newStop.latitude}
+          onChange={handleNewStopChange}
+          sx={fieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MyLocationOutlinedIcon
+                  sx={{
+                    fontSize: 19,
+                    color: "#94a3b8",
+                  }}
+                />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Longitude"
+          name="longitude"
+          type="number"
+          margin="normal"
+          value={newStop.longitude}
+          onChange={handleNewStopChange}
+          sx={fieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MyLocationOutlinedIcon
+                  sx={{
+                    fontSize: 19,
+                    color: "#94a3b8",
+                  }}
+                />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Grid>
+    </Grid>
+
+    <TextField
+      select
+      fullWidth
+      label="Insert Stop"
+      name="insertPosition"
+      margin="normal"
+      value={insertPosition}
+      onChange={(e) =>
+        setInsertPosition(e.target.value)
+      }
+      sx={fieldSx}
+    >
+      <MenuItem value="beginning">
+        Beginning
+      </MenuItem>
+
+      {formData.stops.map((stop, index) => (
+        <MenuItem
+          key={stop._id || `position-${index}`}
+          value={String(index)}
+        >
+          After Stop {index + 1}
+          {stop.stopName
+            ? ` — ${stop.stopName}`
+            : ""}
+        </MenuItem>
+      ))}
+
+      <MenuItem value="end">
+        End
+      </MenuItem>
+    </TextField>
+  </DialogContent>
+
+  <DialogActions
+    sx={{
+      px: 3,
+      py: 2.5,
+      borderTop: "1px solid #e2e8f0",
+      gap: 1,
+    }}
+  >
+    <Button
+      onClick={closeAddStopDialog}
+      sx={{
+        color: "#64748b",
+        fontWeight: 700,
+        textTransform: "none",
+        borderRadius: "10px",
+        px: 2.5,
+      }}
+    >
+      Cancel
+    </Button>
+
+    <Button
+      variant="contained"
+      onClick={handleAddStop}
+      disabled={!newStop.stopName.trim()}
+      startIcon={<AddOutlinedIcon />}
+      sx={{
+        background: "#2563eb",
+        fontWeight: 700,
+        textTransform: "none",
+        borderRadius: "10px",
+        px: 3,
+
+        "&:hover": {
+          background: "#1d4ed8",
+        },
+
+        "&.Mui-disabled": {
+          background: "#93c5fd",
+          color: "#fff",
+        },
+      }}
+    >
+      Add Stop
+    </Button>
+  </DialogActions>
+</Dialog>
 
     </Dialog>
 
