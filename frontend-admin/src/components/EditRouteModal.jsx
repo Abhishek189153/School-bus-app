@@ -32,6 +32,8 @@ import MyLocationOutlinedIcon from "@mui/icons-material/MyLocationOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 
+import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
+
 // Shared visual style for every text field — same rounded,
 // soft-bordered look used on the Students/Drivers/Routes tables.
 const fieldSx = {
@@ -81,6 +83,10 @@ const [newStop, setNewStop] = useState({
 });
 
 const [insertPosition, setInsertPosition] = useState("end");
+
+// DELETE STOP CONFIRMATION
+const [stopDeleteOpen, setStopDeleteOpen] = useState(false);
+const [stopToDelete, setStopToDelete] = useState(null);
 
   useEffect(() => {
 
@@ -225,14 +231,35 @@ const handleAddStop = () => {
 };
 
 const handleDeleteStop = (index) => {
+  const stop = formData.stops[index];
+
+  setStopToDelete({
+    index,
+    stopName: stop?.stopName || `Stop ${index + 1}`,
+  });
+
+  setStopDeleteOpen(true);
+};
+
+const confirmDeleteStop = () => {
+  if (!stopToDelete) return;
+
   const updatedStops = formData.stops.filter(
-    (_, stopIndex) => stopIndex !== index
+    (_, stopIndex) => stopIndex !== stopToDelete.index
   );
 
   setFormData((previous) => ({
     ...previous,
     stops: updatedStops,
   }));
+
+  setStopDeleteOpen(false);
+  setStopToDelete(null);
+};
+
+const closeStopDeleteDialog = () => {
+  setStopDeleteOpen(false);
+  setStopToDelete(null);
 };
 
   const handleDialogClose = () => {
@@ -318,7 +345,7 @@ const handleDeleteStop = (index) => {
   if (!route) return null;
 
   return (
-
+      <>
     <Dialog
       open={open}
       onClose={handleDialogClose}
@@ -819,7 +846,8 @@ const handleDeleteStop = (index) => {
           fullWidth
           label="Latitude"
           name="latitude"
-          type="number"
+          type="text"
+          inputMode="decimal"
           margin="normal"
           value={newStop.latitude}
           onChange={handleNewStopChange}
@@ -844,7 +872,8 @@ const handleDeleteStop = (index) => {
           fullWidth
           label="Longitude"
           name="longitude"
-          type="number"
+          type="text"
+          inputMode="decimal"
           margin="normal"
           value={newStop.longitude}
           onChange={handleNewStopChange}
@@ -947,7 +976,19 @@ const handleDeleteStop = (index) => {
   </DialogActions>
 </Dialog>
 
+
+
     </Dialog>
+
+     <ConfirmDeleteDialog
+      open={stopDeleteOpen}
+      onClose={closeStopDeleteDialog}
+      onConfirm={confirmDeleteStop}
+      entityLabel="stop"
+      itemName={stopToDelete?.stopName}
+    />
+
+  </>
 
   );
 
