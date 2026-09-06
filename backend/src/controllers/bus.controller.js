@@ -28,7 +28,45 @@ exports.createBus = async (req, res) => {
     }
 };
 
+exports.getBuses = async (req, res) => {
+    try {
+        const buses = await Bus.find({
+            schoolId: req.user.schoolId,
+        })
+            .populate("driverId", "name phone")
+            .populate("routeId", "routeName");
 
+        const busesWithAssignments = await Promise.all(
+            buses.map(async (bus) => {
+                const additionalRouteCount = await BusRoute.countDocuments({
+                    busId: bus._id,
+                });
+
+                return {
+                    ...bus.toObject(),
+
+                    // True if any additional route is assigned
+                    hasAdditionalRoutes: additionalRouteCount > 0,
+
+                    // True if primary OR additional route exists
+                    hasAssignedRoute:
+                        Boolean(bus.routeId) ||
+                        additionalRouteCount > 0,
+                };
+            })
+        );
+
+        res.status(200).json({
+            success: true,
+            buses: busesWithAssignments,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
 
 exports.getBusById = async (req, res) => {
 
