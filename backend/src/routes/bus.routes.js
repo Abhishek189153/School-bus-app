@@ -14,6 +14,17 @@ const {
     getBusOverview
 } = require("../controllers/bus.controller");
 
+console.log("===== BUS ROUTE HANDLERS =====");
+console.log("createBus:", typeof createBus);
+console.log("getBuses:", typeof getBuses);
+console.log("getBusById:", typeof getBusById);
+console.log("updateBus:", typeof updateBus);
+console.log("deleteBus:", typeof deleteBus);
+console.log("getBusOverview:", typeof getBusOverview);
+console.log("protect:", typeof protect);
+console.log("authorize:", typeof authorize);
+console.log("==============================");
+
 router.post(
     "/",
     protect,
