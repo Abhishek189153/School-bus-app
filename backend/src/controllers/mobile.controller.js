@@ -15,6 +15,7 @@ const {sendOTP,} = require("../services/sms.service");
 const {sendNotification} = require("../services/pushNotification.service");
 const WorkingDay = require("../models/workingDay.model");
 const { sendMail } = require("../utils/mail.service");
+const School = require("../models/school.model");
 
 
 
@@ -29,6 +30,11 @@ exports.getDriverDashboard = async (req, res) => {
 
     const schoolId =
       req.user.schoolId;
+
+    const school =
+  await School.findById(
+    schoolId
+  ).select("schoolName");
 
 
     // ==========================================
@@ -596,6 +602,8 @@ exports.getDriverDashboard = async (req, res) => {
 
       success:
         true,
+
+       school, 
 
       today,
 

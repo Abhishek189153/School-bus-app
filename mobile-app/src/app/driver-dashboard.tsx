@@ -152,6 +152,7 @@ export default function DriverDashboard() {
 
     const data =
       await getDriverDashboard();
+      console.log("DRIVER DASHBOARD DATA:", JSON.stringify(data, null, 2));
 
     if (data.success) {
 
