@@ -411,3 +411,9 @@ export const resetPassword = async (
 
   return await response.json();
 };
+
+export const getMySchoolAdmin = async () => {
+  return apiRequest(
+    `${API_BASE_URL}/admin/my-school-admin`
+  );
+};

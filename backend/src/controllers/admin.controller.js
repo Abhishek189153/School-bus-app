@@ -466,3 +466,38 @@ exports.deleteSchoolAdmin = async (req, res) => {
     }
 
 };
+
+exports.getMySchoolAdmin = async (req, res) => {
+    try {
+        const schoolId = req.user.schoolId;
+
+        if (!schoolId) {
+            return res.status(400).json({
+                success: false,
+                message: "School information not found",
+            });
+        }
+
+        const admin = await User.findOne({
+            role: "SCHOOL_ADMIN",
+            schoolId,
+        }).select("name phone email profileImage");
+
+        if (!admin) {
+            return res.status(404).json({
+                success: false,
+                message: "School Admin not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            admin,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};

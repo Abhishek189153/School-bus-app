@@ -9,7 +9,9 @@ import {
   StatusBar,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { stopLocationTracking } from "../services/locationTracker";
 import { stopBackgroundTracking } from "../services/backgroundLocation";
@@ -17,8 +19,10 @@ import { getTripSummary, endTrip } from "../services/mobile.service";
 
 export default function TripSummary() {
   const { tripId } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [selectedList, setSelectedList] = useState<"BOARDED" | "ABSENT" | null>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [ending, setEnding] = useState(false);
 
   useEffect(() => {
     loadSummary();
@@ -32,41 +36,63 @@ export default function TripSummary() {
   };
 
   const handleEndTrip = async () => {
-    const data = await endTrip(tripId);
-    if (data.success) {
-      stopLocationTracking();
-      await stopBackgroundTracking();
+    if (ending) return;
+    Alert.alert("End Trip", "Are you sure you want to end this trip?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "End Trip",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setEnding(true);
+            const data = await endTrip(tripId);
+            if (data.success) {
+              stopLocationTracking();
+              await stopBackgroundTracking();
 
-      Alert.alert("Success", "Trip Completed");
-
-      router.replace({
-        pathname: "/routes",
-        params: {
-          tripCompleted: "true",
+              router.replace({
+                pathname: "/routes",
+                params: {
+                  tripCompleted: "true",
+                },
+              });
+            } else {
+              Alert.alert("Error", "Could not end the trip. Please try again.");
+            }
+          } finally {
+            setEnding(false);
+          }
         },
-      });
-    }
+      },
+    ]);
   };
 
   if (!summary) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
+        <ActivityIndicator size="large" color="#3B82F6" />
         <Text style={styles.loadingText}>Loading summary...</Text>
       </SafeAreaView>
     );
   }
 
+  const boardedPct =
+    summary.totalStudents > 0
+      ? Math.round((summary.totalBoarded / summary.totalStudents) * 100)
+      : 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
 
-      {/* Structured Balanced Header Area */}
+      {/* Header */}
       <View style={styles.headerContainer}>
         <TouchableOpacity
           style={styles.backButtonCircle}
           onPress={() => router.back()}
           activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.backArrowText}>←</Text>
         </TouchableOpacity>
@@ -74,11 +100,14 @@ export default function TripSummary() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContentContainer}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContentContainer,
+          { paddingBottom: 110 + insets.bottom },
+        ]}
       >
-        {/* Main Trip Meta Information Card */}
+        {/* Trip Meta Card */}
         <View style={styles.card}>
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Driver</Text>
@@ -99,9 +128,17 @@ export default function TripSummary() {
             <Text style={styles.totalLabel}>Total Students</Text>
             <Text style={styles.totalValue}>{summary.totalStudents}</Text>
           </View>
+
+          {/* Progress bar for boarded ratio */}
+          <View style={styles.progressTrack}>
+            <View
+              style={[styles.progressFill, { width: `${boardedPct}%` }]}
+            />
+          </View>
+          <Text style={styles.progressLabel}>{boardedPct}% boarded</Text>
         </View>
 
-        {/* Dynamic List Selection Grid Buttons */}
+        {/* Selection Buttons */}
         <View style={styles.selectionGrid}>
           <TouchableOpacity
             style={[
@@ -112,7 +149,8 @@ export default function TripSummary() {
             activeOpacity={0.8}
             onPress={() => setSelectedList(selectedList === "BOARDED" ? null : "BOARDED")}
           >
-            <Text style={styles.btnText}>Boarded ({summary.totalBoarded})</Text>
+            <Text style={styles.btnCount}>{summary.totalBoarded}</Text>
+            <Text style={styles.btnText}>Boarded</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -124,41 +162,61 @@ export default function TripSummary() {
             activeOpacity={0.8}
             onPress={() => setSelectedList(selectedList === "ABSENT" ? null : "ABSENT")}
           >
-            <Text style={styles.btnText}>Unboarded ({summary.absent})</Text>
+            <Text style={styles.btnCount}>{summary.absent}</Text>
+            <Text style={styles.btnText}>Unboarded</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Conditional Selected Sub-List Block View */}
+        {/* Sub-list */}
         {selectedList && (
           <View style={styles.subListContainer}>
             <Text style={styles.subListHeading}>
-              {selectedList === "BOARDED" ? "Boarded Students Breakdown" : "Unboarded Students Breakdown"}
+              {selectedList === "BOARDED" ? "Boarded Students" : "Unboarded Students"}
             </Text>
 
             {(selectedList === "BOARDED" ? summary.boardedStudents : summary.absentStudents).map(
               (student: any) => (
                 <View key={student._id} style={styles.studentItemRow}>
-                  <Text style={styles.bulletPoint}>•</Text>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor:
+                          selectedList === "BOARDED" ? "#22C55E" : "#EF4444",
+                      },
+                    ]}
+                  />
                   <Text style={styles.studentNameText}>{student.name}</Text>
                 </View>
               )
             )}
-            
-            {(selectedList === "BOARDED" ? summary.boardedStudents : summary.absentStudents).length === 0 && (
+
+            {(selectedList === "BOARDED" ? summary.boardedStudents : summary.absentStudents)
+              .length === 0 && (
               <Text style={styles.emptyText}>No students found in this state.</Text>
             )}
           </View>
         )}
       </ScrollView>
 
-      {/* Fixed Sticky Dynamic CTA Button Footer Area */}
-      <View style={styles.footerContainer}>
+      {/* Footer — padded for the device's gesture/nav bar so it never overlaps */}
+      <View
+        style={[
+          styles.footerContainer,
+          { paddingBottom: 16 + insets.bottom },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.endBtn}
+          style={[styles.endBtn, ending && styles.endBtnDisabled]}
           activeOpacity={0.9}
           onPress={handleEndTrip}
+          disabled={ending}
         >
-          <Text style={styles.endBtnText}>End Trip</Text>
+          {ending ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.endBtnText}>End Trip</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -168,81 +226,74 @@ export default function TripSummary() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#141414",
     paddingHorizontal: 16,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#141414",
     justifyContent: "center",
     alignItems: "center",
+    gap: 12,
   },
   loadingText: {
     color: "#A0AEC0",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
   },
   scrollContentContainer: {
-    paddingBottom: 120, // Cushion space over absolute layout footer button bounds
+    paddingTop: 4,
   },
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: Platform.OS === "ios" ? 10 : 30,
-    marginBottom: 24,
+    marginTop: Platform.OS === "ios" ? 8 : 24,
+    marginBottom: 20,
     height: 48,
   },
   backButtonCircle: {
-    width: 54,
+    width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#2D2D2D",
+    backgroundColor: "#242424",
     alignItems: "center",
     justifyContent: "center",
   },
   backArrowText: {
     color: "#FFFFFF",
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "600",
     textAlign: "center",
-    ...Platform.select({
-      ios: { paddingBottom: 2 },
-      android: { paddingBottom: 4 },
-    }),
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 25,
+    fontWeight: "700",
     color: "#FFFFFF",
     textAlign: "center",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    marginTop: 8,
   },
   headerSpacer: {
-    width: 44, // Keeps layout alignment centered perfectly
+    width: 44,
   },
   card: {
-    backgroundColor: "#2D2D2D",
-    borderColor: "#3D3D3D",
+    backgroundColor: "#1E1E1E",
+    borderColor: "#2A2A2A",
     borderWidth: 1,
     padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    borderRadius: 18,
+    marginBottom: 18,
   },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
   metaLabel: {
-    fontSize: 14,
-    color: "#A0AEC0",
+    fontSize: 13.5,
+    color: "#8A94A6",
     fontWeight: "500",
   },
   metaValue: {
@@ -252,28 +303,47 @@ const styles = StyleSheet.create({
   },
   dividerLine: {
     height: 1,
-    backgroundColor: "#3D3D3D",
+    backgroundColor: "#2A2A2A",
     marginVertical: 14,
   },
   totalLabel: {
-    fontSize: 16,
+    fontSize: 15.5,
     color: "#FFFFFF",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   totalValue: {
-    fontSize: 20,
-    color: "#1D4ED8", // Highlight color matching primary buttons
-    fontWeight: "bold",
+    fontSize: 22,
+    color: "#3B82F6",
+    fontWeight: "800",
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2A2A2A",
+    marginTop: 14,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#3B82F6",
+    borderRadius: 3,
+  },
+  progressLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#8A94A6",
+    fontWeight: "500",
+    textAlign: "right",
   },
   selectionGrid: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   listBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -283,52 +353,59 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   btnBoardBg: {
-    backgroundColor: "#166534",
+    backgroundColor: "#14532D",
   },
   btnUnboardBg: {
-    backgroundColor: "#991B1B",
+    backgroundColor: "#7F1D1D",
+  },
+  btnCount: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 20,
+    marginBottom: 2,
   },
   btnText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 14,
-    letterSpacing: 0.2,
+    color: "#E5E7EB",
+    fontWeight: "600",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
   subListContainer: {
-    backgroundColor: "#252525",
-    borderRadius: 14,
+    backgroundColor: "#1A1A1A",
+    borderRadius: 16,
     padding: 16,
-    borderColor: "#2D2D2D",
+    borderColor: "#262626",
     borderWidth: 1,
   },
   subListHeading: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#A0AEC0",
-    marginBottom: 12,
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#8A94A6",
+    marginBottom: 10,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   studentItemRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#2D2D2D",
+    borderBottomColor: "#242424",
   },
-  bulletPoint: {
-    fontSize: 18,
-    color: "#A0AEC0",
-    marginRight: 8,
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 10,
   },
   studentNameText: {
-    fontSize: 15,
-    color: "#FFFFFF",
+    fontSize: 14.5,
+    color: "#F1F1F1",
     fontWeight: "500",
   },
   emptyText: {
-    color: "#718096",
-    fontSize: 14,
+    color: "#6B7280",
+    fontSize: 13.5,
     textAlign: "center",
     marginVertical: 10,
     fontStyle: "italic",
@@ -338,27 +415,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#141414",
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopColor: "#2D2D2D",
+    paddingTop: 14,
+    borderTopColor: "#242424",
     borderTopWidth: 1,
   },
   endBtn: {
-    backgroundColor: "#D32F2F", // High alert action red
+    backgroundColor: "#DC2626",
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#D32F2F",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+  },
+  endBtnDisabled: {
+    opacity: 0.6,
   },
   endBtnText: {
     color: "#FFFFFF",
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 16,
     letterSpacing: 0.3,
   },

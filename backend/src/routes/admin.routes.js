@@ -13,7 +13,7 @@ const {getDashboardStats} = require("../controllers/admin.controller");
 // } = require("../controllers/admin.controller");
 
 const {
-  createSchoolAdmin, getAttendanceHistory, getSchoolAdmins, getSchoolAdmin, updateSchoolAdmin, deleteSchoolAdmin,
+  createSchoolAdmin, getAttendanceHistory, getSchoolAdmins, getSchoolAdmin, updateSchoolAdmin, deleteSchoolAdmin,getMySchoolAdmin
 } = require(
   "../controllers/admin.controller"
 );
@@ -76,6 +76,12 @@ router.delete(
     protect,
     authorize("SUPER_ADMIN"),
     deleteSchoolAdmin
+);
+
+router.get(
+    "/my-school-admin",
+    protect,
+    getMySchoolAdmin
 );
 
 module.exports = router;

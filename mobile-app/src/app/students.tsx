@@ -32,23 +32,32 @@ function PressableScale({
   scaleTo?: number;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
 
-  const animateTo = (value: number) => {
-    Animated.spring(scale, {
-      toValue: value,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
-    }).start();
+  const animateTo = (scaleValue: number, opacityValue: number) => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: scaleValue,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 4,
+      }),
+      Animated.timing(opacity, {
+        toValue: opacityValue,
+        duration: 90,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => animateTo(scaleTo)}
-      onPressOut={() => animateTo(1)}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      onPressIn={() => animateTo(scaleTo, 0.8)}
+      onPressOut={() => animateTo(1, 1)}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
+      <Animated.View style={[style, { transform: [{ scale }], opacity }]}>
         {children}
       </Animated.View>
     </Pressable>
