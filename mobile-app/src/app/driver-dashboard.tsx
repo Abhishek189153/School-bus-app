@@ -84,8 +84,11 @@ export default function DriverDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [bus, setBus] = useState<any>(null);
+  const [school, setSchool] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [activeRoutesCount, setActiveRoutesCount] = useState(0);
+
+  
 
   const [duty, setDuty] = useState<{
   status: "ON" | "OFF";
@@ -154,6 +157,10 @@ export default function DriverDashboard() {
 
       setBus(
         data.bus || null
+      );
+
+      setSchool(
+        data.school || null
       );
 
       setActiveTrip(
@@ -310,6 +317,11 @@ export default function DriverDashboard() {
             <Animated.Text style={[styles.driverName, { opacity: nameOpacity }]}>
                {bus?.driverId?.name?.trim().split(/\s+/)[0] || "Driver"}
             </Animated.Text>
+
+          <Text style={styles.schoolName}>
+            {school?.schoolName || "School"}
+          </Text>
+
             <Text style={styles.safeTrip}>Have a safe trip!</Text>
           </View>
         </View>
@@ -805,5 +817,15 @@ taglineText: {
   color: "#020914",
   textAlign: "center",
   marginTop: 4,
+},
+
+schoolName: {
+  fontSize: 15,
+  fontWeight: "600",
+  color: "#FFFFFF",
+  marginTop: 4,
+  textShadowColor: "rgba(0, 0, 0, 0.55)",
+  textShadowOffset: { width: 1, height: 1.5 },
+  textShadowRadius: 4,
 },
 });
