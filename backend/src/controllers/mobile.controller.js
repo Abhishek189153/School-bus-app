@@ -22,7 +22,6 @@ const School = require("../models/school.model");
 
 
 
-
 exports.getDriverDashboard = async (req, res) => {
   try {
 
@@ -3730,10 +3729,6 @@ exports.getProfile = async (
 
         }
 
-       const school = parent.schoolId
-    ? await School.findById(parent.schoolId).select("schoolName")
-    : null;
-
 
         // ==========================================
         // FIND STUDENTS
@@ -3843,10 +3838,6 @@ exports.getProfile = async (
         return res.status(200).json({
 
             success: true,
-
-              school: {
-        schoolName: school?.schoolName || "School",
-    },
 
 
             // ======================================
