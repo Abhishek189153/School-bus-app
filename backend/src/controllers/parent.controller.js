@@ -720,7 +720,7 @@ exports.getParentDashboard = async (req, res) => {
         return res.status(200).json({
 
             success: true,
-                school,
+                school: schoolName,
 
 
             boardingStatus:

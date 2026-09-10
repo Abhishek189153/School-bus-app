@@ -376,7 +376,7 @@ useEffect(() => {
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingBottom: 30 + insets.bottom,
+        paddingBottom:  Math.max(insets.bottom, 8),
       }}
     >
       <View
@@ -865,7 +865,7 @@ const styles =
         "#FFFFFF",
       padding: 16,
       paddingTop: 20,
-      paddingBottom: 80,
+      paddingBottom: 30,
     },
 
     card: {
@@ -1014,7 +1014,7 @@ schoolFooterLabel: {
 
 schoolFooterName: {
   fontSize: 15,
-  color: "#263238",
+  color: "#8A94A6",
   fontWeight: "700",
   textAlign: "center",
 },
