@@ -106,6 +106,32 @@ export default function Profile() {
   showsVerticalScrollIndicator={false}
 >
 
+  {/* School Header */}
+<View
+  style={[
+    styles.schoolHeader,
+    {
+      backgroundColor: darkMode
+        ? "#001233"
+        : "#EEF3FA",
+    },
+  ]}
+>
+  <Text
+    style={[
+      styles.schoolHeaderName,
+      {
+        color: darkMode
+          ? "#FFFFFF"
+          : "#123B6D",
+      },
+    ]}
+    numberOfLines={1}
+  >
+    {profile?.school?.schoolName || "School"}
+  </Text>
+</View>
+
     {/* Header Background */}
 
     <View style={styles.topBackground} />
@@ -1223,4 +1249,17 @@ transportSubTitle: {
   marginBottom: 10,
 },
 
+schoolHeader: {
+  alignItems: "center",
+  justifyContent: "center",
+  paddingTop: 4,
+  paddingBottom: 10,
+},
+
+schoolHeaderName: {
+  fontSize: 17,
+  fontWeight: "700",
+  letterSpacing: 0.3,
+  textAlign: "center",
+},
 });

@@ -389,7 +389,6 @@ exports.deleteParent = async (req, res) => {
     }
 };
 
-
 exports.getParentDashboard = async (req, res) => {
 
     console.log(
@@ -720,7 +719,7 @@ exports.getParentDashboard = async (req, res) => {
         return res.status(200).json({
 
             success: true,
-                school: schoolName,
+                school: school?.schoolName,
 
 
             boardingStatus:
