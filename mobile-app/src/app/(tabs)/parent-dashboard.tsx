@@ -76,6 +76,11 @@ export default function ParentDashboard() {
   setDashboard] =
   React.useState<any>(null);
 
+  const schoolName =
+  dashboard?.schoolName ||
+  dashboard?.school?.schoolName ||
+  "School";
+
   const [
   announcements,
   setAnnouncements,
@@ -822,6 +827,16 @@ announcements.length > 0 && (
 
 </View>
 
+<View style={styles.schoolFooter}>
+  <Text style={styles.schoolFooterLabel}>
+    Managed by
+  </Text>
+
+  <Text style={styles.schoolFooterName}>
+    {schoolName || "School"}
+  </Text>
+</View>
+
 </ScrollView>
 
     </View>
@@ -980,5 +995,28 @@ const styles =
       fontSize: 16,
       fontWeight: "600",
     },
+
+    schoolFooter: {
+  alignItems: "center",
+  marginTop: 24,
+  marginBottom: 20,
+  paddingVertical: 14,
+},
+
+schoolFooterLabel: {
+  fontSize: 12,
+  color: "#8A94A6",
+  fontWeight: "500",
+  textTransform: "uppercase",
+  letterSpacing: 1,
+  marginBottom: 4,
+},
+
+schoolFooterName: {
+  fontSize: 15,
+  color: "#263238",
+  fontWeight: "700",
+  textAlign: "center",
+},
 
   });

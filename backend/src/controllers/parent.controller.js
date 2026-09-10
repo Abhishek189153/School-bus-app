@@ -5,6 +5,7 @@ const Bus = require("../models/bus.model");
 const Trip = require("../models/trip.model");
 const BusLocation = require("../models/busLocation.model");
 const Route = require("../models/route.model");
+const School = require("../models/school.model");
 
 
 exports.createParent = async (req, res) => {
@@ -411,6 +412,11 @@ exports.getParentDashboard = async (req, res) => {
 
         }
 
+        const school =
+    await School.findById(
+        req.user.schoolId
+    ).select("schoolName");
+
 
         // ==========================================
         // FIND STUDENTS
@@ -714,6 +720,8 @@ exports.getParentDashboard = async (req, res) => {
         return res.status(200).json({
 
             success: true,
+                school,
+
 
             boardingStatus:
 
