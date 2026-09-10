@@ -274,6 +274,7 @@ export default function DriverDashboard() {
   // Hero height scales with screen height instead of a fixed 250px,
   // clamped so it never gets too short (small phones) or too tall (tablets/large phones).
   const heroHeight = Math.min(Math.max(height * 0.3, 220), 300);
+  const badgeTop = insets.top + heroHeight * 0.12;
 
   return (
     <ScrollView
@@ -293,7 +294,7 @@ export default function DriverDashboard() {
             padding on each side — previously the left side had only 4px of
             padding vs 16px on the right, which is what made "Bus-3" look
             pushed against the edge compared to the vehicle number. */}
-        <View
+        {/* <View
           style={[
             styles.badgeRow,
             { top: insets.top + 18, left: 0, right: 0, paddingHorizontal: 16 },
@@ -308,7 +309,19 @@ export default function DriverDashboard() {
               {bus?.vehicleNumber || "UK07 AB 1414"}
             </Text>
           </View>
-        </View>
+        </View> */}
+
+        <View style={[styles.badgeRow, { paddingTop: badgeTop }]}>
+  <View style={styles.busBadge}>
+    <Text style={styles.busBadgeText}>{bus?.busNumber || "BUS-3"}</Text>
+  </View>
+
+  <View style={styles.vehicleBadge}>
+    <Text style={styles.vehicleBadgeText}>
+      {bus?.vehicleNumber || "UK07 AB 1414"}
+    </Text>
+  </View>
+</View>
 
         <View style={styles.heroOverlayContainer}>
           <View style={styles.overlayTextContent}>
@@ -319,9 +332,9 @@ export default function DriverDashboard() {
                {bus?.driverId?.name?.trim().split(/\s+/)[0] || "Driver"}
             </Animated.Text>
 
-          <Text style={styles.schoolName}>
+          {/* <Text style={styles.schoolName}>
             {school?.schoolName || "School"}
-          </Text>
+          </Text> */}
 
             <Text style={styles.safeTrip}>Have a safe trip!</Text>
           </View>
@@ -559,6 +572,12 @@ export default function DriverDashboard() {
         </PressableScale>
 
             <View style={styles.versionContainer}>
+
+               <View style={styles.footerDivider} />
+
+  <Text style={styles.footerSchoolName}>
+    {school?.schoolName || "School"}
+  </Text>
   <Text style={styles.versionText}>
     Version 1.1.0
   </Text>
@@ -771,12 +790,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  badgeRow: {
-    position: "absolute",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    zIndex: 999,
-  },
+  // badgeRow: {
+  //   position: "absolute",
+  //   flexDirection: "row",
+  //   justifyContent: "space-between",
+  //   zIndex: 999,
+  // },
   busBadge: {
     backgroundColor: "#1F2937",
     paddingHorizontal: 14,
@@ -803,7 +822,7 @@ const styles = StyleSheet.create({
   flexGrow: 1,
   justifyContent: "flex-end",
   alignItems: "center",
-  paddingTop: 80,
+  paddingTop: 56,
   paddingBottom: 8,
 },
 
@@ -828,5 +847,28 @@ schoolName: {
   textShadowColor: "rgba(0, 0, 0, 0.55)",
   textShadowOffset: { width: 1, height: 1.5 },
   textShadowRadius: 4,
+},
+
+footerDivider: {
+  width: 60,
+  height: 1,
+  backgroundColor: "#E5E7EB",
+  marginBottom: 8,
+},
+footerSchoolName: {
+  fontSize: 15,
+  fontWeight: "700",
+  color: "#1F2937",
+  textAlign: "center",
+  letterSpacing: 0.3,
+  marginBottom: 6,
+},
+
+badgeRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  paddingHorizontal: 16,
+  zIndex: 10,
 },
 });

@@ -112,6 +112,11 @@ useState(null);
 // Controlled pagination model — needed so the "#" column can
 // compute a row's absolute position (not just its position
 // within the current page).
+//
+// pageSize is only a starting value: `autoPageSize` on the grid
+// recalculates it from the available height and pushes the new
+// value back through onPaginationModelChange, so the "#" column
+// stays correct at any window size.
 const [paginationModel, setPaginationModel] = useState({
   page: 0,
   pageSize: 10,
@@ -478,7 +483,15 @@ variant="outlined"
 
 sx={{
 
-height:600,
+// Fills the viewport instead of a fixed 600px box. The 260px
+// subtracted here covers the top app bar, the page's own
+// padding, and the title block above the grid — tune only
+// this number if the bottom edge sits too high or too low.
+height: "calc(100vh - 260px)",
+
+// Stops the grid collapsing into an unusable sliver on short
+// laptop screens.
+minHeight: 420,
 
 background:"#fff",
 
@@ -506,7 +519,11 @@ paginationModel={paginationModel}
 
 onPaginationModelChange={setPaginationModel}
 
-pageSizeOptions={[10, 25, 50]}
+// Fits as many rows as the available height allows, so the
+// grid stays filled at any window size. Note this overrides
+// pageSizeOptions — the "Rows per page" dropdown becomes
+// informational rather than a control.
+autoPageSize
 
 disableRowSelectionOnClick
 

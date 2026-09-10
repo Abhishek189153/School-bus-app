@@ -3,7 +3,6 @@ const Bus = require("../models/bus.model");
 const Route = require("../models/route.model");
 const Attendance = require("../models/attendance.model");
 const Trip = require("../models/trip.model");
-const School = require("../models/school.model");
 
 exports.getDriverDashboard = async (req, res) => {
   try {
@@ -13,8 +12,6 @@ exports.getDriverDashboard = async (req, res) => {
 
     const schoolId =
       req.user.schoolId;
-
-    const school = await School.findById(schoolId).select("schoolName");
 
     // ==========================================
     // FIND DRIVER
@@ -293,8 +290,6 @@ exports.getDriverDashboard = async (req, res) => {
       data: {
 
         driver,
-
-        school,
 
         bus,
 
